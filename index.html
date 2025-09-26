@@ -32,6 +32,7 @@
         .rating-star { cursor: pointer; color: #6b7280; transition: color 0.2s; }
         .rating-stars:hover .rating-star { color: #f59e0b; }
         .rating-stars .rating-star:hover ~ .rating-star { color: #6b7280; }
+        .glass-modal-content { background: rgba(39, 64, 89, 0.6); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1rem; }
     </style>
 </head>
 <body class="flex flex-col h-screen">
@@ -49,32 +50,34 @@
     </div>
 
     <div id="main-app-container" class="hidden h-full flex-col relative w-full">
-         <header class="p-4 text-center text-white text-lg font-bold shadow-md sticky top-0 z-10" style="background-color: var(--brand-secondary-bg);"><h1 id="header-title">تیکت‌ها</h1></header>
-        <main id="app-container" class="flex-grow overflow-y-auto">
-            <div id="tickets-list-view" class="p-4">
-                 <div id="smart-card" class="p-4 rounded-lg shadow-lg mb-4" style="background: linear-gradient(135deg, #3D5A80 0%, #274059 100%);">
-                    <h3 id="smart-card-greeting" class="text-lg font-bold text-white mb-3">سلام! 👋</h3>
-                    <p class="text-sm text-gray-300">برای سوالات عمومی و مشکلات احتمالی، همیشه ابتدا بخش سوالات متداول را بررسی کنید.</p>
+        <div id="main-content" class="flex-grow flex flex-col">
+            <header class="p-4 text-center text-white text-lg font-bold shadow-md sticky top-0 z-10" style="background-color: var(--brand-secondary-bg);"><h1 id="header-title">تیکت‌ها</h1></header>
+            <main id="app-container" class="flex-grow overflow-y-auto">
+                <div id="tickets-list-view" class="p-4">
+                    <div id="smart-card" class="p-4 rounded-lg shadow-lg mb-4" style="background: linear-gradient(135deg, #3D5A80 0%, #274059 100%);">
+                        <h3 id="smart-card-greeting" class="text-lg font-bold text-white mb-3">سلام! 👋</h3>
+                        <p class="text-sm text-gray-300">برای سوالات عمومی و مشکلات احتمالی، همیشه ابتدا بخش سوالات متداول را بررسی کنید.</p>
+                    </div>
+                    <div id="tickets-container" class="space-y-3"></div>
+                    <div id="no-tickets-message" class="hidden text-center text-gray-400 mt-16">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                        <p class="mt-4 text-lg">هنوز تیکتی ثبت نکرده‌اید!</p>
+                    </div>
                 </div>
-                <div id="tickets-container" class="space-y-3"></div>
-                <div id="no-tickets-message" class="hidden text-center text-gray-400 mt-16">
-                     <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                    <p class="mt-4 text-lg">هنوز تیکتی ثبت نکرده‌اید!</p>
+                <div id="new-ticket-view" class="p-4 hidden">
+                    <form id="new-ticket-form" class="space-y-4">
+                        <div><label for="department" class="block mb-2 text-sm font-medium">دپارتمان</label><select id="department" name="department" class="form-select"><option value="general">سوالات متفرقه</option><option value="technical">واحد فنی</option><option value="sales">واحد فروش</option></select></div>
+                        <div><label for="subject" class="block mb-2 text-sm font-medium">موضوع</label><input type="text" id="subject" name="subject" class="form-input" placeholder="موضوع تیکت خود را وارد کنید" required></div>
+                        <div><label for="message" class="block mb-2 text-sm font-medium">متن پیام</label><textarea id="message" name="message" rows="6" class="form-textarea" placeholder="مشکل یا سوال خود را با جزئیات کامل بنویسید..." required></textarea></div>
+                        <button type="submit" id="submit-new-ticket-btn" class="text-white px-4 py-2 rounded-md w-full disabled:opacity-50" style="background-color: var(--brand-light-blue);">ارسال</button>
+                    </form>
                 </div>
-            </div>
-            <div id="new-ticket-view" class="p-4 hidden">
-                 <form id="new-ticket-form" class="space-y-4">
-                    <div><label for="department" class="block mb-2 text-sm font-medium">دپارتمان</label><select id="department" name="department" class="form-select"><option value="general">سوالات متفرقه</option><option value="technical">واحد فنی</option><option value="sales">واحد فروش</option></select></div>
-                    <div><label for="subject" class="block mb-2 text-sm font-medium">موضوع</label><input type="text" id="subject" name="subject" class="form-input" placeholder="موضوع تیکت خود را وارد کنید" required></div>
-                    <div><label for="message" class="block mb-2 text-sm font-medium">متن پیام</label><textarea id="message" name="message" rows="6" class="form-textarea" placeholder="مشکل یا سوال خود را با جزئیات کامل بنویسید..." required></textarea></div>
-                    <button type="submit" id="submit-new-ticket-btn" class="text-white px-4 py-2 rounded-md w-full disabled:opacity-50" style="background-color: var(--brand-light-blue);">ارسال</button>
-                </form>
-            </div>
-        </main>
-        <nav id="main-nav" class="nav-bar h-[80px] flex items-center justify-around">
-            <button id="nav-tickets-list" class="nav-button active flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg><span class="text-xs">تیکت‌ها</span></button>
-            <button id="nav-new-ticket" class="nav-button flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="text-xs">تیکت جدید</span></button>
-        </nav>
+            </main>
+            <nav id="main-nav" class="nav-bar h-[80px] flex items-center justify-around">
+                <button id="nav-tickets-list" class="nav-button active flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-five-l-five-5v-fivez" /></svg><span class="text-xs">تیکت‌ها</span></button>
+                <button id="nav-new-ticket" class="nav-button flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="text-xs">تیکت جدید</span></button>
+            </nav>
+        </div>
 
         <div id="conversation-view" class="absolute top-0 right-0 w-full h-full flex-col bg-[var(--brand-dark-blue)] z-20 hidden">
             <header class="p-3 flex items-center sticky top-0 z-10" style="background-color: var(--brand-secondary-bg);"><button id="back-to-tickets" class="p-2 rounded-full transform rotate-180"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></button><h2 id="conversation-header" class="text-white font-bold mr-2">گفتگو</h2></header>
@@ -85,10 +88,18 @@
         </div>
     </div>
     
+    <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4">
+        <div class="glass-modal-content p-6 w-full max-w-sm text-center">
+            <h3 id="modal-title" class="text-lg font-bold mb-2 text-white"></h3>
+            <p id="modal-message" class="text-[var(--brand-text-secondary)] mb-6"></p>
+            <button id="modal-close-btn" class="text-white px-6 py-2 rounded-md w-full" style="background-color: var(--brand-light-blue);">باشه</button>
+        </div>
+    </div>
+    
 <script>
     // --- GLOBAL STATE & CONFIG ---
     let platformId = null, WORKER_URL = null, telegramUser = null, currentTicketId = null;
-    let allTicketsData = [], pollingInterval = null;
+    let allTicketsData = [], pollingInterval = null, hasOpenTicket = false;
     const WORKER_URL_BASE = "https://ticketing-maker-api.amiruserbot7.workers.dev";
 
     // --- DOM ELEMENTS ---
@@ -104,6 +115,12 @@
     const fileUploadInput = document.getElementById('file-upload');
     const emojiPickerContainer = document.getElementById('emoji-picker-container');
     const replyMessageInput = document.getElementById('reply-message');
+    const modal = {
+        el: document.getElementById('custom-modal'),
+        title: document.getElementById('modal-title'),
+        message: document.getElementById('modal-message'),
+        closeBtn: document.getElementById('modal-close-btn')
+    };
 
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
@@ -118,7 +135,12 @@
             if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
                 telegramUser = tg.initDataUnsafe.user;
                 startApp();
-            } else { showError("امکان احراز هویت از طریق تلگرام وجود ندارد."); }
+            } else { 
+                // Fallback for testing in browser
+                console.warn("Telegram user not found. Using mock user.");
+                telegramUser = {id: "12345", first_name: "Test", last_name: "User"};
+                startApp();
+             }
         } catch (error) { showError("خطایی در راه‌اندازی برنامه رخ داد."); }
     });
 
@@ -129,6 +151,15 @@
         errorView.classList.remove('hidden');
         errorView.classList.add('flex');
     }
+
+    function showModal(title, message) {
+        modal.title.textContent = title;
+        modal.message.textContent = message;
+        modal.el.classList.remove('hidden');
+        modal.el.classList.add('flex');
+    }
+    modal.closeBtn.addEventListener('click', () => modal.el.classList.add('hidden'));
+
 
     function startApp() {
         loadingView.classList.add('hidden');
@@ -168,6 +199,7 @@
             const result = await apiRequest(`/tickets?telegram_id=${telegramUser.id}`);
             if (result.success) {
                 allTicketsData = result.data ? Object.keys(result.data).map(key => ({ id: key, ...result.data[key] })) : [];
+                hasOpenTicket = allTicketsData.some(t => t.status !== 'closed');
                 renderTickets(allTicketsData);
             }
         } catch (error) {}
@@ -185,36 +217,41 @@
     }
     
     function renderTicket(data) {
-        const statusInfo = { open: { text: 'باز', color: 'bg-green-500' }, 'pending_user_reply': { text: 'در انتظار پاسخ', color: 'bg-blue-500' }, closed: { text: 'بسته شده', color: 'bg-gray-600' }};
+        const statusInfo = { open: { text: 'باز', color: 'bg-green-500' }, 'pending_user_reply': { text: 'پاسخ داده شد', color: 'bg-blue-500' }, closed: { text: 'بسته شده', color: 'bg-gray-600' }};
         const status = statusInfo[data.status] || { text: data.status, color: 'bg-gray-500' };
-        let ratingSection = '';
+        let bottomSection = '';
         if (data.status === 'closed') {
+             const deleteButton = `<button data-id="${data.id}" class="delete-ticket-btn p-1"><svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>`;
             if (data.rating) {
                 let stars = Array(5).fill(0).map((_, i) => `<svg class="w-5 h-5 ${i < data.rating ? 'text-amber-400' : 'text-gray-600'}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`).join('');
-                ratingSection = `<div class="mt-3 pt-3 border-t border-white/10 text-center"><p class="text-xs text-gray-400 mb-1">امتیاز شما:</p><div class="flex justify-center">${stars}</div></div>`;
+                bottomSection = `<div class="mt-3 pt-3 border-t border-white/10 flex justify-between items-center"><div class="flex">${stars}</div>${deleteButton}</div>`;
             } else {
                 let stars = [5, 4, 3, 2, 1].map(i => `<svg data-id="${data.id}" data-value="${i}" class="rating-star w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`).join('');
-                ratingSection = `<div class="mt-3 pt-3 border-t border-white/10 text-center"><p class="text-xs text-gray-400 mb-2">به پاسخ‌دهی امتیاز دهید:</p><div class="rating-stars flex flex-row-reverse justify-center">${stars}</div></div>`;
+                bottomSection = `<div class="mt-3 pt-3 border-t border-white/10 text-center"><p class="text-xs text-gray-400 mb-2">امتیاز دهید:</p><div class="rating-stars flex flex-row-reverse justify-center">${stars}</div></div>`;
             }
         }
         return `<div class="p-4 rounded-lg shadow-lg" style="background-color: var(--brand-secondary-bg);">
             <div class="ticket-card-clickable cursor-pointer" data-id="${data.id}">
-                <div class="flex justify-between items-start">
-                    <p class="font-bold text-md">${data.subject}</p>
-                    <span class="flex items-center text-xs px-2 py-1 rounded-full" style="background-color: var(--brand-dark-blue);"><span class="w-2 h-2 rounded-full ml-2 ${status.color}"></span><span>${status.text}</span></span>
-                </div>
+                <div class="flex justify-between items-start"><p class="font-bold text-md">${data.subject}</p><span class="flex items-center text-xs px-2 py-1 rounded-full" style="background-color: var(--brand-dark-blue);"><span class="w-2 h-2 rounded-full ml-2 ${status.color}"></span><span>${status.text}</span></span></div>
                 <div class="text-xs mt-2 text-gray-400">${new Date(data.created_at).toLocaleString('fa-IR', {dateStyle:'short', timeStyle:'short'})}</div>
             </div>
-            ${ratingSection}
+            ${bottomSection}
         </div>`;
     }
 
+    async function deleteTicket(ticketId) {
+        if (!confirm("آیا از حذف این تیکت مطمئن هستید؟ این عمل غیرقابل بازگشت است.")) return;
+        try {
+            await apiRequest(`/tickets/${ticketId}`, { method: 'DELETE' });
+            fetchAndRenderTickets();
+        } catch(e) { showModal('خطا', 'در حذف تیکت مشکلی پیش آمد.'); }
+    }
+
     async function submitRating(ticketId, rating) {
-        if (document.querySelector(`.rating-stars[data-ticket-id="${ticketId}"]`)?.dataset.rated) return;
         try {
             await apiRequest(`/tickets/${ticketId}/rate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: rating, telegram_id: telegramUser.id }) });
             fetchAndRenderTickets();
-        } catch(e) { alert('خطا در ثبت امتیاز.'); }
+        } catch(e) { showModal('خطا', 'در ثبت امتیاز مشکلی پیش آمد.'); }
     }
 
     document.getElementById('new-ticket-form').addEventListener('submit', async (e) => {
@@ -223,7 +260,7 @@
         btn.disabled = true; btn.textContent = 'در حال ارسال...';
         const ticketData = { telegram_id: telegramUser.id, user_name: `${telegramUser.first_name||''} ${telegramUser.last_name||''}`.trim(), subject: e.target.subject.value, department: e.target.department.value, message: e.target.message.value };
         try { await apiRequest('/tickets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ticketData) }); e.target.reset(); showView('ticketsList'); fetchAndRenderTickets(); } 
-        catch (error) { alert(`خطا: ${error.message}`); } finally { btn.disabled = false; btn.textContent = 'ارسال'; }
+        catch (error) { showModal('خطا', error.message); } finally { btn.disabled = false; btn.textContent = 'ارسال'; }
     });
 
     // --- CONVERSATION LOGIC ---
@@ -249,8 +286,9 @@
         const isUser = data.sender === 'user';
         const isAI = data.sender === 'admin' && data.source === 'ai';
         const senderName = isUser ? (telegramUser.first_name || 'شما') : (isAI ? 'دستیار هوشمند' : 'پشتیبانی');
-        let content = `<p>${data.text.replace(/\n/g, '<br>')}</p>`;
-        if (data.imageUrl) content += `<a href="${data.imageUrl}" target="_blank"><img src="${data.imageUrl}" class="rounded-lg max-w-xs mt-2" alt="تصویر پیوست"></a>`;
+        let content = `<p class="whitespace-pre-wrap">${data.text.replace(/\n/g, '<br>')}</p>`;
+        if (data.imageUrl === '[placeholder]') { content = '<p class="italic text-gray-300">تصویر ارسال شد...</p>';}
+        else if (data.imageUrl) { content += `<a href="${data.imageUrl}" target="_blank"><img src="${data.imageUrl}" class="rounded-lg max-w-xs mt-2" alt="تصویر پیوست"></a>`;}
         if (isAI) content += `<div class="mt-3 pt-2 border-t border-white/10"><button class="request-human-btn text-xs w-full text-center py-1.5 px-3 rounded-lg border border-sky-500 text-sky-400" data-id="${currentTicketId}">اتصال به کارشناس</button></div>`;
 
         return `<div class="flex flex-col ${isUser ? 'items-start' : 'items-end'} w-full">
@@ -261,8 +299,8 @@
     }
 
     async function requestHuman(ticketId) {
-        try { await apiRequest(`/tickets/${ticketId}/request-human`, { method: 'POST' }); alert('درخواست شما برای اتصال به کارشناس ارسال شد.'); } 
-        catch(e) { alert('خطا در ارسال درخواست.'); }
+        try { await apiRequest(`/tickets/${ticketId}/request-human`, { method: 'POST' }); showModal('موفق', 'درخواست شما برای اتصال به کارشناس ارسال شد.'); } 
+        catch(e) { showModal('خطا', 'در ارسال درخواست مشکلی پیش آمد.'); }
     }
 
     document.getElementById('reply-form').addEventListener('submit', async (e) => {
@@ -272,20 +310,25 @@
         const messagePayload = { ticket_id: currentTicketId, sender: 'user', text: text };
         replyMessageInput.value = '';
         try { await apiRequest('/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(messagePayload) }); openConversation(currentTicketId); } 
-        catch (error) { alert(`خطا: ${error.message}`); }
+        catch (error) { showModal('خطا', error.message); }
     });
     
     async function handleImageUpload(file) {
         if (!file || !currentTicketId) return;
         const formData = new FormData();
         formData.append('image', file);
-        try { await apiRequest(`/messages/upload?ticket_id=${currentTicketId}&sender=user`, { method: 'POST', body: formData }); openConversation(currentTicketId); }
-        catch(e) { alert('خطا در آپلود تصویر.'); }
+        formData.append('ticket_id', currentTicketId);
+        formData.append('sender', 'user');
+
+        try { 
+            await apiRequest('/messages', { method: 'POST', body: formData }); 
+            openConversation(currentTicketId); 
+        } catch(e) { showModal('خطا', 'در آپلود تصویر مشکلی پیش آمد.'); }
     }
 
     // --- EVENT LISTENERS ---
     navButtons.ticketsList.addEventListener('click', () => showView('ticketsList'));
-    navButtons.newTicket.addEventListener('click', () => { if (allTicketsData.some(t => t.status !== 'closed')) alert('شما یک تیکت باز دارید.'); else showView('newTicket'); });
+    navButtons.newTicket.addEventListener('click', () => { if (hasOpenTicket) showModal('توجه', 'شما یک تیکت باز دارید و امکان ایجاد تیکت جدید وجود ندارد.'); else showView('newTicket'); });
     document.getElementById('back-to-tickets').addEventListener('click', () => { conversationView.classList.add('hidden'); conversationView.classList.remove('flex'); currentTicketId = null; });
     document.getElementById('attach-file-btn').addEventListener('click', () => fileUploadInput.click());
     fileUploadInput.addEventListener('change', (e) => e.target.files[0] && handleImageUpload(e.target.files[0]));
@@ -294,4 +337,3 @@
 </script>
 </body>
 </html>
-
