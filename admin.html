@@ -5,11 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>پنل مدیریت پشتیبانی</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Vazirmatn', sans-serif; background-color: #f7f9fc; }
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #f7f9fc; color: #1a202c; }
         .ticket-list-item.active { background-color: #eef2ff; border-right: 4px solid #4f46e5; }
         #messages-container { background-color: #f0f2f5; }
+        .message-user { background-color: #ffffff; color: #1f2937; border-radius: 1.25rem 1.25rem 1.25rem 0.25rem; }
+        .message-admin { background-color: #e0e7ff; color: #312e81; border-radius: 1.25rem 1.25rem 0.25rem 1.25rem; }
+        .unread-dot { width: 10px; height: 10px; background-color: #4f46e5; border-radius: 9999px; }
+        .nav-link-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; font-weight: 600; }
     </style>
 </head>
 <body class="h-screen overflow-hidden">
@@ -24,231 +29,209 @@
         <p class="mt-4 text-gray-600">در حال بارگذاری پنل مدیریت...</p>
     </div>
 
-    <main id="main-app-container" class="hidden h-full flex overflow-hidden">
-        <!-- Tickets List Panel -->
-        <div id="tickets-list-panel" class="w-full md:w-2/5 lg:w-1/3 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col">
-            <div class="p-3 border-b"><input type="text" id="search-box" placeholder="جستجوی تیکت..." class="w-full p-2 border border-gray-300 rounded-lg"></div>
-            <div id="tickets-list-container" class="flex-grow overflow-y-auto"></div>
-        </div>
+    <div id="main-app-container" class="hidden h-full flex flex-col">
+        <header class="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200 flex-shrink-0">
+            <div class="flex items-center space-x-8 space-x-reverse">
+                <h1 class="text-xl font-bold text-gray-800">پنل مدیریت</h1>
+                <nav class="flex items-center h-full space-x-6 space-x-reverse">
+                    <a href="#" id="nav-tickets" class="flex items-center h-full px-2 text-sm nav-link-active">تیکت‌ها</a>
+                    <a href="#" id="nav-dashboard" class="flex items-center h-full px-2 text-sm text-gray-500 hover:text-gray-800">داشبورد</a>
+                </nav>
+            </div>
+        </header>
 
-        <!-- Conversation Panel -->
-        <div id="conversation-panel" class="w-full md:w-3/5 lg:w-2/3 flex flex-col bg-gray-50">
-            <div id="welcome-message" class="flex flex-col items-center justify-center h-full text-gray-400"><svg class="w-28 h-28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg><p class="mt-4 text-lg">برای مشاهده گفتگو، یک تیکت را انتخاب کنید.</p></div>
-            <div id="conversation-content" class="hidden flex-1 flex flex-col overflow-hidden">
-                <header class="p-3 border-b bg-white z-10 flex justify-between items-center"><h2 id="ticket-subject" class="font-bold text-lg"></h2><select id="ticket-status" class="border rounded-lg p-2 text-sm"><option value="open">باز</option><option value="pending_user_reply">در انتظار پاسخ کاربر</option><option value="closed">بسته شده</option></select></header>
-                <div id="messages-container" class="flex-1 p-6 overflow-y-auto space-y-6"></div>
-                <footer class="p-3 bg-white border-t"><form id="reply-form" class="flex items-center space-x-2 space-x-reverse"><textarea id="reply-message" rows="1" class="flex-grow p-3 border rounded-lg resize-none" placeholder="پاسخ خود را بنویسید..."></textarea><button type="submit" class="bg-indigo-600 text-white w-12 h-12 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 transform -rotate-45" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg></button></form></footer>
+        <div id="tickets-view" class="flex-1 flex overflow-hidden">
+            <div id="tickets-list-panel" class="w-full md:w-2/5 lg:w-1/3 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col">
+                <div class="p-3 border-b"><input type="text" id="search-box" placeholder="جستجو..." class="w-full p-2 border rounded-lg"></div>
+                <div id="tickets-list-container" class="flex-grow overflow-y-auto"></div>
+            </div>
+            <div id="conversation-panel" class="w-full md:w-3/5 lg:w-2/3 flex flex-col bg-gray-50 absolute md:relative inset-0 transform md:transform-none translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
+                <div id="welcome-message" class="flex flex-col items-center justify-center h-full text-gray-400"><svg class="w-28 h-28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg><p class="mt-4">یک تیکت را برای مشاهده انتخاب کنید.</p></div>
+                <div id="conversation-content" class="hidden flex-1 flex flex-col overflow-hidden">
+                    <header class="p-3 border-b bg-white z-10 flex justify-between items-center"><button id="back-to-list-btn" class="md:hidden ml-2 p-2 rounded-full hover:bg-gray-100"><svg class="w-6 h-6 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg></button><h2 id="ticket-subject" class="font-bold text-lg"></h2><select id="ticket-status" class="border rounded-lg p-2 text-sm"><option value="open">باز</option><option value="pending_user_reply">در انتظار پاسخ</option><option value="closed">بسته</option></select></header>
+                    <div id="messages-container" class="flex-1 p-6 overflow-y-auto space-y-6"></div>
+                    <footer class="p-3 bg-white border-t"><form id="reply-form" class="flex items-center space-x-2 space-x-reverse"><textarea id="reply-message" rows="1" class="flex-grow p-3 border rounded-lg" placeholder="پاسخ..."></textarea><button type="submit" class="bg-indigo-600 text-white w-12 h-12 rounded-lg flex items-center justify-center"><svg class="w-6 h-6 transform -rotate-45" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg></button></form></footer>
+                </div>
             </div>
         </div>
-    </main>
+
+        <div id="dashboard-view" class="p-6 overflow-y-auto hidden bg-gray-50 flex-1">
+            <h2 class="text-2xl font-bold mb-6">داشبورد</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-4 rounded-xl shadow-sm"><p class="text-gray-500 text-sm">کل تیکت‌ها</p><p class="text-2xl font-bold" id="stats-total">0</p></div>
+                <div class="bg-white p-4 rounded-xl shadow-sm"><p class="text-gray-500 text-sm">تیکت‌های باز</p><p class="text-2xl font-bold" id="stats-open">0</p></div>
+                <div class="bg-white p-4 rounded-xl shadow-sm"><p class="text-gray-500 text-sm">در انتظار پاسخ</p><p class="text-2xl font-bold" id="stats-pending">0</p></div>
+                <div class="bg-white p-4 rounded-xl shadow-sm"><p class="text-gray-500 text-sm">بسته شده</p><p class="text-2xl font-bold" id="stats-closed">0</p></div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-5 rounded-xl shadow-sm"><h3 class="font-semibold mb-4">وضعیت تیکت‌ها</h3><canvas id="status-chart"></canvas></div>
+                <div class="bg-white p-5 rounded-xl shadow-sm"><h3 class="font-semibold mb-4">تفکیک دپارتمان‌ها</h3><canvas id="department-chart"></canvas></div>
+            </div>
+        </div>
+    </div>
     
 <script>
     // --- GLOBAL STATE & CONFIG ---
-    let platformId = null;
-    let WORKER_URL = null;
-    let currentTicketId = null;
-    let allTicketsData = [];
-    let pollingInterval = null;
-
+    let platformId = null, WORKER_URL = null, currentTicketId = null;
+    let allTicketsData = [], pollingInterval = null;
+    let statusChart, departmentChart;
     const WORKER_URL_BASE = "https://ticketing-maker-api.amiruserbot7.workers.dev";
-
+    
     // --- DOM ELEMENTS ---
-    const loadingView = document.getElementById('loading-view');
-    const errorView = document.getElementById('error-view');
-    const mainAppContainer = document.getElementById('main-app-container');
-    const ticketsListContainer = document.getElementById('tickets-list-container');
-    const welcomeMessage = document.getElementById('welcome-message');
-    const conversationContent = document.getElementById('conversation-content');
-    const ticketSubjectHeader = document.getElementById('ticket-subject');
-    const ticketStatusSelect = document.getElementById('ticket-status');
-    const messagesContainer = document.getElementById('messages-container');
-    const replyForm = document.getElementById('reply-form');
-    const searchBox = document.getElementById('search-box');
+    const DOMElements = {
+        loading: document.getElementById('loading-view'), error: document.getElementById('error-view'), app: document.getElementById('main-app-container'),
+        nav: { tickets: document.getElementById('nav-tickets'), dashboard: document.getElementById('nav-dashboard') },
+        views: { tickets: document.getElementById('tickets-view'), dashboard: document.getElementById('dashboard-view') },
+        ticketsList: { container: document.getElementById('tickets-list-container'), search: document.getElementById('search-box'), panel: document.getElementById('tickets-list-panel') },
+        conversation: {
+            panel: document.getElementById('conversation-panel'), welcome: document.getElementById('welcome-message'), content: document.getElementById('conversation-content'),
+            subject: document.getElementById('ticket-subject'), status: document.getElementById('ticket-status'),
+            messages: document.getElementById('messages-container'), form: document.getElementById('reply-form'), backBtn: document.getElementById('back-to-list-btn')
+        }
+    };
 
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
         try {
-            const urlParams = new URLSearchParams(window.location.search);
-            platformId = urlParams.get('pid');
-
-            if (!platformId) {
-                showError("خطای پیکربندی: شناسه پلتفرم (pid) در آدرس URL یافت نشد.");
-                return;
-            }
-
+            const pid = new URLSearchParams(window.location.search).get('pid');
+            if (!pid) { showError("خطای پیکربندی: شناسه پلتفرم (pid) یافت نشد."); return; }
+            platformId = pid;
             WORKER_URL = `${WORKER_URL_BASE}/api/${platformId}`;
             startApp();
-        } catch (error) {
-            console.error("Initialization failed:", error);
-            showError("خطایی در راه‌اندازی پنل رخ داد.");
-        }
+        } catch (error) { showError("خطایی در راه‌اندازی پنل رخ داد."); }
     });
 
     function showError(message) {
-        loadingView.classList.add('hidden');
-        mainAppContainer.classList.add('hidden');
+        DOMElements.loading.classList.add('hidden'); DOMElements.app.classList.add('hidden');
         document.getElementById('error-message').textContent = message;
-        errorView.classList.remove('hidden');
-        errorView.classList.add('flex');
+        DOMElements.error.classList.remove('hidden'); DOMElements.error.classList.add('flex');
     }
 
     function startApp() {
-        loadingView.classList.add('hidden');
-        mainAppContainer.classList.remove('hidden');
-        mainAppContainer.classList.add('flex');
+        DOMElements.loading.classList.add('hidden');
+        DOMElements.app.classList.remove('hidden'); DOMElements.app.classList.add('flex');
         fetchAndRenderTickets();
         if (pollingInterval) clearInterval(pollingInterval);
-        pollingInterval = setInterval(fetchAndRenderTickets, 5000); // Poll for new tickets/messages
-    }
-
-    // --- API CALLS ---
-    async function apiRequest(endpoint, options = {}) {
-        try {
-            const response = await fetch(`${WORKER_URL}${endpoint}`, options);
-            if (!response.ok) {
-                const errorResult = await response.json().catch(() => ({ error: 'خطای ناشناخته' }));
-                throw new Error(errorResult.error || 'خطای سرور');
-            }
-            return response.json();
-        } catch (error) {
-            console.error(`API request to ${endpoint} failed:`, error);
-            throw error;
-        }
+        pollingInterval = setInterval(fetchAndRenderTickets, 5000);
+        addEventListeners();
     }
     
-    // --- TICKET LOGIC ---
+    // --- API & DATA ---
+    async function apiRequest(endpoint, options = {}) {
+        const response = await fetch(`${WORKER_URL}${endpoint}`, options);
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || 'خطای سرور');
+        }
+        return response.json();
+    }
+    
     async function fetchAndRenderTickets() {
         try {
-            const result = await apiRequest(`/tickets`); // No user ID needed for admin
+            const result = await apiRequest(`/tickets`);
             if (result.success) {
-                const tickets = result.data ? Object.keys(result.data).map(key => ({ id: key, ...result.data[key] })) : [];
-                allTicketsData = tickets;
+                allTicketsData = result.data ? Object.keys(result.data).map(key => ({ id: key, ...result.data[key] })) : [];
                 renderTicketsList();
-                // If a conversation is open, refresh it
-                if (currentTicketId) {
-                    openConversation(currentTicketId, true);
-                }
+                if (DOMElements.views.dashboard.style.display !== 'none') renderDashboard();
+                if (currentTicketId) openConversation(currentTicketId, true);
             }
-        } catch (error) {
-            // Handle fetch error
-        }
+        } catch (error) {}
     }
 
+    // --- RENDERING ---
     function renderTicketsList() {
-        const searchTerm = searchBox.value.toLowerCase();
-        const filteredTickets = allTicketsData.filter(ticket => 
-            ticket.subject.toLowerCase().includes(searchTerm) ||
-            (ticket.user_name || '').toLowerCase().includes(searchTerm) ||
-            ticket.telegram_id.toString().includes(searchTerm)
-        );
-
-        const sortedTickets = filteredTickets.sort((a, b) => new Date(b.last_updated_at || b.created_at) - new Date(a.last_updated_at || a.created_at));
-        
-        ticketsListContainer.innerHTML = sortedTickets.map(ticket => {
-             const statusMap = {
-                open: { text: 'باز', color: 'bg-green-500' },
-                pending_user_reply: { text: 'پاسخ داده شده', color: 'bg-blue-500' },
-                closed: { text: 'بسته شده', color: 'bg-red-500' }
-            };
-            const status = statusMap[ticket.status] || { text: 'نامشخص', color: 'bg-gray-500' };
-            const unreadClass = ticket.admin_unread ? 'font-bold' : '';
-            return `
-                <div class="ticket-list-item flex justify-between items-center p-4 border-b cursor-pointer hover:bg-gray-50 ${ticket.id === currentTicketId ? 'active' : ''}" data-ticket-id="${ticket.id}">
-                    <div class="truncate pr-2">
-                        <p class="text-sm ${unreadClass} text-gray-800">${ticket.subject}</p>
-                        <p class="text-xs text-gray-500">${ticket.user_name || ticket.telegram_id}</p>
-                    </div>
-                    <span class="text-xs text-white px-2 py-1 rounded-full flex-shrink-0 ${status.color}">${status.text}</span>
-                </div>
-            `;
+        const term = DOMElements.ticketsList.search.value.toLowerCase();
+        const filtered = allTicketsData.filter(t => t.subject.toLowerCase().includes(term) || (t.user_name || '').toLowerCase().includes(term) || t.telegram_id.toString().includes(term));
+        const sorted = filtered.sort((a, b) => new Date(b.last_updated_at || b.created_at) - new Date(a.last_updated_at || a.created_at));
+        DOMElements.ticketsList.container.innerHTML = sorted.map(ticket => {
+             const statusMap = { open: { t: 'باز', c: 'bg-green-500' }, pending_user_reply: { t: 'پاسخ داده شده', c: 'bg-blue-500' }, closed: { t: 'بسته', c: 'bg-red-500' } };
+            const status = statusMap[ticket.status] || { t: 'نامشخص', c: 'bg-gray-500' };
+            return `<div class="ticket-list-item flex justify-between items-center p-4 border-b cursor-pointer ${ticket.id === currentTicketId ? 'active' : ''}" data-ticket-id="${ticket.id}">
+                    <div><p class="text-sm ${ticket.admin_unread ? 'font-bold' : ''}">${ticket.subject}</p><p class="text-xs text-gray-500">${ticket.user_name || ticket.telegram_id}</p></div>
+                    ${ticket.admin_unread ? '<div class="unread-dot ml-2 flex-shrink-0"></div>' : ''}
+                    <span class="text-xs text-white px-2 py-1 rounded-full flex-shrink-0 ${status.c}">${status.t}</span></div>`;
         }).join('');
-
-        document.querySelectorAll('.ticket-list-item').forEach(el => {
-            el.addEventListener('click', () => openConversation(el.dataset.ticketId));
-        });
+        document.querySelectorAll('.ticket-list-item').forEach(el => el.addEventListener('click', () => openConversation(el.dataset.ticketId)));
     }
 
-    // --- CONVERSATION LOGIC ---
     async function openConversation(ticketId, isRefresh = false) {
         currentTicketId = ticketId;
         if (!isRefresh) {
-            welcomeMessage.style.display = 'none';
-            conversationContent.style.display = 'flex';
+            DOMElements.conversation.welcome.style.display = 'none';
+            DOMElements.conversation.content.style.display = 'flex';
+            if (window.innerWidth < 768) DOMElements.conversation.panel.classList.remove('translate-x-full');
         }
-        
-        document.querySelectorAll('.ticket-list-item').forEach(el => el.classList.toggle('active', el.dataset.ticketId === ticketId));
-
-        const ticketData = allTicketsData.find(t => t.id === ticketId);
-        if (!ticketData) return;
-        
-        ticketSubjectHeader.textContent = ticketData.subject;
-        ticketStatusSelect.value = ticketData.status;
-
+        renderTicketsList(); // To highlight active item
+        const ticket = allTicketsData.find(t => t.id === ticketId);
+        if (!ticket) return;
+        DOMElements.conversation.subject.textContent = ticket.subject;
+        DOMElements.conversation.status.value = ticket.status;
         try {
-            if (ticketData.admin_unread) {
-                // Mark as read via API
-                await apiRequest(`/tickets/${ticketId}/read`, { method: 'POST' });
-            }
+            if (ticket.admin_unread && !isRefresh) await apiRequest(`/tickets/${ticketId}/read`, { method: 'POST' });
             const result = await apiRequest(`/messages?ticket_id=${ticketId}`);
-            if (result.success) {
-                const messagesData = result.data ? Object.values(result.data) : [];
-                renderMessages(messagesData);
-            }
-        } catch (error) {
-           console.error("Error opening conversation", error);
-        }
+            if (result.success) renderMessages(result.data ? Object.values(result.data) : []);
+        } catch (error) {}
     }
 
     function renderMessages(messages) {
-        messagesContainer.innerHTML = messages.sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(msg => {
+        DOMElements.conversation.messages.innerHTML = messages.sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(msg => {
             const isUser = msg.sender === 'user';
-            const bubbleClass = isUser ? 'bg-white self-start' : 'bg-indigo-100 self-end';
-            return `<div class="flex flex-col ${isUser ? 'items-start' : 'items-end'}">
-                        <div class="p-3 rounded-lg max-w-lg ${bubbleClass}">
-                            <p class="text-sm text-gray-800">${msg.text.replace(/\n/g, '<br>')}</p>
-                        </div>
-                        <span class="text-xs text-gray-400 mt-1">${new Date(msg.created_at).toLocaleTimeString('fa-IR')}</span>
+            let content = `<p class="text-sm">${msg.text.replace(/\n/g, '<br>')}</p>`;
+            if(msg.imageUrl) content += `<a href="${msg.imageUrl}" target="_blank"><img src="${msg.imageUrl}" class="rounded-lg max-w-xs mt-2" alt="تصویر پیوست"></a>`;
+            return `<div class="flex items-start gap-3 ${isUser ? '' : 'flex-row-reverse'}">
+                        <div class="p-3 max-w-md ${isUser ? 'message-user' : 'message-admin'}">${content}</div>
                     </div>`;
         }).join('');
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        DOMElements.conversation.messages.scrollTop = DOMElements.conversation.messages.scrollHeight;
     }
     
-    replyForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const input = document.getElementById('reply-message');
-        const text = input.value.trim();
-        if (!text || !currentTicketId) return;
+    function renderDashboard() {
+        const statusCounts = allTicketsData.reduce((acc, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; }, {});
+        const deptCounts = allTicketsData.reduce((acc, t) => { acc[t.department] = (acc[t.department] || 0) + 1; return acc; }, {});
+        document.getElementById('stats-total').textContent = allTicketsData.length;
+        document.getElementById('stats-open').textContent = statusCounts.open || 0;
+        document.getElementById('stats-pending').textContent = statusCounts.pending_user_reply || 0;
+        document.getElementById('stats-closed').textContent = statusCounts.closed || 0;
+
+        if (statusChart) statusChart.destroy();
+        statusChart = new Chart(document.getElementById('status-chart'), { type: 'doughnut', data: { labels: ['باز', 'در انتظار پاسخ', 'بسته'], datasets: [{ data: [statusCounts.open||0, statusCounts.pending_user_reply||0, statusCounts.closed||0], backgroundColor: ['#22c55e', '#3b82f6', '#ef4444'] }] } });
         
-        const messagePayload = { ticket_id: currentTicketId, sender: 'admin', text: text };
-        input.value = '';
+        if (departmentChart) departmentChart.destroy();
+        const deptLabels = {general: 'متفرقه', technical: 'فنی', sales: 'فروش'};
+        departmentChart = new Chart(document.getElementById('department-chart'), { type: 'bar', data: { labels: Object.keys(deptCounts).map(d => deptLabels[d]||d), datasets: [{ label: 'تعداد', data: Object.values(deptCounts), backgroundColor: '#818cf8' }] } });
+    }
 
-        try {
-            await apiRequest('/messages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(messagePayload)
-            });
-            // The polling will automatically refresh the conversation
-        } catch (error) {
-            alert(`خطا در ارسال پاسخ: ${error.message}`);
-        }
-    });
+    // --- EVENT LISTENERS ---
+    function addEventListeners() {
+        DOMElements.nav.tickets.addEventListener('click', (e) => { e.preventDefault(); switchView('tickets'); });
+        DOMElements.nav.dashboard.addEventListener('click', (e) => { e.preventDefault(); switchView('dashboard'); });
+        DOMElements.conversation.backBtn.addEventListener('click', () => DOMElements.conversation.panel.classList.add('translate-x-full'));
+        DOMElements.ticketsList.search.addEventListener('input', renderTicketsList);
+        
+        DOMElements.conversation.form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = e.target.querySelector('textarea');
+            if (!input.value.trim() || !currentTicketId) return;
+            try { await apiRequest('/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticket_id: currentTicketId, sender: 'admin', text: input.value.trim() }) }); input.value = ''; }
+            catch (error) { alert('خطا در ارسال پاسخ.'); }
+        });
 
-    ticketStatusSelect.addEventListener('change', async () => {
-        if (!currentTicketId) return;
-        try {
-            await apiRequest(`/tickets/${currentTicketId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: ticketStatusSelect.value })
-            });
-        } catch(error) {
-            alert('خطا در تغییر وضعیت تیکت.');
-        }
-    });
+        DOMElements.conversation.status.addEventListener('change', async (e) => {
+            if (!currentTicketId) return;
+            try { await apiRequest(`/tickets/${currentTicketId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: e.target.value }) }); }
+            catch(error) { alert('خطا در تغییر وضعیت.'); }
+        });
+    }
 
-    searchBox.addEventListener('input', renderTicketsList);
-
+    function switchView(viewName) {
+        const isDashboard = viewName === 'dashboard';
+        DOMElements.views.tickets.style.display = isDashboard ? 'none' : 'flex';
+        DOMElements.views.dashboard.style.display = isDashboard ? 'flex' : 'none';
+        DOMElements.nav.tickets.classList.toggle('nav-link-active', !isDashboard);
+        DOMElements.nav.dashboard.classList.toggle('nav-link-active', isDashboard);
+        if(isDashboard) renderDashboard();
+    }
 </script>
 </body>
 </html>
+
