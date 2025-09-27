@@ -6,6 +6,8 @@
     <title>پشتیبانی</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -24,402 +26,880 @@
             color: var(--brand-text-primary);
             overflow: hidden;
         }
-        .nav-bar { background-color: var(--brand-secondary-bg); }
+        .nav-bar {
+            background-color: var(--brand-secondary-bg);
+            color: var(--brand-text-primary);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+        }
         .nav-button.active { color: var(--brand-light-blue); }
         .form-input, .form-select, .form-textarea {
-            background-color: transparent; border: 1px solid var(--brand-text-secondary); color: var(--brand-text-primary); border-radius: 0.5rem; padding: 0.75rem; width: 100%;
+            background-color: transparent;
+            border: 1px solid var(--brand-text-secondary);
+            color: var(--brand-text-primary);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            width: 100%;
         }
-        .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--brand-light-blue); }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--brand-light-blue);
+        }
         #conversation-container {
             background-color: #0e1621;
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
             background-size: 300px;
         }
-        .message-bubble { padding: 8px 12px; border-radius: 18px; max-width: 80%; width: fit-content; word-wrap: break-word; }
-        .message-user { background-color: var(--brand-user-message); color: white; border-bottom-right-radius: 4px; }
-        .message-admin { background-color: var(--brand-admin-message); color: white; border-bottom-left-radius: 4px; }
-        #reply-box { background-color: var(--brand-secondary-bg); }
-        #reply-message { background-color: var(--brand-dark-blue); border-radius: 20px; border: none; padding: 10px 16px; color: var(--brand-text-primary); max-height: 100px; resize: none; }
+        .message-bubble {
+            padding: 8px 12px;
+            border-radius: 18px;
+            max-width: 80%;
+            width: fit-content;
+            word-wrap: break-word;
+        }
+        .message-user {
+            background-color: var(--brand-user-message);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message-admin {
+            background-color: var(--brand-admin-message);
+            color: white;
+            border-bottom-left-radius: 4px;
+        }
+        .sender-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-bottom: 4px;
+            padding: 0 8px;
+        }
+        .message-time {
+            font-size: 0.7rem;
+            color: var(--brand-text-secondary);
+            margin-top: 2px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-item {
+            animation: fadeIn 0.5s ease-out forwards;
+            opacity: 0;
+        }
+        #conversation-view {
+            transform: translateX(100%);
+            opacity: 0;
+            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+        #conversation-view.is-open {
+            transform: translateX(0%);
+            opacity: 1;
+        }
+        #reply-box {
+            background-color: var(--brand-secondary-bg);
+        }
+        #reply-message {
+            background-color: var(--brand-dark-blue);
+            border-radius: 20px;
+            border: none;
+            padding: 10px 16px;
+            color: var(--brand-text-primary);
+            max-height: 100px;
+            resize: none;
+        }
+        #reply-message:focus {
+            outline: none;
+        }
+        .icon-button {
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .icon-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .glass-modal-content {
+            background: rgba(39, 64, 89, 0.6);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        #emoji-picker-container emoji-picker {
+            --background: var(--brand-secondary-bg);
+            --border-color: var(--brand-dark-blue);
+            --text-color: var(--brand-text-primary);
+            --secondary-text-color: var(--brand-text-secondary);
+        }
         .rating-stars { direction: ltr; }
-        .rating-star { cursor: pointer; color: #6b7280; transition: color 0.2s; }
+        .rating-star {
+            cursor: pointer;
+            color: #6b7280;
+            transition: color 0.2s;
+        }
         .rating-stars:hover .rating-star { color: #f59e0b; }
         .rating-stars .rating-star:hover ~ .rating-star { color: #6b7280; }
-        #emoji-picker-container emoji-picker { --background: var(--brand-secondary-bg); --border-color: var(--brand-dark-blue); --text-color: var(--brand-text-primary); }
+        .rating-stars[data-rated="true"] .rating-star { cursor: default; }
     </style>
 </head>
 <body class="flex flex-col h-screen">
 
     <input type="file" id="file-upload" class="hidden" accept="image/*">
 
-    <div id="error-view" class="hidden flex-col items-center justify-center h-full text-center p-4">
-        <h1 class="text-2xl font-bold text-red-400">خطا</h1>
-        <p id="error-message" class="mt-4 text-white"></p>
-    </div>
-    
     <div id="loading-view" class="flex flex-col items-center justify-center h-full text-center p-4">
         <svg class="animate-spin h-10 w-10 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <p class="mt-4 text-white text-sm">در حال بارگذاری...</p>
+        <p class="mt-4 text-white text-sm">در حال احراز هویت...</p>
     </div>
 
     <div id="main-app-container" class="hidden h-full flex-col relative w-full">
-         <header class="p-4 text-center text-white text-lg font-bold shadow-md sticky top-0 z-10" style="background-color: var(--brand-secondary-bg);"><h1 id="header-title">تیکت‌ها</h1></header>
-        <main id="app-container" class="flex-grow overflow-y-auto">
-            <div id="tickets-list-view" class="p-4">
-                <div id="smart-card" class="p-4 rounded-lg shadow-lg mb-4" style="background: linear-gradient(135deg, #3D5A80 0%, #274059 100%);">
-                    <h3 id="smart-card-greeting" class="text-lg font-bold text-white mb-2">سلام! 👋</h3>
-                    <p class="text-sm text-gray-300">برای ارسال تیکت جدید یا مشاهده تیکت‌های قبلی خود از منوی پایین استفاده کنید.</p>
+        <div id="main-content" class="flex-grow flex flex-col">
+            <header class="p-4 text-center text-white text-lg font-bold shadow-md sticky top-0 z-10" style="background-color: var(--brand-secondary-bg);">
+                <h1 id="header-title">تیکت‌ها</h1>
+            </header>
+            <main id="app-container" class="flex-grow overflow-y-auto">
+                <div id="tickets-list-view" class="p-4">
+                    <div id="smart-card" class="p-4 rounded-lg shadow-lg mb-4 fade-in-item" style="background: linear-gradient(135deg, #3D5A80 0%, #274059 100%);">
+                        <div class="flex items-center mb-3">
+                            <h3 id="smart-card-greeting" class="text-lg font-bold text-white">سلام کاربر عزیز! 👋</h3>
+                        </div>
+                        <div class="p-3 rounded-lg text-sm mb-4" style="background-color: rgba(0,0,0,0.2);">
+                            <p><span class="text-xl">💡</span> <span class="font-bold">نکته امروز:</span> آیا میدانستید با مراجعه به پایـگاه دانــش، پاسخ 90% سوالات خودرا پیدا می‌کنید؟ </p>
+                        </div>
+                        <div class="flex">
+                            <button id="faq-button" class="w-full text-white text-sm px-4 py-2.5 rounded-md" style="background-color: var(--brand-light-blue);">مشاهده سوالات متداول</button>
+                        </div>
+                    </div>
+                    <div id="tickets-container" class="space-y-3"></div>
+                    <div id="no-tickets-message" class="hidden text-center text-gray-400 mt-16">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                        <p class="mt-4 text-lg">تیکت ندارید!</p>
+                    </div>
                 </div>
-                <div id="tickets-container" class="space-y-3"></div>
-                <div id="no-tickets-message" class="hidden text-center text-gray-400 mt-16">
-                     <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                    <p class="mt-4 text-lg">هنوز تیکتی ثبت نکرده‌اید!</p>
+                <div id="new-ticket-view" class="p-4 hidden">
+                    <form id="new-ticket-form" class="space-y-4">
+                        <div>
+                            <label for="department" class="block mb-2 text-sm font-medium">دپارتمان</label>
+                            <select id="department" name="department" class="form-select">
+                                <option value="general">سوالات متفرقه</option>
+                                <option value="technical">واحد فنی</option>
+                                <option value="sales">واحد فروش</option>
+                                <option value="marketing">واحد بازاریابی</option>
+                                <option value="ideas">ایده ها و پیشنهادات</option>
+                            </select>
+                        </div>
+                        <div><label for="subject" class="block mb-2 text-sm font-medium">موضوع</label><input type="text" id="subject" name="subject" class="form-input" placeholder="موضوع تیکت خود را وارد کنید" required></div>
+                        <div><label for="message" class="block mb-2 text-sm font-medium">متن پیام</label><textarea id="message" name="message" rows="6" class="form-textarea" placeholder="مشکل یا سوال خود را با جزئیات کامل بنویسید..." required></textarea></div>
+                        <div class="flex justify-between items-center pt-2">
+                            <button type="button" id="submit-new-ticket-btn" class="text-white px-4 py-2 rounded-md w-full disabled:opacity-50" style="background-color: var(--brand-light-blue);">ارسال</button>
+                        </div>
+                    </form>
                 </div>
-            </div>
-            <div id="new-ticket-view" class="p-4 hidden">
-                 <form id="new-ticket-form" class="space-y-4">
-                    <div><label for="department" class="block mb-2 text-sm font-medium">دپارتمان</label><select id="department" name="department" class="form-select"><option value="general">سوالات متفرقه</option><option value="technical">واحد فنی</option><option value="sales">واحد فروش</option></select></div>
-                    <div><label for="subject" class="block mb-2 text-sm font-medium">موضوع</label><input type="text" id="subject" name="subject" class="form-input" placeholder="موضوع تیکت خود را وارد کنید" required></div>
-                    <div><label for="message" class="block mb-2 text-sm font-medium">متن پیام</label><textarea id="message" name="message" rows="6" class="form-textarea" placeholder="مشکل یا سوال خود را با جزئیات کامل بنویسید..." required></textarea></div>
-                    <button type="submit" id="submit-new-ticket-btn" class="text-white px-4 py-2 rounded-md w-full disabled:opacity-50" style="background-color: var(--brand-light-blue);">ارسال</button>
-                </form>
-            </div>
-        </main>
-        <nav id="main-nav" class="nav-bar h-[80px] flex items-center justify-around">
-            <button id="nav-tickets-list" class="nav-button active flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg><span class="text-xs">تیکت‌ها</span></button>
-            <button id="nav-new-ticket" class="nav-button flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="text-xs">تیکت جدید</span></button>
-        </nav>
+            </main>
+            <nav id="main-nav" class="nav-bar h-[80px] flex items-center justify-around">
+                <button id="nav-tickets-list" class="nav-button active flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg><span class="text-xs">تیکت‌ها</span></button>
+                <button id="nav-new-ticket" class="nav-button flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="text-xs">تیکت جدید</span></button>
+            </nav>
+        </div>
 
-        <div id="conversation-view" class="absolute top-0 right-0 w-full h-full flex-col bg-[var(--brand-dark-blue)] z-20 hidden">
-            <header class="p-3 flex items-center sticky top-0 z-10" style="background-color: var(--brand-secondary-bg);"><button id="back-to-tickets" class="p-2 rounded-full transform rotate-180"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></button><h2 id="conversation-header" class="text-white font-bold mr-2">گفتگو</h2></header>
+        <div id="conversation-view" class="absolute top-0 right-0 w-full h-full flex-col z-20 hidden">
+             <header class="p-3 flex items-center sticky top-0 z-10" style="background-color: var(--brand-secondary-bg);">
+                <button id="back-to-tickets" class="p-2 rounded-full transform rotate-180"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></button>
+                <h2 id="conversation-header" class="text-white font-bold mr-2">گفتگو</h2>
+             </header>
             <div id="conversation-container" class="p-4 space-y-2 flex flex-col flex-grow overflow-y-auto"></div>
-            <div id="emoji-picker-container" class="absolute bottom-[70px] right-2 z-30 hidden"><emoji-picker></emoji-picker></div>
-            <div id="reply-box" class="p-2 sticky bottom-0 border-t" style="border-color: var(--brand-dark-blue);">
+            <div id="emoji-picker-container" class="absolute bottom-[70px] right-2 z-30 hidden">
+                <emoji-picker></emoji-picker>
+            </div>
+             <div id="reply-box" class="p-2 sticky bottom-0 border-t" style="border-color: var(--brand-dark-blue);">
                 <form id="reply-form" class="flex items-center space-x-2 space-x-reverse">
-                    <button type="button" id="attach-file-btn" class="p-2 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg></button>
+                    <button type="button" id="attach-file-btn" class="icon-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                    </button>
                     <textarea id="reply-message" rows="1" class="flex-grow" placeholder="پاسخ..." required></textarea>
-                    <button type="button" id="emoji-btn" class="p-2 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>
-                    <button type="submit" class="p-3 rounded-full text-white" style="background-color: var(--brand-light-blue);"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button>
+                    <button type="button" id="emoji-btn" class="icon-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                    <button type="submit" class="icon-button text-white" style="background-color: var(--brand-light-blue);">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                    </button>
                 </form>
             </div>
-            <div id="closed-ticket-banner" class="p-4 text-center bg-[var(--brand-secondary-bg)] text-[var(--brand-text-secondary)] text-sm hidden">این گفتگو توسط پشتیبانی بسته شده است.</div>
+            <div id="closed-ticket-banner" class="p-4 text-center bg-[var(--brand-secondary-bg)] text-[var(--brand-text-secondary)] text-sm hidden">
+                <p>این گفتگو توسط پشتیبانی بسته شده است.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="info-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 transition-opacity duration-300">
+        <div class="glass-modal-content p-6 w-full max-w-md flex flex-col max-h-[90vh]">
+            <h3 class="text-xl font-bold mb-4 text-white text-center">❗️ راهنمای ارسال تیکت</h3>
+            <div class="overflow-y-auto pr-2 space-y-4 text-sm text-[var(--brand-text-secondary)]">
+                <div>
+                    <h4 class="font-bold text-white mb-2">💡 قبل از ارسال تیکت:</h4>
+                    <p>لطفا ابتدا <a href="#" id="faq-link-modal" class="text-blue-300 hover:underline">صفحه سوالات متداول</a> را بررسی کنید. شاید پاسخ سوال شما آنجا باشد!</p>
+                    </div>
+                <div>
+                    <h4 class="font-bold text-white mb-2">📋 نمونه الگوریتم ارسال تیکت:</h4>
+                    <div class="p-3 rounded-lg text-xs" style="background-color: var(--brand-dark-blue);">
+                        <p class="whitespace-pre-wrap">دپارتمان: (نسبت به موضوع تیکت تنظیم شود)
+موضوع: عدم دریافت پسورد پنل
+سلام و وقت بخیر، بنده در پنل مدیریت سرویس امکان تغییر/ایجاد پسورد پنلم را ندارم.
+لطفا درخواست دارم این مورد را بررسی و رفع بفرمایید.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6 pt-4 border-t border-white/10">
+                <button id="info-modal-close-btn" class="text-white px-6 py-2.5 rounded-md w-full transition" style="background-color: var(--brand-light-blue);">متوجه شدم</button>
+            </div>
         </div>
     </div>
     
-<script>
-    // --- GLOBAL STATE & CONFIG ---
-    let platformId = null;
-    let WORKER_URL = null;
-    let telegramUser = null;
-    let currentTicketId = null;
-    let allTicketsData = [];
-    let pollingInterval = null;
-    let tg;
+    <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4">
+        <div class="bg-[var(--brand-secondary-bg)] rounded-lg shadow-xl p-6 w-full max-w-sm text-center">
+            <div id="modal-icon" class="mx-auto mb-4"></div>
+            <h3 id="modal-title" class="text-lg font-bold mb-2 text-white"></h3>
+            <p id="modal-message" class="text-[var(--brand-text-secondary)] mb-6"></p>
+            <button id="modal-close-btn" class="text-white px-6 py-2 rounded-md w-full" style="background-color: var(--brand-light-blue);">باشه</button>
+        </div>
+    </div>
 
-    const WORKER_URL_BASE = "https://ticketing-maker-api.amiruserbot7.workers.dev";
+    <div id="notification-toast" class="fixed top-5 right-5 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity duration-300 z-50"></div>
 
-    // --- DOM ELEMENTS ---
-    const loadingView = document.getElementById('loading-view');
-    const errorView = document.getElementById('error-view');
-    const mainAppContainer = document.getElementById('main-app-container');
-    const ticketsListView = document.getElementById('tickets-list-view');
-    const newTicketView = document.getElementById('new-ticket-view');
-    const conversationView = document.getElementById('conversation-view');
-    const navButtons = { ticketsList: document.getElementById('nav-tickets-list'), newTicket: document.getElementById('nav-new-ticket') };
-    const ticketsContainer = document.getElementById('tickets-container');
-    const noTicketsMessage = document.getElementById('no-tickets-message');
-    const headerTitle = document.getElementById('header-title');
-    const emojiPickerContainer = document.getElementById('emoji-picker-container');
-    const emojiPicker = document.querySelector('emoji-picker');
-    const replyMessageInput = document.getElementById('reply-message');
-    const emojiBtn = document.getElementById('emoji-btn');
-    const attachFileBtn = document.getElementById('attach-file-btn');
-    const fileUploadInput = document.getElementById('file-upload');
-    
-    // --- INITIALIZATION ---
-    document.addEventListener('DOMContentLoaded', () => {
-        try {
-            tg = window.Telegram.WebApp;
-            tg.ready();
-            tg.expand();
-            
-            const urlParams = new URLSearchParams(window.location.search);
-            platformId = urlParams.get('pid');
-            const ticketIdFromUrl = urlParams.get('ticketId');
+    <script>
+        const WORKER_URL = 'https://support-api-worker.amiruserbot7.workers.dev';
+        const firebaseConfig = {
+            apiKey: "AIzaSyAjBkdCe-kJK2VFfM3lSFyFiFNXElOCPSg",
+            authDomain: "support-app-final.firebaseapp.com",
+            databaseURL: "https://support-app-final-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "support-app-final",
+            messagingSenderId: "220983533006",
+            appId: "1:220983533006:web:87f404486afb9f6a06df9f"
+        };
 
-            if (!platformId) {
-                showError("خطای پیکربندی: شناسه پلتفرم (pid) در آدرس URL یافت نشد.");
+        firebase.initializeApp(firebaseConfig);
+        
+        let telegramUserId = null;
+        let telegramUserName = 'کاربر';
+        let currentTicketId = null;
+        let currentTicketData = null;
+        let allTicketsData = [];
+        let ticketsPollingInterval = null;
+        let messagesPollingInterval = null;
+        let hasOpenTicket = false;
+        let isSubmitting = false;
+
+        const loadingView = document.getElementById('loading-view');
+        const mainAppContainer = document.getElementById('main-app-container');
+        const ticketsListView = document.getElementById('tickets-list-view');
+        const newTicketView = document.getElementById('new-ticket-view');
+        const conversationView = document.getElementById('conversation-view');
+        const navButtons = { ticketsList: document.getElementById('nav-tickets-list'), newTicket: document.getElementById('nav-new-ticket') };
+        const headerTitle = document.getElementById('header-title');
+        const ticketsContainer = document.getElementById('tickets-container');
+        const noTicketsMessage = document.getElementById('no-tickets-message');
+        const newTicketForm = document.getElementById('new-ticket-form');
+        const submitNewTicketBtn = document.getElementById('submit-new-ticket-btn');
+        const backToTicketsBtn = document.getElementById('back-to-tickets');
+        const conversationContainer = document.getElementById('conversation-container');
+        const conversationHeader = document.getElementById('conversation-header');
+        const replyBox = document.getElementById('reply-box');
+        const closedTicketBanner = document.getElementById('closed-ticket-banner');
+        const replyForm = document.getElementById('reply-form');
+        const replyMessageInput = document.getElementById('reply-message');
+        const fileUploadInput = document.getElementById('file-upload');
+        const attachFileBtn = document.getElementById('attach-file-btn');
+        const emojiBtn = document.getElementById('emoji-btn');
+        const infoModal = document.getElementById('info-modal');
+        const infoModalCloseBtn = document.getElementById('info-modal-close-btn');
+        const emojiPickerContainer = document.getElementById('emoji-picker-container');
+        const emojiPicker = document.querySelector('emoji-picker');
+
+        const departmentMap = {
+            general: 'سوالات متفرقه',
+            technical: 'واحد فنی',
+            sales: 'واحد فروش',
+            marketing: 'واحد بازاریابی',
+            ideas: 'ایده ها و پیشنهادات'
+        };
+
+        const statusInfo = {
+            open: { text: 'باز', colorClass: 'bg-green-500' },
+            'in-progress': { text: 'در حال بررسی', colorClass: 'bg-amber-500' },
+            answered: { text: 'در انتظار پاسخ شما', colorClass: 'bg-blue-500' },
+            closed: { text: 'بسته شده', colorClass: 'bg-gray-600' }
+        };
+        
+        let activeToastTimeout = null;
+        function showNotification(message, success = true, duration = 3000) {
+            const toast = document.getElementById('notification-toast');
+            toast.textContent = message;
+            toast.className = `fixed top-5 right-5 text-white px-4 py-2 rounded-lg shadow-lg transition-opacity duration-300 z-50 ${success ? 'bg-green-500' : 'bg-red-500'}`;
+            if(activeToastTimeout) clearTimeout(activeToastTimeout);
+            toast.classList.remove('opacity-0');
+            if (duration > 0) {
+                activeToastTimeout = setTimeout(() => {
+                    toast.classList.add('opacity-0');
+                }, duration);
+            }
+        }
+
+        function showModal(title, message, isError = false) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            const icon = isError ? `<svg class="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>` : `<svg class="w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+            document.getElementById('modal-icon').innerHTML = icon;
+            document.getElementById('custom-modal').classList.remove('hidden');
+            document.getElementById('custom-modal').classList.add('flex');
+        }
+
+        document.getElementById('modal-close-btn').addEventListener('click', () => {
+            document.getElementById('custom-modal').classList.add('hidden');
+            document.getElementById('custom-modal').classList.remove('flex');
+        });
+
+        function startApp(user) {
+            telegramUserId = user.id.toString();
+            telegramUserName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'کاربر';
+            document.getElementById('smart-card-greeting').textContent = `سلام ${telegramUserName}! 👋`;
+            loadingView.classList.add('hidden');
+            mainAppContainer.classList.remove('hidden');
+            mainAppContainer.classList.add('flex');
+            showView('ticketsList');
+            listenToTickets();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const tg = window.Telegram.WebApp;
+                tg.ready();
+                if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
+                    startApp(tg.initDataUnsafe.user);
+                } else {
+                    console.warn("Telegram user data not found. Using mock user.");
+                    startApp({id: "319237991", first_name: "Amir", last_name: "Hoseinabadi"});
+                }
+            } catch (error) {
+                console.error("Could not initialize Telegram Web App:", error);
+                showModal('خطای راه‌اندازی', 'امکان برقراری ارتباط با تلگرام وجود ندارد. لطفا از داخل تلگرام این صفحه را باز کنید.', true);
+            }
+        });
+
+        function showView(viewName) {
+            ticketsListView.classList.add('hidden');
+            newTicketView.classList.add('hidden');
+            if (viewName === 'ticketsList') {
+                ticketsListView.classList.remove('hidden');
+                headerTitle.textContent = 'تیکت‌ها';
+            } else if (viewName === 'newTicket') {
+                newTicketView.classList.remove('hidden');
+                headerTitle.textContent = 'تیکت جدید';
+            }
+            Object.values(navButtons).forEach(btn => btn.classList.remove('active'));
+            if (navButtons[viewName]) navButtons[viewName].classList.add('active');
+        }
+
+        async function fetchTickets() {
+            if (!telegramUserId) return;
+            try {
+                const response = await fetch(`${WORKER_URL}/tickets?telegram_id=${telegramUserId}`);
+                if (!response.ok) {
+                    const errorResult = await response.json().catch(() => ({ error: 'خطای ناشناخته در سرور' }));
+                    throw new Error(errorResult.error || 'خطا در دریافت تیکت‌ها');
+                }
+                const result = await response.json();
+                if (result.success) {
+                    allTicketsData = result.data ? Object.keys(result.data).map(key => ({ id: key, ...result.data[key] })) : [];
+                    
+                    if (currentTicketId) {
+                        const updatedTicketData = allTicketsData.find(t => t.id === currentTicketId);
+                        if (updatedTicketData && currentTicketData && updatedTicketData.status !== currentTicketData.status) {
+                            currentTicketData = updatedTicketData;
+                            updateConversationViewUI();
+                        }
+                    }
+                    
+                    renderTickets(allTicketsData);
+                } else {
+                    throw new Error(result.error || "پاسخ ناموفق از سرور");
+                }
+            } catch (error) {
+                console.error("Error fetching tickets via worker:", error);
+            }
+        }
+
+        function listenToTickets() {
+            fetchTickets();
+            if (ticketsPollingInterval) clearInterval(ticketsPollingInterval);
+            ticketsPollingInterval = setInterval(fetchTickets, 5000);
+        }
+
+        async function deleteTicket(ticketId) {
+            if (confirm('آیا از حذف این تیکت مطمئن هستید؟')) {
+                try {
+                    const response = await fetch(`${WORKER_URL}/tickets?ticket_id=${ticketId}`, { method: 'DELETE' });
+                     if (!response.ok) {
+                        const errorResult = await response.json();
+                        throw new Error(errorResult.error || 'خطا در حذف تیکت');
+                    }
+                    const result = await response.json();
+                    if (result.success) {
+                        showNotification('تیکت با موفقیت حذف شد.');
+                        fetchTickets();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (error) {
+                    showNotification(`حذف تیکت با خطا مواجه شد: ${error.message}`, false);
+                    console.error("Error deleting ticket:", error);
+                }
+            }
+        }
+
+        function renderTickets(tickets) {
+            hasOpenTicket = tickets.some(ticket => ['open', 'in-progress', 'answered'].includes(ticket.status));
+            if (tickets.length === 0) {
+                ticketsContainer.innerHTML = '';
+                noTicketsMessage.classList.remove('hidden');
+            } else {
+                noTicketsMessage.classList.add('hidden');
+                const sortedTickets = tickets.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                ticketsContainer.innerHTML = sortedTickets.map((ticket, index) => renderTicket(ticket, index)).join('');
+                document.querySelectorAll('.ticket-card').forEach(card => {
+                    card.addEventListener('click', (e) => {
+                        if (e.target.closest('.rating-stars')) return;
+                        openConversation(card.dataset.id)
+                    });
+                });
+                document.querySelectorAll('.delete-ticket-btn').forEach(btn => { btn.addEventListener('click', (e) => { e.stopPropagation(); deleteTicket(btn.dataset.id); }); });
+                document.querySelectorAll('.rating-star').forEach(star => {
+                    star.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const ticketId = star.dataset.id;
+                        const ratingValue = star.dataset.ratingValue;
+                        submitRating(ticketId, parseInt(ratingValue));
+                    });
+                });
+            }
+        }
+
+        async function submitRating(ticketId, rating) {
+            const starContainer = document.querySelector(`.rating-stars[data-ticket-id="${ticketId}"]`);
+            if (!starContainer || starContainer.dataset.submitting === 'true' || starContainer.dataset.rated === 'true') return;
+            starContainer.dataset.submitting = 'true';
+            starContainer.style.opacity = '0.5';
+            try {
+                const response = await fetch(`${WORKER_URL}/tickets/${ticketId}/rate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rating: rating, telegram_id: telegramUserId }),
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'خطا در ثبت امتیاز');
+                }
+                showNotification('امتیاز شما با موفقیت ثبت شد.');
+                const ticket = allTicketsData.find(t => t.id === ticketId);
+                if (ticket) {
+                    ticket.rating = rating;
+                }
+                renderTickets(allTicketsData);
+            } catch (error) {
+                showNotification(`ثبت امتیاز با خطا مواجه شد: ${error.message}`, false);
+                delete starContainer.dataset.submitting;
+                starContainer.style.opacity = '1';
+            }
+        }
+
+        function renderTicket(data, index) {
+            const status = data.status;
+            const statusDetails = statusInfo[status] || { text: status, colorClass: 'bg-gray-500' };
+            const creationDate = new Date(data.created_at).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' });
+            const departmentName = departmentMap[data.department] || data.department;
+            const deleteButton = status === 'closed' ? `<button data-id="${data.id}" class="delete-ticket-btn p-1"><svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>` : '';
+            let ratingSection = '';
+            if (status === 'closed') {
+                if (data.rating && data.rating > 0) {
+                    let stars = '';
+                    for (let i = 1; i <= 5; i++) {
+                        const starColor = i <= data.rating ? 'text-amber-400' : 'text-gray-600';
+                        stars += `<svg class="w-5 h-5 ${starColor}" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`;
+                    }
+                    ratingSection = `<div class="mt-3 pt-3 border-t text-center" style="border-color: var(--brand-dark-blue);"><p class="text-xs text-gray-400 mb-1">امتیاز شما:</p><div class="flex justify-center">${stars}</div></div>`;
+                } else {
+                    ratingSection = `<div class="mt-3 pt-3 border-t text-center" style="border-color: var(--brand-dark-blue);"><p class="text-xs text-gray-400 mb-2">به کیفیت پاسخ‌دهی امتیاز دهید:</p><div class="rating-stars flex flex-row-reverse justify-center" data-ticket-id="${data.id}">${[5, 4, 3, 2, 1].map(i => `<svg data-id="${data.id}" data-rating-value="${i}" class="rating-star w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>`).join('')}</div></div>`;
+                }
+            }
+            const statusBadge = `<span class="flex items-center text-xs px-2 py-1 rounded-full" style="background-color: var(--brand-dark-blue);"><span class="w-2 h-2 rounded-full ml-2 ${statusDetails.colorClass}"></span><span>${statusDetails.text}</span></span>`;
+            const animationDelay = index * 80;
+            return `<div class="ticket-card p-4 rounded-lg shadow-lg fade-in-item" style="animation-delay: ${animationDelay}ms; background-color: var(--brand-secondary-bg);" data-id="${data.id}"><div class="flex justify-between items-start"><p class="font-bold text-md">${data.subject}</p>${statusBadge}</div><div class="flex justify-between items-center text-xs mt-4 pt-2 border-t" style="border-color: var(--brand-dark-blue);"><span style="color: var(--brand-text-secondary);">${departmentName}</span><div class="flex items-center">${deleteButton}<span style="color: var(--brand-text-secondary);">${creationDate}</span></div></div>${ratingSection}</div>`;
+        }
+        
+        function renderMessage(data) {
+            const isUser = data.sender === 'user';
+            const isAdmin = data.sender === 'admin';
+            const isAI = isAdmin && data.source === 'ai';
+
+            const messageClass = isUser ? 'message-user' : 'message-admin';
+            const containerClass = isUser ? 'self-start' : 'self-end';
+            const nameAlign = isUser ? 'text-right' : 'text-left';
+
+            let senderName = '';
+            if (isUser) {
+                senderName = telegramUserName;
+            } else if (isAI) {
+                senderName = 'دستیار هوش مصنوعی';
+            } else {
+                senderName = currentTicketData ? departmentMap[currentTicketData.department] : 'پشتیبانی';
+            }
+
+            const time = new Date(data.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit'});
+
+            let messageContent = '';
+            if (data.type === 'image_placeholder') {
+                messageContent = `
+                    <div class="flex items-center space-x-2 space-x-reverse italic opacity-80">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                        </svg>
+                        <p class="text-sm">تصویر ارسال شد</p>
+                    </div>`;
+            } 
+            else {
+                if (data.text) {
+                    messageContent += `<p class="whitespace-pre-wrap text-sm">${data.text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-300 underline">$1</a>')}</p>`;
+                }
+                if (data.imageUrl) {
+                    messageContent += `<a href="${data.imageUrl}" target="_blank"><img src="${data.imageUrl}" class="rounded-lg max-w-xs mt-2" alt="تصویر پیوست شده"></a>`;
+                }
+            }
+
+
+            let humanRequestButton = '';
+            if (isAI) {
+                humanRequestButton = `<div class="mt-3 pt-2 border-t border-white/10"><p class="text-xs text-gray-400 mb-2">اگر این پیام مشکلتان را برطرف نکرد:</p><button class="request-human-btn text-xs w-full text-center py-2 px-3 rounded-lg border border-sky-500 text-sky-400 hover:bg-sky-500 hover:text-white transition-colors duration-200" data-ticket-id="${currentTicketId}">برای اتصال به کارشناس کلیک کنید</button></div>`;
+            }
+
+            return `<div class="flex flex-col ${containerClass} max-w-xs md:max-w-md"><p class="sender-name ${nameAlign}" style="color: ${isUser ? '#82aaff' : '#a2a2a2'}">${senderName}</p><div class="message-bubble ${messageClass}">${messageContent}${humanRequestButton}</div><span class="message-time px-2 w-full ${nameAlign}">${time}</span></div>`;
+        }
+        
+        function appendMessageToUI(messageData) {
+            conversationContainer.innerHTML += renderMessage(messageData);
+            conversationContainer.scrollTop = conversationContainer.scrollHeight;
+        }
+
+        function openConversation(ticketId) {
+            currentTicketId = ticketId;
+            currentTicketData = allTicketsData.find(t => t.id === ticketId);
+            if (!currentTicketData) {
+                console.error("Could not find ticket data for ID:", ticketId);
+                showNotification("خطا: اطلاعات تیکت یافت نشد.", false);
                 return;
             }
+            conversationView.classList.remove('hidden');
+            conversationView.classList.add('flex');
+            setTimeout(() => { conversationView.classList.add('is-open'); }, 10);
+            conversationHeader.textContent = currentTicketData.subject;
+            listenToMessages(ticketId);
+            updateConversationViewUI();
+        }
 
-            WORKER_URL = `${WORKER_URL_BASE}/api/${platformId}`;
-            
-            if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
-                telegramUser = tg.initDataUnsafe.user;
-                startApp(ticketIdFromUrl);
+        function updateConversationViewUI() {
+            if (currentTicketData && currentTicketData.status === 'closed') {
+                replyBox.classList.add('hidden');
+                closedTicketBanner.classList.remove('hidden');
             } else {
-                 showError("امکان احراز هویت از طریق تلگرام وجود ندارد. لطفاً مطمئن شوید این صفحه را از داخل تلگرام باز کرده‌اید.");
+                replyBox.classList.remove('hidden');
+                closedTicketBanner.classList.add('hidden');
             }
-        } catch (error) {
-            console.error("Initialization failed:", error);
-            showError("خطایی در راه‌اندازی برنامه رخ داد.");
-        }
-    });
-
-    function showError(message) {
-        loadingView.classList.add('hidden');
-        mainAppContainer.classList.add('hidden');
-        document.getElementById('error-message').textContent = message;
-        errorView.classList.remove('hidden');
-        errorView.classList.add('flex');
-    }
-
-    async function startApp(ticketIdFromUrl) {
-        document.getElementById('smart-card-greeting').textContent = `سلام ${telegramUser.first_name || 'کاربر عزیز'}! 👋`;
-        loadingView.classList.add('hidden');
-        mainAppContainer.classList.remove('hidden');
-        mainAppContainer.classList.add('flex');
-        await fetchAndRenderTickets();
-        
-        if (ticketIdFromUrl && allTicketsData.find(t => t.id === ticketIdFromUrl)) {
-            openConversation(ticketIdFromUrl);
-        } else {
-            showView('ticketsList');
         }
 
-        if (pollingInterval) clearInterval(pollingInterval);
-        pollingInterval = setInterval(fetchAndRenderTickets, 10000);
-    }
-    
-    // --- API CALLS ---
-    async function apiRequest(endpoint, options = {}) {
-        try {
-            const defaultHeaders = { 'Content-Type': 'application/json' };
-            const finalOptions = { ...options, headers: { ...defaultHeaders, ...options.headers } };
-            
-            const response = await fetch(`${WORKER_URL}${endpoint}`, finalOptions);
-            
-            if (!response.ok) {
-                const errorResult = await response.json().catch(() => ({ error: 'خطای ناشناخته در سرور' }));
-                throw new Error(errorResult.error || `HTTP error! status: ${response.status}`);
+        async function fetchMessages(ticketId) {
+            if (!ticketId) return;
+            try {
+                const response = await fetch(`${WORKER_URL}/messages?ticket_id=${ticketId}`);
+                if (!response.ok) throw new Error("خطا در دریافت پیام‌ها");
+                const result = await response.json();
+                if (result.success) {
+                    const messagesData = result.data;
+                    const isScrolledToBottom = conversationContainer.scrollHeight - conversationContainer.clientHeight <= conversationContainer.scrollTop + 50;
+                    conversationContainer.innerHTML = '';
+                    if (messagesData) {
+                        conversationContainer.innerHTML = Object.values(messagesData).sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(renderMessage).join('');
+                        attachHumanRequestListeners();
+                    }
+                    if(isScrolledToBottom) {
+                        conversationContainer.scrollTop = conversationContainer.scrollHeight;
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching messages:", error);
             }
-            return response.json();
-        } catch (error) {
-            console.error(`API request to ${endpoint} failed:`, error);
-            tg.HapticFeedback.notificationOccurred('error');
-            throw error;
         }
-    }
 
-    // --- VIEW MANAGEMENT ---
-    function showView(viewName) {
-        ticketsListView.classList.add('hidden');
-        newTicketView.classList.add('hidden');
+        function attachHumanRequestListeners() {
+            document.querySelectorAll('.request-human-btn').forEach(button => {
+                if (button.dataset.listenerAttached) return;
+                button.dataset.listenerAttached = 'true';
+                button.addEventListener('click', async (e) => {
+                    const ticketId = e.target.dataset.ticketId;
+                    if (!ticketId) return;
+                    e.target.disabled = true;
+                    e.target.textContent = 'در حال ارسال...';
+                    try {
+                        const response = await fetch(`${WORKER_URL}/tickets/${ticketId}/request-human`, { method: 'POST' });
+                        if (!response.ok) { throw new Error('خطا در ارسال درخواست'); }
+                        const result = await response.json();
+                        if (result.success) {
+                            showNotification('درخواست شما برای اتصال به کارشناس ثبت شد.');
+                            e.target.textContent = 'درخواست ثبت شد';
+                            e.target.classList.add('opacity-50', 'cursor-not-allowed');
+                        } else {
+                            throw new Error(result.error || 'خطا در ثبت درخواست');
+                        }
+                    } catch (error) {
+                        console.error("Error requesting human agent:", error);
+                        showNotification(error.message, false);
+                        e.target.disabled = false;
+                        e.target.textContent = 'برای اتصال به کارشناس کلیک کنید';
+                    }
+                });
+            });
+        }
 
-        if (viewName === 'newTicket') {
-             const hasOpenTicket = allTicketsData.some(ticket => ticket.status !== 'closed');
-             if (hasOpenTicket) {
-                 tg.showAlert('شما در حال حاضر یک تیکت باز دارید. لطفا تا زمان بسته شدن آن منتظر بمانید.');
-                 viewName = 'ticketsList';
+        function listenToMessages(ticketId) {
+            fetchMessages(ticketId);
+            if (messagesPollingInterval) clearInterval(messagesPollingInterval);
+            messagesPollingInterval = setInterval(() => fetchMessages(ticketId), 3000);
+        }
+
+        function closeConversation() {
+            if (messagesPollingInterval) clearInterval(messagesPollingInterval);
+            conversationView.classList.remove('is-open');
+            setTimeout(() => {
+                conversationView.classList.add('hidden');
+                conversationView.classList.remove('flex');
+                currentTicketId = null;
+                currentTicketData = null;
+            }, 300);
+        }
+
+        async function sendTextMessage(text) {
+             if (!currentTicketId || !text) return;
+             const payload = { ticket_id: currentTicketId, sender: 'user', text: text };
+             const submitButton = replyForm.querySelector('button[type="submit"]');
+             submitButton.disabled = true;
+             
+             appendMessageToUI({ ...payload, created_at: new Date().toISOString() });
+             replyMessageInput.value = '';
+             replyMessageInput.style.height = 'auto';
+
+             try {
+                 const response = await fetch(`${WORKER_URL}/messages`, {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify(payload),
+                 });
+                 if (!response.ok) {
+                     const err = await response.json();
+                     throw new Error(err.error || 'خطا در ارسال پیام');
+                 }
+                 fetchMessages(currentTicketId);
+             } catch (error) {
+                 console.error("Error sending message:", error);
+                 showNotification(error.message, false);
+                 fetchMessages(currentTicketId);
+             } finally {
+                 submitButton.disabled = false;
              }
         }
         
-        if (viewName === 'ticketsList') {
-            headerTitle.textContent = 'تیکت‌ها';
-            ticketsListView.classList.remove('hidden');
-        } else if (viewName === 'newTicket') {
-            headerTitle.textContent = 'تیکت جدید';
-            newTicketView.classList.remove('hidden');
-        }
-
-        Object.values(navButtons).forEach(btn => btn.classList.remove('active'));
-        if (navButtons[viewName]) navButtons[viewName].classList.add('active');
-    }
-
-    // --- TICKET LOGIC ---
-    async function fetchAndRenderTickets() {
-        try {
-            const result = await apiRequest(`/tickets?telegram_id=${String(telegramUser.id)}`);
-            if (result.success) {
-                const tickets = result.data ? Object.keys(result.data).map(key => ({ id: key, ...result.data[key] })) : [];
-                if (JSON.stringify(allTicketsData) !== JSON.stringify(tickets)) {
-                    allTicketsData = tickets;
-                    renderTickets(allTicketsData);
-                }
-            } else {
-                 if (!currentTicketId) showError(result.error || 'خطا در بارگذاری تیکت‌ها');
+        async function handleImageUpload(file) {
+            if (!file) return;
+            if (file.size > 50 * 1024 * 1024) { // 50MB
+                return showNotification("حجم فایل نباید بیشتر از 50 مگابایت باشد.", false);
             }
-        } catch (error) {
-            console.error("Polling for tickets failed:", error);
-            if (!currentTicketId) showError(error.message);
-        }
-    }
 
-    function renderTickets(tickets) {
-        if (tickets.length === 0) {
-            ticketsContainer.innerHTML = '';
-            noTicketsMessage.classList.remove('hidden');
-        } else {
-            noTicketsMessage.classList.add('hidden');
-            const sortedTickets = tickets.sort((a, b) => new Date(b.last_updated_at) - new Date(a.last_updated_at));
-            ticketsContainer.innerHTML = sortedTickets.map(renderTicket).join('');
-            document.querySelectorAll('.ticket-card').forEach(card => {
-                card.addEventListener('click', () => openConversation(card.dataset.id));
+            const submitButton = replyForm.querySelector('button[type="submit"]');
+            attachFileBtn.disabled = true;
+            submitButton.disabled = true;
+            showNotification("در حال ارسال تصویر...", true, 0);
+
+            try {
+                const formData = new FormData();
+                formData.append('ticket_id', currentTicketId);
+                formData.append('sender', 'user');
+                formData.append('image', file, file.name);
+
+                const response = await fetch(`${WORKER_URL}/messages`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    let errorText;
+                    try {
+                        const errJson = await response.json();
+                        errorText = errJson.error || 'خطای ناشناخته سرور.';
+                    } catch (e) {
+                        errorText = await response.text();
+                    }
+                    throw new Error(errorText);
+                }
+                
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || "سرور پاسخی ناموفق داد.");
+                }
+                
+                const placeholderPayload = {
+                    ticket_id: currentTicketId,
+                    sender: 'user',
+                    text: 'تصویر ارسال شد.',
+                    type: 'image_placeholder'
+                };
+                
+                // Do not save this to Firebase, just show in UI
+                appendMessageToUI({ ...placeholderPayload, created_at: new Date().toISOString() });
+                showNotification("تصویر با موفقیت ارسال شد.", true);
+
+            } catch (error) {
+                console.error("Image send failed:", error);
+                showNotification(`ارسال تصویر ناموفق بود: ${error.message}`, false);
+            } finally {
+                attachFileBtn.disabled = false;
+                submitButton.disabled = false;
+                fileUploadInput.value = '';
+            }
+        }
+
+        const handleNewTicketSubmit = async () => {
+            if (isSubmitting) return;
+            const subject = document.getElementById('subject').value.trim();
+            const message = document.getElementById('message').value.trim();
+            const department = document.getElementById('department').value;
+            if (!subject || !message) {
+                showNotification("لطفا موضوع و متن پیام را وارد کنید.", false);
+                return;
+            }
+            isSubmitting = true;
+            submitNewTicketBtn.disabled = true;
+            submitNewTicketBtn.textContent = 'در حال ارسال...';
+            try {
+                const response = await fetch(`${WORKER_URL}/tickets`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ telegram_id: telegramUserId, user_name: telegramUserName, subject, department, message }),
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'خطا در ارسال تیکت');
+                }
+                newTicketForm.reset();
+                showNotification('تیکت شما با موفقیت ارسال شد.');
+                fetchTickets();
+                setTimeout(() => showView('ticketsList'), 500);
+            } catch (error) {
+                showNotification(`ارسال تیکت با خطا مواجه شد: ${error.message}`, false);
+                console.error("Error creating ticket:", error);
+            } finally {
+                isSubmitting = false;
+                submitNewTicketBtn.disabled = false;
+                submitNewTicketBtn.textContent = 'ارسال';
+            }
+        };
+
+        replyForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = replyMessageInput.value.trim();
+            if(text) sendTextMessage(text);
+        });
+
+        attachFileBtn.addEventListener('click', () => {
+            if (!currentTicketId) {
+                return showNotification("لطفا ابتدا یک گفتگو را باز کنید.", false);
+            }
+            fileUploadInput.click();
+        });
+        
+        fileUploadInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                handleImageUpload(e.target.files[0]);
+            }
+        });
+
+        emojiBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            emojiPickerContainer.classList.toggle('hidden');
+        });
+
+        emojiPicker.addEventListener('emoji-click', event => {
+            const emoji = event.detail.unicode;
+            const textarea = replyMessageInput;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            textarea.value = text.substring(0, start) + emoji + text.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+            textarea.focus();
+            emojiPickerContainer.classList.add('hidden');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!emojiPickerContainer.contains(e.target) && !emojiBtn.contains(e.target)) {
+                emojiPickerContainer.classList.add('hidden');
+            }
+        });
+
+        replyMessageInput.addEventListener('input', () => {
+            replyMessageInput.style.height = 'auto';
+            replyMessageInput.style.height = (replyMessageInput.scrollHeight) + 'px';
+        });
+
+        navButtons.ticketsList.addEventListener('click', () => showView('ticketsList'));
+        navButtons.newTicket.addEventListener('click', () => {
+            if (hasOpenTicket) {
+                showModal('امکان ایجاد تیکت جدید وجود ندارد', 'شما در حال حاضر یک تیکت باز دارید. لطفا تا زمان بسته شدن آن توسط پشتیبانی منتظر بمانید.', true);
+            } else {
+                infoModal.classList.remove('hidden');
+                infoModal.classList.add('flex');
+            }
+        });
+
+        backToTicketsBtn.addEventListener('click', closeConversation);
+        newTicketForm.addEventListener('submit', (e) => { e.preventDefault(); handleNewTicketSubmit(); });
+        submitNewTicketBtn.addEventListener('click', handleNewTicketSubmit);
+        infoModalCloseBtn.addEventListener('click', () => {
+            infoModal.classList.add('hidden');
+            infoModal.classList.remove('flex');
+            showView('newTicket');
+        });
+
+        const faqButton = document.getElementById('faq-button');
+        if (faqButton) {
+            faqButton.addEventListener('click', () => {
+                const faqUrl = 'https://faqhub.amiruserbot7.workers.dev/';
+                if (window.Telegram && window.Telegram.WebApp) {
+                    window.Telegram.WebApp.openLink(faqUrl);
+                } else {
+                    window.open(faqUrl, '_blank');
+                }
             });
         }
-    }
-    
-    function renderTicket(data) {
-        const statusInfo = {
-            open: { text: 'باز', color: 'bg-green-500' },
-            'pending_user_reply': { text: 'در انتظار پاسخ شما', color: 'bg-blue-500' },
-            closed: { text: 'بسته شده', color: 'bg-gray-600' }
-        };
-        const statusDetails = statusInfo[data.status] || { text: data.status, color: 'bg-gray-500' };
-        const lastUpdateDate = new Date(data.last_updated_at).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' });
-
-        return `<div class="ticket-card p-4 rounded-lg shadow-lg cursor-pointer" style="background-color: var(--brand-secondary-bg);" data-id="${data.id}">
-            <div class="flex justify-between items-start">
-                <p class="font-bold text-md">${data.subject}</p>
-                <span class="flex items-center text-xs px-2 py-1 rounded-full" style="background-color: var(--brand-dark-blue);">
-                    <span class="w-2 h-2 rounded-full ml-2 ${statusDetails.color}"></span>
-                    <span>${statusDetails.text}</span>
-                </span>
-            </div>
-            <div class="text-xs mt-4 pt-2 border-t text-gray-400" style="border-color: var(--brand-dark-blue);">آخرین بروزرسانی: ${lastUpdateDate}</div>
-        </div>`;
-    }
-
-    document.getElementById('new-ticket-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('submit-new-ticket-btn');
-        btn.disabled = true;
-        btn.textContent = 'در حال ارسال...';
-        tg.HapticFeedback.impactOccurred('light');
-        
-        const formData = new FormData(e.target);
-        const ticketData = {
-            telegram_id: String(telegramUser.id),
-            user_name: `${telegramUser.first_name || ''} ${telegramUser.last_name || ''}`.trim() || telegramUser.username,
-            subject: formData.get('subject'),
-            department: formData.get('department'),
-            message: formData.get('message')
-        };
-
-        try {
-            await apiRequest('/tickets', { method: 'POST', body: JSON.stringify(ticketData) });
-            e.target.reset();
-            await fetchAndRenderTickets(); 
-            showView('ticketsList');
-            tg.HapticFeedback.notificationOccurred('success');
-        } catch (error) {
-            tg.showAlert(`خطا در ارسال تیکت: ${error.message}`);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'ارسال';
+        const faqLinkModal = document.getElementById('faq-link-modal');
+        if (faqLinkModal) {
+            faqLinkModal.addEventListener('click', (e) => {
+                e.preventDefault(); 
+                const faqUrl = 'https://faqhub.amiruserbot7.workers.dev/';
+                if (window.Telegram && window.Telegram.WebApp) {
+                    window.Telegram.WebApp.openLink(faqUrl);
+                } else {
+                    window.open(faqUrl, '_blank');
+                }
+            });
         }
-    });
-
-    // --- CONVERSATION LOGIC ---
-    async function openConversation(ticketId) {
-        currentTicketId = ticketId;
-        const ticketData = allTicketsData.find(t => t.id === ticketId);
-        if (!ticketData) return;
-        
-        conversationView.classList.remove('hidden');
-        conversationView.classList.add('flex');
-        document.getElementById('conversation-header').textContent = ticketData.subject;
-        
-        document.getElementById('closed-ticket-banner').classList.toggle('hidden', ticketData.status !== 'closed');
-        document.getElementById('reply-box').classList.toggle('hidden', ticketData.status === 'closed');
-
-        try {
-            const result = await apiRequest(`/messages?ticket_id=${ticketId}`);
-            if (result.success) {
-                const messagesData = result.data ? Object.values(result.data) : [];
-                renderMessages(messagesData);
-            }
-        } catch (error) {
-            tg.showAlert(`خطا در بارگذاری پیام‌ها: ${error.message}`);
-        }
-    }
-    
-    function renderMessages(messages) {
-        const container = document.getElementById('conversation-container');
-        container.innerHTML = messages.sort((a,b) => new Date(a.created_at) - new Date(b.created_at)).map(renderMessage).join('');
-        container.scrollTop = container.scrollHeight;
-    }
-
-    function renderMessage(data) {
-        const isUser = data.sender === 'user';
-        const messageClass = isUser ? 'message-user self-end' : 'message-admin self-start';
-        const time = new Date(data.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit'});
-        const escapedText = data.text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>');
-        
-        return `<div class="flex flex-col ${isUser ? 'items-end' : 'items-start'} w-full">
-            <div class="message-bubble ${messageClass}">${escapedText}</div>
-            <span class="text-xs text-gray-400 mt-1 px-2">${time}</span>
-        </div>`;
-    }
-
-    document.getElementById('reply-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const input = document.getElementById('reply-message');
-        const text = input.value.trim();
-        if (!text || !currentTicketId) return;
-        
-        const messagePayload = { ticket_id: currentTicketId, sender: 'user', text: text };
-        input.value = '';
-        input.style.height = 'auto';
-
-        try {
-            await apiRequest('/messages', { method: 'POST', body: JSON.stringify(messagePayload) });
-            openConversation(currentTicketId);
-        } catch (error) {
-            tg.showAlert(`خطا در ارسال پیام: ${error.message}`);
-            input.value = text;
-        }
-    });
-
-    // --- EVENT LISTENERS ---
-    navButtons.ticketsList.addEventListener('click', () => showView('ticketsList'));
-    navButtons.newTicket.addEventListener('click', () => showView('newTicket'));
-    
-    document.getElementById('back-to-tickets').addEventListener('click', () => {
-        conversationView.classList.add('hidden');
-        conversationView.classList.remove('flex');
-        currentTicketId = null;
-        fetchAndRenderTickets();
-    });
-    
-    replyMessageInput.addEventListener('input', () => {
-        replyMessageInput.style.height = 'auto';
-        replyMessageInput.style.height = (replyMessageInput.scrollHeight) + 'px';
-    });
-
-    emojiBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        emojiPickerContainer.classList.toggle('hidden');
-    });
-
-    emojiPicker.addEventListener('emoji-click', event => {
-        const emoji = event.detail.unicode;
-        const textarea = replyMessageInput;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        const text = textarea.value;
-        textarea.value = text.substring(0, start) + emoji + text.substring(end);
-        textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
-        textarea.focus();
-        emojiPickerContainer.classList.add('hidden');
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!emojiPickerContainer.contains(e.target) && !emojiBtn.contains(e.target)) {
-            emojiPickerContainer.classList.add('hidden');
-        }
-    });
-
-</script>
+    </script>
 </body>
 </html>
-
