@@ -126,7 +126,7 @@
                 throw new Error(result.error || 'خطایی در سرور رخ داد. لطفاً بعداً تلاش کنید.');
             }
 
-            showSuccessPopup(result.data.miniAppUrl, result.data.adminPanelUrl, result.data.adminBotUsername);
+            showSuccessPopup(result.data.miniAppUrl, result.data.adminPanelUrl, result.data.adminBotUsername, result.existed);
 
         } catch (error) {
             Swal.fire({
@@ -155,21 +155,26 @@
         }
     }
 
-    function showSuccessPopup(miniAppUrl, adminPanelUrl, adminBotUsername) {
+    function showSuccessPopup(miniAppUrl, adminPanelUrl, adminBotUsername, existed = false) {
+        const title = existed ? '🎉 پلتفرم شما بازیابی شد!' : '🎉 پلتفرم شما آماده است!';
+        const initialText = existed 
+            ? '<p class="font-bold">این پلتفرم قبلاً ساخته شده بود. اطلاعات آن برای شما بازیابی شد:</p>' 
+            : '<p class="font-bold">مراحل نهایی را برای فعال‌سازی انجام دهید:</p>';
+
         Swal.fire({
             icon: 'success',
-            title: '🎉 پلتفرم شما آماده است!',
+            title: title,
             html: `
                 <div class="text-right text-gray-700 space-y-4 p-4 bg-gray-50 rounded-lg">
-                    <p class="font-bold">مراحل نهایی را برای فعال‌سازی انجام دهید:</p>
+                    ${initialText}
                     <div>
-                        <p><strong>۱. فعال‌سازی Mini App:</strong></p>
-                        <p class="text-sm">لینک زیر را کپی کرده و در <a href="https://t.me/BotFather" target="_blank" class="text-blue-500 hover:underline">BotFather</a> برای ربات کاربری خود به عنوان Mini App ثبت کنید.</p>
+                        <p><strong>۱. لینک Mini App شما:</strong></p>
+                        <p class="text-sm">این لینک را در <a href="https://t.me/BotFather" target="_blank" class="text-blue-500 hover:underline">BotFather</a> برای ربات کاربری خود ثبت کنید.</p>
                         <input type="text" readonly value="${miniAppUrl}" class="w-full mt-1 p-2 border rounded-md text-left bg-gray-200 swal-input" onclick="this.select(); document.execCommand('copy');">
                     </div>
                     <div>
                         <p><strong>۲. فعال‌سازی ربات ادمین:</strong></p>
-                        <p class="text-sm">به ربات ادمین خود (<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-500 hover:underline">@${adminBotUsername}</a>) بروید و دکمه <strong>Start/</strong> را بزنید تا اعلان‌ها را دریافت کنید.</p>
+                        <p class="text-sm">به ربات ادمین خود (<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-500 hover:underline">@${adminBotUsername}</a>) بروید و دکمه <strong>Start/</strong> را بزنید.</p>
                     </div>
                      <div>
                         <p><strong>۳. پنل مدیریت شما:</strong></p>
@@ -187,3 +192,4 @@
 
 </body>
 </html>
+
