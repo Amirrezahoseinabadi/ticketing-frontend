@@ -153,7 +153,7 @@
         await fetchAndRenderTickets();
         showView('ticketsList');
         if (pollingInterval) clearInterval(pollingInterval);
-        pollingInterval = setInterval(fetchAndRenderTickets, 15000); // Increased interval to reduce load
+        pollingInterval = setInterval(fetchAndRenderTickets, 15000);
     }
     
     // --- API CALLS ---
@@ -171,7 +171,6 @@
             return response.json();
         } catch (error) {
             console.error(`API request to ${endpoint} failed:`, error);
-            // Optionally show a toast notification for network errors
             tg.HapticFeedback.notificationOccurred('error');
             throw error;
         }
@@ -179,16 +178,13 @@
 
     // --- VIEW MANAGEMENT ---
     function showView(viewName) {
-        // Hide all main views
         ticketsListView.classList.add('hidden');
         newTicketView.classList.add('hidden');
 
-        // Logic for switching views
         if (viewName === 'newTicket') {
              const hasOpenTicket = allTicketsData.some(ticket => ticket.status !== 'closed');
              if (hasOpenTicket) {
                  tg.showAlert('شما در حال حاضر یک تیکت باز دارید. لطفا تا زمان بسته شدن آن منتظر بمانید.');
-                 // Stay on the tickets list view
                  viewName = 'ticketsList';
              }
         }
@@ -201,7 +197,6 @@
             newTicketView.classList.remove('hidden');
         }
 
-        // Update active state for nav buttons
         Object.values(navButtons).forEach(btn => btn.classList.remove('active'));
         if (navButtons[viewName]) navButtons[viewName].classList.add('active');
     }
@@ -209,18 +204,20 @@
     // --- TICKET LOGIC ---
     async function fetchAndRenderTickets() {
         try {
-            const result = await apiRequest(`/tickets?telegram_id=${telegramUser.id}`);
+            // --- FIX ---: Ensure telegram_id is always sent as a string.
+            const result = await apiRequest(`/tickets?telegram_id=${String(telegramUser.id)}`);
             if (result.success) {
                 const tickets = result.data ? Object.keys(result.data).map(key => ({ id: key, ...result.data[key] })) : [];
-                // Simple check to see if data has changed to avoid re-rendering
                 if (JSON.stringify(allTicketsData) !== JSON.stringify(tickets)) {
                     allTicketsData = tickets;
                     renderTickets(allTicketsData);
                 }
+            } else {
+                 showError(result.error || 'خطا در بارگذاری تیکت‌ها');
             }
         } catch (error) {
-            // Handle fetch error silently in background polling
             console.error("Polling for tickets failed:", error);
+            showError(error.message);
         }
     }
 
@@ -268,7 +265,8 @@
         
         const formData = new FormData(e.target);
         const ticketData = {
-            telegram_id: telegramUser.id,
+            // --- FIX ---: Ensure telegram_id is always sent as a string.
+            telegram_id: String(telegramUser.id),
             user_name: `${telegramUser.first_name || ''} ${telegramUser.last_name || ''}`.trim() || telegramUser.username,
             subject: formData.get('subject'),
             department: formData.get('department'),
@@ -339,14 +337,14 @@
         
         const messagePayload = { ticket_id: currentTicketId, sender: 'user', text: text };
         input.value = '';
-        input.style.height = 'auto'; // Reset height after send
+        input.style.height = 'auto';
 
         try {
             await apiRequest('/messages', { method: 'POST', body: JSON.stringify(messagePayload) });
-            openConversation(currentTicketId); // Re-fetch messages
+            openConversation(currentTicketId);
         } catch (error) {
             tg.showAlert(`خطا در ارسال پیام: ${error.message}`);
-            input.value = text; // Restore text on failure
+            input.value = text;
         }
     });
 
@@ -358,10 +356,9 @@
         conversationView.classList.add('hidden');
         conversationView.classList.remove('flex');
         currentTicketId = null;
-        fetchAndRenderTickets(); // Refresh ticket list on exit
+        fetchAndRenderTickets();
     });
     
-    // Auto-resize textarea
     const replyTextarea = document.getElementById('reply-message');
     replyTextarea.addEventListener('input', () => {
         replyTextarea.style.height = 'auto';
