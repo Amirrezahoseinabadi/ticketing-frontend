@@ -6,106 +6,62 @@
     <title>پنل مدیریت پشتیبانی</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { 
-            font-family: 'Vazirmatn', sans-serif; 
-            background-color: #f7f9fc; 
-            color: #1a202c;
-        }
-        /* Custom scrollbar for a cleaner look */
+        body { font-family: 'Vazirmatn', sans-serif; background-color: #f7f9fc; color: #1a202c; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 6px; }
         ::-webkit-scrollbar-thumb:hover { background: #a5b4fc; }
-
-        /* Status badge styles */
         .status-badge { padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; text-align: center; }
         .status-open { background-color: #dcfce7; color: #166534; }
         .status-pending_user_reply { background-color: #fef9c3; color: #a16207; }
         .status-closed { background-color: #fee2e2; color: #991b1b; }
-
-        /* Message bubble styles */
         .message-user { background-color: #ffffff; color: #1f2937; border-radius: 1.25rem 1.25rem 1.25rem 0.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .message-admin { background-color: #e0e7ff; color: #312e81; border-radius: 1.25rem 1.25rem 0.25rem 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        
-        /* Active ticket item in the list */
-        .ticket-list-item.active { 
-            background-color: #eef2ff; 
-            border-right: 4px solid #4f46e5;
-        }
-
-        /* Background pattern for messages container */
-        #messages-container {
-             background-color: #f0f2f5;
-        }
-
-        /* Unread dot indicator */
+        .ticket-list-item.active { background-color: #eef2ff; border-right: 4px solid #4f46e5; }
+        #messages-container { background-color: #f0f2f5; }
         .unread-dot { width: 10px; height: 10px; background-color: #4f46e5; border-radius: 9999px; }
-
-        /* Skeleton loader animation */
         .skeleton { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-
-        /* Active Nav Link */
-        .nav-link-active {
-            border-bottom: 2px solid #4f46e5;
-            color: #4f46e5;
-            font-weight: 600;
-        }
+        .nav-link-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; font-weight: 600; }
     </style>
 </head>
 <body class="h-screen overflow-hidden">
 
+    <div id="loading-overlay" class="fixed inset-0 bg-white bg-opacity-75 z-50 flex items-center justify-center">
+        <div class="flex flex-col items-center">
+             <svg class="animate-spin h-10 w-10 text-indigo-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+             <p class="mt-2 text-gray-600">در حال بارگذاری...</p>
+        </div>
+    </div>
+
     <div class="flex flex-col h-full w-full">
-        <!-- Main Content -->
         <main class="flex-1 flex flex-col h-full overflow-hidden">
-            <!-- Main Header -->
             <header class="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200 flex-shrink-0">
                 <div class="flex items-center space-x-8 space-x-reverse">
                     <h1 class="text-xl font-bold text-gray-800">پنل مدیریت</h1>
                     <nav class="flex items-center h-full space-x-6 space-x-reverse">
-                        <a href="#" id="nav-tickets" class="flex items-center h-full px-2 text-sm nav-link-active">
-                            <span>تیکت‌ها</span>
-                        </a>
-                        <a href="#" id="nav-dashboard" class="flex items-center h-full px-2 text-sm text-gray-500 hover:text-gray-800">
-                            <span>داشبورد</span>
-                        </a>
+                        <a href="#" id="nav-tickets" class="flex items-center h-full px-2 text-sm nav-link-active">تیکت‌ها</a>
+                        <a href="#" id="nav-dashboard" class="flex items-center h-full px-2 text-sm text-gray-500 hover:text-gray-800">داشبورد</a>
                     </nav>
                 </div>
-                <div><!-- Placeholder for user menu or other icons --></div>
             </header>
 
-            <!-- Tickets View -->
             <div id="tickets-view" class="flex-1 flex overflow-hidden">
-                <!-- Tickets List Panel -->
                 <div id="tickets-list-panel" class="w-full md:w-2/5 lg:w-1/3 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col">
                     <div class="p-3 border-b">
                         <input type="text" id="search-box" placeholder="جستجوی تیکت..." class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400">
                         <div class="grid grid-cols-2 gap-2 mt-2">
-                            <select id="filter-status" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-                                <option value="all">همه وضعیت‌ها</option>
-                                <option value="open">باز</option>
-                                <option value="pending_user_reply">در انتظار پاسخ</option>
-                                <option value="closed">بسته شده</option>
-                            </select>
-                            <select id="filter-department" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
-                                <option value="all">همه دپارتمان‌ها</option>
-                                <option value="general">سوالات متفرقه</option>
-                                <option value="technical">پشتیبانی فنی</option>
-                                <option value="sales">بخش فروش</option>
-                            </select>
+                            <select id="filter-status" class="w-full p-2 border border-gray-300 rounded-lg text-sm"><option value="all">همه وضعیت‌ها</option><option value="open">باز</option><option value="pending_user_reply">در انتظار پاسخ</option><option value="closed">بسته شده</option></select>
+                            <select id="filter-department" class="w-full p-2 border border-gray-300 rounded-lg text-sm"><option value="all">همه دپارتمان‌ها</option><option value="general">سوالات متفرقه</option><option value="technical">پشتیبانی فنی</option><option value="sales">بخش فروش</option></select>
                         </div>
                     </div>
                     <div id="tickets-list-container" class="flex-grow overflow-y-auto">
-                        <div id="loading-skeleton" class="p-2 space-y-2"></div>
+                        <div id="tickets-list-skeleton" class="p-2 space-y-2"></div>
                     </div>
                 </div>
 
-                <!-- Conversation Panel -->
                 <div id="conversation-panel" class="w-full md:w-3/5 lg:w-2/3 flex flex-col bg-gray-50 absolute md:relative inset-0 transform md:transform-none translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
                     <div id="welcome-message" class="flex flex-col items-center justify-center h-full text-gray-400">
                         <svg class="w-28 h-28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
@@ -114,42 +70,20 @@
                     
                     <div id="conversation-content" class="hidden flex-1 flex flex-col overflow-hidden">
                         <header class="p-3 border-b bg-white z-10 flex justify-between items-center flex-shrink-0">
-                            <div class="flex items-center">
-                                <button id="back-to-list-btn" class="md:hidden ml-2 p-2 rounded-full hover:bg-gray-100">
-                                    <svg class="w-6 h-6 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
-                                </button>
-                                <div>
-                                    <h2 id="ticket-subject" class="font-bold text-lg text-gray-800"></h2>
-                                    <p id="ticket-user-id" class="text-sm text-gray-500"></p>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-3 space-x-reverse">
-                                <select id="ticket-status" class="border border-gray-300 rounded-lg p-2 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-400">
-                                    <option value="open">باز (در حال بررسی)</option>
-                                    <option value="pending_user_reply">در انتظار پاسخ کاربر</option>
-                                    <option value="closed">بسته شده</option>
-                                </select>
-                            </div>
+                            <div class="flex items-center"><button id="back-to-list-btn" class="md:hidden ml-2 p-2 rounded-full hover:bg-gray-100"><svg class="w-6 h-6 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg></button><div><h2 id="ticket-subject" class="font-bold text-lg text-gray-800"></h2><p id="ticket-user-id" class="text-sm text-gray-500"></p></div></div>
+                            <select id="ticket-status" class="border border-gray-300 rounded-lg p-2 text-sm bg-gray-50 focus:ring-2 focus:ring-indigo-400"><option value="open">باز</option><option value="pending_user_reply">در انتظار پاسخ کاربر</option><option value="closed">بسته شده</option></select>
                         </header>
-                        
                         <div id="messages-container" class="flex-1 p-6 overflow-y-auto space-y-6"></div>
-
                         <footer class="p-3 bg-white border-t flex-shrink-0 shadow-[0_-2px_8px_rgba(0,0,0,0.07)]">
                             <form id="reply-form" class="flex items-center space-x-2 space-x-reverse">
-                                <button type="button" class="p-2 text-gray-500 hover:text-indigo-600 flex-shrink-0" title="پیوست فایل">
-                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                                </button>
                                 <textarea id="reply-message" rows="1" class="flex-grow p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-400 resize-none bg-gray-50 text-sm" placeholder="پاسخ خود را بنویسید..."></textarea>
-                                <button type="submit" class="bg-indigo-600 text-white font-semibold w-12 h-12 rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex-shrink-0 flex items-center justify-center">
-                                     <svg class="w-6 h-6 transform -rotate-45" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg>
-                                </button>
+                                <button type="submit" class="bg-indigo-600 text-white font-semibold w-12 h-12 rounded-lg hover:bg-indigo-700 transition-colors duration-200 flex-shrink-0 flex items-center justify-center disabled:opacity-50"><svg class="w-6 h-6 transform -rotate-45" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg></button>
                             </form>
                         </footer>
                     </div>
                 </div>
             </div>
 
-            <!-- Dashboard View -->
             <div id="dashboard-view" class="p-6 overflow-y-auto hidden bg-gray-50 flex-1">
                  <h2 class="text-2xl font-bold mb-6 text-gray-800">داشبورد عملکرد پشتیبانی</h2>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -166,128 +100,112 @@
         </main>
     </div>
     
-    <script>
-        // --- CONFIG ---
-        const WORKER_URL = "https://support-api-worker.amiruserbot7.workers.dev";
-        const firebaseConfig = {
-            apiKey: "AIzaSyAjBkdCe-kJK2VFfM3lSFyFiFNXElOCPSg",
-            authDomain: "support-app-final.firebaseapp.com",
-            databaseURL: "https://support-app-final-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "support-app-final",
-            storageBucket: "support-app-final.appspot.com",
-            messagingSenderId: "220983533006",
-            appId: "1:220983533006:web:87f404486afb9f6a06df9f"
-        };
+<script>
+    // --- CONFIGURATION ---
+    const WORKER_URL = "https://ticketing-maker-api.amiruserbot7.workers.dev";
+    let platformId = '';
 
-        // --- FIREBASE INIT ---
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+    // --- GLOBAL STATE & CACHE ---
+    let currentTicketId = null;
+    let allTicketsCache = {};
+    let statusChartInstance, departmentChartInstance;
+    let ticketsPollingInterval, messagesPollingInterval;
+    
+    // --- DATA MAPS ---
+    const departmentMap = { general: 'سوالات متفرقه', technical: 'پشتیبانی فنی', sales: 'بخش فروش' };
+    const statusMap = {
+        open: { text: 'باز', className: 'status-open' },
+        pending_user_reply: { text: 'در انتظار پاسخ', className: 'status-pending_user_reply' },
+        closed: { text: 'بسته شده', className: 'status-closed' }
+    };
 
-        // --- GLOBAL STATE ---
-        let currentTicketId = null;
-        let allTickets = {};
-        let statusChartInstance, departmentChartInstance;
-        
-        // --- DOM ELEMENTS ---
-        const DOMElements = {
-            nav: {
-                tickets: document.getElementById('nav-tickets'),
-                dashboard: document.getElementById('nav-dashboard')
-            },
-            views: {
-                tickets: document.getElementById('tickets-view'),
-                dashboard: document.getElementById('dashboard-view')
-            },
-            ticketsList: {
-                panel: document.getElementById('tickets-list-panel'),
-                container: document.getElementById('tickets-list-container'),
-                skeleton: document.getElementById('loading-skeleton')
-            },
-            conversation: {
-                panel: document.getElementById('conversation-panel'),
-                welcome: document.getElementById('welcome-message'),
-                content: document.getElementById('conversation-content'),
-                subject: document.getElementById('ticket-subject'),
-                userId: document.getElementById('ticket-user-id'),
-                messages: document.getElementById('messages-container'),
-                backBtn: document.getElementById('back-to-list-btn')
-            },
-            forms: {
-                reply: document.getElementById('reply-form'),
-                replyInput: document.getElementById('reply-message'),
-                statusSelect: document.getElementById('ticket-status'),
-                search: document.getElementById('search-box'),
-                filterStatus: document.getElementById('filter-status'),
-                filterDepartment: document.getElementById('filter-department')
-            }
-        };
+    // --- DOM ELEMENTS ---
+    const DOM = {
+        loadingOverlay: document.getElementById('loading-overlay'),
+        nav: { tickets: document.getElementById('nav-tickets'), dashboard: document.getElementById('nav-dashboard') },
+        views: { tickets: document.getElementById('tickets-view'), dashboard: document.getElementById('dashboard-view') },
+        ticketsList: { container: document.getElementById('tickets-list-container'), skeleton: document.getElementById('tickets-list-skeleton') },
+        conversation: {
+            panel: document.getElementById('conversation-panel'), welcome: document.getElementById('welcome-message'),
+            content: document.getElementById('conversation-content'), subject: document.getElementById('ticket-subject'),
+            userId: document.getElementById('ticket-user-id'), messages: document.getElementById('messages-container'), backBtn: document.getElementById('back-to-list-btn')
+        },
+        forms: {
+            reply: document.getElementById('reply-form'), replyInput: document.getElementById('reply-message'),
+            statusSelect: document.getElementById('ticket-status'), search: document.getElementById('search-box'),
+            filterStatus: document.getElementById('filter-status'), filterDepartment: document.getElementById('filter-department')
+        }
+    };
 
-        // --- DATA MAPS ---
-        const departmentMap = { general: 'سوالات متفرقه', technical: 'پشتیبانی فنی', sales: 'بخش فروش' };
-        const statusMap = {
-            open: { text: 'باز', className: 'status-open' },
-            pending_user_reply: { text: 'در انتظار پاسخ', className: 'status-pending_user_reply' },
-            closed: { text: 'بسته شده', className: 'status-closed' }
-        };
-        
-        // --- UI FUNCTIONS ---
-        const UI = {
-            showSkeleton: () => {
-                let skeletons = '';
-                for (let i = 0; i < 8; i++) {
-                    skeletons += `<div class="p-4 border-b border-gray-200 animate-pulse"><div class="h-4 bg-gray-200 rounded w-3/4"></div><div class="h-3 bg-gray-200 rounded w-1/2 mt-3"></div></div>`;
-                }
-                DOMElements.ticketsList.skeleton.innerHTML = skeletons;
-                DOMElements.ticketsList.skeleton.style.display = 'block';
-            },
-            hideSkeleton: () => { DOMElements.ticketsList.skeleton.style.display = 'none'; },
-            switchView: (viewName) => {
-                if (viewName === 'dashboard') {
-                    DOMElements.views.tickets.classList.add('hidden');
-                    DOMElements.views.dashboard.classList.remove('hidden');
-                    DOMElements.nav.dashboard.classList.add('nav-link-active');
-                    DOMElements.nav.dashboard.classList.remove('text-gray-500');
-                    DOMElements.nav.tickets.classList.remove('nav-link-active');
-                    DOMElements.nav.tickets.classList.add('text-gray-500');
-                    renderDashboard();
-                } else {
-                    DOMElements.views.dashboard.classList.add('hidden');
-                    DOMElements.views.tickets.classList.remove('hidden');
-                    DOMElements.nav.tickets.classList.add('nav-link-active');
-                    DOMElements.nav.tickets.classList.remove('text-gray-500');
-                    DOMElements.nav.dashboard.classList.remove('nav-link-active');
-                    DOMElements.nav.dashboard.classList.add('text-gray-500');
-                }
-            },
-            showConversation: () => {
-                DOMElements.conversation.panel.classList.remove('translate-x-full');
-            },
-            hideConversation: () => {
-                DOMElements.conversation.panel.classList.add('translate-x-full');
-                currentTicketId = null;
-                 document.querySelectorAll('.ticket-list-item.active').forEach(el => el.classList.remove('active'));
-            }
-        };
-
-        // --- RENDER FUNCTIONS ---
-        function renderTicketsList(tickets) {
+    // --- API FUNCTIONS ---
+    const api = {
+        async fetchTickets() {
+            const response = await fetch(`${WORKER_URL}/api/${platformId}/tickets`);
+            if (!response.ok) throw new Error('Failed to fetch tickets');
+            const result = await response.json();
+            return result.data || {};
+        },
+        async fetchMessages(ticketId) {
+            const response = await fetch(`${WORKER_URL}/api/${platformId}/messages?ticket_id=${ticketId}`);
+            if (!response.ok) throw new Error('Failed to fetch messages');
+            const result = await response.json();
+            return result.data || {};
+        },
+        async updateTicket(ticketId, payload) {
+            await fetch(`${WORKER_URL}/api/${platformId}/tickets/${ticketId}`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+            });
+        },
+        async sendMessage(ticketId, text) {
+            await fetch(`${WORKER_URL}/api/${platformId}/messages`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticket_id: ticketId, sender: 'admin', text: text, source: 'human' }),
+            });
+        }
+    };
+    
+    // --- UI FUNCTIONS ---
+    const UI = {
+        showLoading(isLoading) { DOM.loadingOverlay.style.display = isLoading ? 'flex' : 'none'; },
+        showSkeleton() {
+            DOM.ticketsList.skeleton.innerHTML = Array(8).fill('').map(() => 
+                `<div class="p-4 border-b border-gray-200 skeleton"><div class="h-4 bg-gray-200 rounded w-3/4"></div><div class="h-3 bg-gray-200 rounded w-1/2 mt-3"></div></div>`
+            ).join('');
+            DOM.ticketsList.skeleton.style.display = 'block';
+        },
+        hideSkeleton() { DOM.ticketsList.skeleton.style.display = 'none'; },
+        switchView(viewName) {
+            const isDashboard = viewName === 'dashboard';
+            DOM.views.tickets.classList.toggle('hidden', isDashboard);
+            DOM.views.dashboard.classList.toggle('hidden', !isDashboard);
+            DOM.nav.dashboard.classList.toggle('nav-link-active', isDashboard);
+            DOM.nav.dashboard.classList.toggle('text-gray-500', !isDashboard);
+            DOM.nav.tickets.classList.toggle('nav-link-active', !isDashboard);
+            DOM.nav.tickets.classList.toggle('text-gray-500', isDashboard);
+            if (isDashboard) renderDashboard();
+        },
+        showConversation() { DOM.conversation.panel.classList.remove('translate-x-full'); },
+        hideConversation() {
+            DOM.conversation.panel.classList.add('translate-x-full');
+            currentTicketId = null;
+            document.querySelectorAll('.ticket-list-item.active').forEach(el => el.classList.remove('active'));
+        },
+        renderTicketsList(tickets) {
             UI.hideSkeleton();
-            DOMElements.ticketsList.container.innerHTML = '';
+            DOM.ticketsList.container.innerHTML = '';
             const sortedTickets = Object.keys(tickets).map(key => ({ id: key, ...tickets[key] })).sort((a, b) => new Date(b.last_updated_at || b.created_at) - new Date(a.last_updated_at || a.created_at));
             
             if (sortedTickets.length === 0) {
-                DOMElements.ticketsList.container.innerHTML = '<p class="p-4 text-center text-gray-500">هیچ تیکتی یافت نشد.</p>';
+                DOM.ticketsList.container.innerHTML = '<p class="p-4 text-center text-gray-500">هیچ تیکتی یافت نشد.</p>';
                 return;
             }
 
             sortedTickets.forEach(ticket => {
                 const statusInfo = statusMap[ticket.status] || { text: 'نامشخص', className: '' };
-                const ticketElement = document.createElement('div');
-                ticketElement.className = `ticket-list-item flex flex-col p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${ticket.id === currentTicketId ? 'active' : ''}`;
-                ticketElement.dataset.ticketId = ticket.id;
-                const unreadIndicator = ticket.admin_unread ? '<div class="unread-dot ml-2"></div>' : '';
-
-                ticketElement.innerHTML = `
+                const ticketEl = document.createElement('div');
+                ticketEl.className = `ticket-list-item flex flex-col p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 ${ticket.id === currentTicketId ? 'active' : ''}`;
+                ticketEl.dataset.ticketId = ticket.id;
+                ticketEl.innerHTML = `
                     <div class="flex justify-between items-start">
                         <p class="font-bold text-sm text-gray-800 truncate pr-2">${ticket.subject}</p>
                         <span class="status-badge flex-shrink-0 ${statusInfo.className}">${statusInfo.text}</span>
@@ -295,210 +213,186 @@
                     <div class="flex justify-between items-center mt-2">
                         <p class="text-xs text-gray-500">${departmentMap[ticket.department] || 'نامشخص'}</p>
                         <div class="flex items-center">
-                            ${unreadIndicator}
+                            ${ticket.admin_unread ? '<div class="unread-dot ml-2"></div>' : ''}
                             <p class="text-xs text-gray-400">${new Date(ticket.last_updated_at || ticket.created_at).toLocaleString('fa-IR')}</p>
                         </div>
                     </div>
                 `;
-                ticketElement.addEventListener('click', () => openConversation(ticket.id));
-                DOMElements.ticketsList.container.appendChild(ticketElement);
+                ticketEl.addEventListener('click', () => openConversation(ticket.id));
+                DOM.ticketsList.container.appendChild(ticketEl);
             });
-        }
-
-        function renderMessage(msg, ticketData) {
-            const msgElement = document.createElement('div');
-            const isUser = msg.sender === 'user';
-            const senderName = isUser ? (ticketData.user_name || 'کاربر') : 'پشتیبانی';
-            
-            msgElement.className = `flex items-start gap-3 ${isUser ? '' : 'flex-row-reverse'}`;
-            msgElement.innerHTML = `
-                <div class="w-8 h-8 rounded-full flex-shrink-0 ${isUser ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'} flex items-center justify-center font-bold text-sm">${senderName.charAt(0)}</div>
-                <div class="flex flex-col ${isUser ? '' : 'items-end'}">
-                    <div class="p-3 max-w-md ${isUser ? 'message-user' : 'message-admin'}">
-                        <p class="text-sm break-words">${msg.text.replace(/\n/g, '<br>')}</p>
-                    </div>
-                    <span class="text-xs text-gray-400 mt-1 px-1">${new Date(msg.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-            `;
-            DOMElements.conversation.messages.appendChild(msgElement);
-        }
-        
-        function renderDashboard() {
-            const tickets = Object.values(allTickets);
-            if (tickets.length === 0) return;
-
-            const statusCounts = tickets.reduce((acc, t) => { acc[t.status] = (acc[t.status] || 0) + 1; return acc; }, {});
-            const deptCounts = tickets.reduce((acc, t) => { acc[t.department] = (acc[t.department] || 0) + 1; return acc; }, {});
-            
-            document.getElementById('stats-total').textContent = tickets.length;
-            document.getElementById('stats-open').textContent = statusCounts.open || 0;
-            document.getElementById('stats-pending').textContent = statusCounts.pending_user_reply || 0;
-            document.getElementById('stats-closed').textContent = statusCounts.closed || 0;
-
-            const statusChartCtx = document.getElementById('status-chart').getContext('2d');
-            if (statusChartInstance) statusChartInstance.destroy();
-            statusChartInstance = new Chart(statusChartCtx, { 
-                type: 'doughnut', 
-                data: { 
-                    labels: Object.keys(statusCounts).map(s => (statusMap[s] ? statusMap[s].text : s)), 
-                    datasets: [{ 
-                        data: Object.values(statusCounts), 
-                        backgroundColor: ['#dcfce7', '#fef9c3', '#fee2e2'],
-                        borderColor: '#ffffff',
-                        borderWidth: 2,
-                    }] 
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }}}
-            });
-
-            const deptChartCtx = document.getElementById('department-chart').getContext('2d');
-            if (departmentChartInstance) departmentChartInstance.destroy();
-            departmentChartInstance = new Chart(deptChartCtx, { 
-                type: 'bar', 
-                data: { 
-                    labels: Object.keys(deptCounts).map(d => departmentMap[d] || d), 
-                    datasets: [{ 
-                        label: 'تعداد تیکت', 
-                        data: Object.values(deptCounts), 
-                        backgroundColor: '#818cf8',
-                        borderRadius: 6
-                    }] 
-                }, 
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }}, indexAxis: 'y' } 
-            });
-        }
-        
-        // --- LOGIC FUNCTIONS ---
-        function applyFilters() {
-            const searchTerm = DOMElements.forms.search.value.toLowerCase();
-            const status = DOMElements.forms.filterStatus.value;
-            const department = DOMElements.forms.filterDepartment.value;
-
-            const filteredTickets = Object.keys(allTickets).filter(key => {
-                const ticket = allTickets[key];
-                const searchMatch = ticket.subject.toLowerCase().includes(searchTerm) || 
-                                    (ticket.user_name || '').toLowerCase().includes(searchTerm) || 
-                                    (ticket.telegram_id || '').toString().includes(searchTerm);
-                const statusMatch = (status === 'all' || ticket.status === status);
-                const departmentMatch = (department === 'all' || ticket.department === department);
-                return searchMatch && statusMatch && departmentMatch;
-            }).reduce((obj, key) => { obj[key] = allTickets[key]; return obj; }, {});
-            renderTicketsList(filteredTickets);
-        }
-
-        function openConversation(ticketId) {
-            if (currentTicketId === ticketId) return;
-            currentTicketId = ticketId;
-            db.ref(`tickets/${ticketId}`).update({ admin_unread: false });
-
-            if (window.innerWidth < 768) {
-                UI.showConversation();
+        },
+        renderMessages(messages, ticketData) {
+            DOM.conversation.messages.innerHTML = '';
+            if (messages && ticketData) {
+                Object.values(messages)
+                      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                      .forEach(msg => {
+                            const msgEl = document.createElement('div');
+                            const isUser = msg.sender === 'user';
+                            const senderName = isUser ? (ticketData.user_name || 'کاربر') : 'پشتیبانی';
+                            msgEl.className = `flex items-start gap-3 ${isUser ? '' : 'flex-row-reverse'}`;
+                            msgEl.innerHTML = `
+                                <div class="w-8 h-8 rounded-full flex-shrink-0 ${isUser ? 'bg-green-100 text-green-700' : 'bg-indigo-100 text-indigo-700'} flex items-center justify-center font-bold text-sm">${senderName.charAt(0)}</div>
+                                <div class="flex flex-col ${isUser ? '' : 'items-end'}">
+                                    <div class="p-3 max-w-md ${isUser ? 'message-user' : 'message-admin'}">
+                                        <p class="text-sm break-words">${msg.text.replace(/\n/g, '<br>')}</p>
+                                    </div>
+                                    <span class="text-xs text-gray-400 mt-1 px-1">${new Date(msg.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>`;
+                            DOM.conversation.messages.appendChild(msgEl);
+                      });
             }
-            
-            document.querySelectorAll('.ticket-list-item').forEach(el => el.classList.toggle('active', el.dataset.ticketId === ticketId));
-            DOMElements.conversation.welcome.style.display = 'none';
-            DOMElements.conversation.content.style.display = 'flex';
-            
-            db.ref(`tickets/${ticketId}`).on('value', (snapshot) => {
-                const ticketData = snapshot.val();
-                if (ticketData) {
-                    DOMElements.conversation.subject.textContent = ticketData.subject;
-                    DOMElements.conversation.userId.textContent = `کاربر: ${ticketData.user_name || ticketData.telegram_id}`;
-                    DOMElements.forms.statusSelect.value = ticketData.status;
-                }
-            });
-            db.ref(`messages/${ticketId}`).on('value', (snapshot) => {
-                const messagesData = snapshot.val();
-                DOMElements.conversation.messages.innerHTML = '';
-                if (messagesData && allTickets[ticketId]) {
-                    Object.values(messagesData)
-                          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-                          .forEach(msg => renderMessage(msg, allTickets[ticketId]));
-                }
-                DOMElements.conversation.messages.scrollTop = DOMElements.conversation.messages.scrollHeight;
-            });
+            DOM.conversation.messages.scrollTop = DOM.conversation.messages.scrollHeight;
         }
+    };
+    
+    // --- LOGIC & EVENT HANDLERS ---
+    function applyFilters() {
+        const searchTerm = DOM.forms.search.value.toLowerCase();
+        const status = DOM.forms.filterStatus.value;
+        const department = DOM.forms.filterDepartment.value;
+
+        const filteredTickets = Object.keys(allTicketsCache).filter(key => {
+            const ticket = allTicketsCache[key];
+            return (status === 'all' || ticket.status === status) &&
+                   (department === 'all' || ticket.department === department) &&
+                   (ticket.subject.toLowerCase().includes(searchTerm) || (ticket.user_name || '').toLowerCase().includes(searchTerm));
+        }).reduce((obj, key) => ({ ...obj, [key]: allTicketsCache[key] }), {});
+        UI.renderTicketsList(filteredTickets);
+    }
+    
+    async function openConversation(ticketId) {
+        if (currentTicketId === ticketId && !DOM.conversation.panel.classList.contains('translate-x-full')) return;
+        currentTicketId = ticketId;
         
-        async function handleReplySubmit(e) {
-            e.preventDefault();
-            if (!currentTicketId) return;
-            const messageText = DOMElements.forms.replyInput.value.trim();
-            if (messageText === '') return;
-
-            const payload = { ticket_id: currentTicketId, sender: 'admin', text: messageText };
-
-            try {
-                const response = await fetch(`${WORKER_URL}/messages`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-                if (!response.ok) throw new Error('خطا در ارسال پیام');
-                
-                await fetch(`${WORKER_URL}/tickets/${currentTicketId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: 'pending_user_reply' }),
-                });
-                DOMElements.forms.replyInput.value = '';
-                DOMElements.forms.replyInput.style.height = 'auto';
-            } catch (error) {
-                console.error("Failed to send message:", error);
+        if (window.innerWidth < 768) UI.showConversation();
+        document.querySelectorAll('.ticket-list-item').forEach(el => el.classList.toggle('active', el.dataset.ticketId === ticketId));
+        
+        DOM.conversation.welcome.style.display = 'none';
+        DOM.conversation.content.style.display = 'flex';
+        
+        const ticketData = allTicketsCache[ticketId];
+        if (ticketData) {
+            DOM.conversation.subject.textContent = ticketData.subject;
+            DOM.conversation.userId.textContent = `کاربر: ${ticketData.user_name || ticketData.telegram_id}`;
+            DOM.forms.statusSelect.value = ticketData.status;
+            if (ticketData.admin_unread) {
+                api.updateTicket(ticketId, { admin_unread: false });
             }
         }
         
-        async function handleStatusChange() {
-            if (!currentTicketId) return;
-            try {
-                const response = await fetch(`${WORKER_URL}/tickets/${currentTicketId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: DOMElements.forms.statusSelect.value }),
-                });
-                if (!response.ok) throw new Error('خطا در به‌روزرسانی وضعیت');
-            } catch (error) {
-                console.error('Failed to update status:', error);
-                db.ref(`tickets/${currentTicketId}/status`).once('value', snapshot => {
-                    DOMElements.forms.statusSelect.value = snapshot.val();
-                });
-            }
-        }
-        
-        // --- EVENT LISTENERS ---
-        DOMElements.nav.tickets.addEventListener('click', (e) => { e.preventDefault(); UI.switchView('tickets'); });
-        DOMElements.nav.dashboard.addEventListener('click', (e) => { e.preventDefault(); UI.switchView('dashboard'); });
-        DOMElements.conversation.backBtn.addEventListener('click', UI.hideConversation);
-        DOMElements.forms.reply.addEventListener('submit', handleReplySubmit);
-        DOMElements.forms.statusSelect.addEventListener('change', handleStatusChange);
-        DOMElements.forms.search.addEventListener('input', applyFilters);
-        DOMElements.forms.filterStatus.addEventListener('change', applyFilters);
-        DOMElements.forms.filterDepartment.addEventListener('change', applyFilters);
+        fetchAndRenderMessages(ticketId);
+        if (messagesPollingInterval) clearInterval(messagesPollingInterval);
+        messagesPollingInterval = setInterval(() => fetchAndRenderMessages(ticketId), 5000);
+    }
 
-        // Auto-resize textarea
-        DOMElements.forms.replyInput.addEventListener('input', function () {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
+    async function fetchAndRenderMessages(ticketId) {
+        try {
+            const messages = await api.fetchMessages(ticketId);
+            UI.renderMessages(messages, allTicketsCache[ticketId]);
+        } catch (error) {
+            console.error("Failed to render messages:", error);
+        }
+    }
+
+    async function handleReplySubmit(e) {
+        e.preventDefault();
+        if (!currentTicketId) return;
+        const text = DOM.forms.replyInput.value.trim();
+        if (text === '') return;
+
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+
+        try {
+            await api.sendMessage(currentTicketId, text);
+            await api.updateTicket(currentTicketId, { status: 'pending_user_reply', last_updated_at: new Date().toISOString() });
+            DOM.forms.replyInput.value = '';
+            DOM.forms.replyInput.style.height = 'auto';
+            fetchAndRenderMessages(currentTicketId); // Re-fetch immediately to show own message
+        } catch (error) {
+            console.error("Failed to send message:", error);
+            // Show error to user
+        } finally {
+            submitBtn.disabled = false;
+        }
+    }
+    
+    async function handleStatusChange(e) {
+        if (!currentTicketId) return;
+        try {
+            await api.updateTicket(currentTicketId, { status: e.target.value });
+        } catch (error) {
+            console.error('Failed to update status:', error);
+            // Revert UI on error
+        }
+    }
+    
+    function renderDashboard() {
+        const tickets = Object.values(allTicketsCache);
+        if (tickets.length === 0) return;
+
+        const statusCounts = tickets.reduce((acc, t) => ({...acc, [t.status]: (acc[t.status] || 0) + 1 }), {});
+        const deptCounts = tickets.reduce((acc, t) => ({...acc, [t.department]: (acc[t.department] || 0) + 1 }), {});
+        
+        document.getElementById('stats-total').textContent = tickets.length;
+        document.getElementById('stats-open').textContent = statusCounts.open || 0;
+        document.getElementById('stats-pending').textContent = statusCounts.pending_user_reply || 0;
+        document.getElementById('stats-closed').textContent = statusCounts.closed || 0;
+
+        const statusChartCtx = document.getElementById('status-chart').getContext('2d');
+        if (statusChartInstance) statusChartInstance.destroy();
+        statusChartInstance = new Chart(statusChartCtx, { type: 'doughnut', data: { labels: Object.keys(statusCounts).map(s => statusMap[s]?.text || s), datasets: [{ data: Object.values(statusCounts), backgroundColor: ['#dcfce7', '#fef9c3', '#fee2e2'], borderColor: '#ffffff', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }}}});
+
+        const deptChartCtx = document.getElementById('department-chart').getContext('2d');
+        if (departmentChartInstance) departmentChartInstance.destroy();
+        departmentChartInstance = new Chart(deptChartCtx, { type: 'bar', data: { labels: Object.keys(deptCounts).map(d => departmentMap[d] || d), datasets: [{ label: 'تعداد تیکت', data: Object.values(deptCounts), backgroundColor: '#818cf8', borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }}, indexAxis: 'y' } });
+    }
+
+    async function pollForTickets() {
+        try {
+            const tickets = await api.fetchTickets();
+            allTicketsCache = tickets;
+            applyFilters();
+        } catch (error) {
+            console.error("Polling for tickets failed:", error);
+            if (ticketsPollingInterval) clearInterval(ticketsPollingInterval);
+            // Show error message to user
+        }
+    }
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const params = new URLSearchParams(window.location.search);
+        platformId = params.get('pid');
+
+        if (!platformId) {
+            document.body.innerHTML = '<div class="w-full h-screen flex items-center justify-center text-red-500 font-bold text-lg">خطا: شناسه پلتفرم (pid) در آدرس موجود نیست.</div>';
+            return;
+        }
+
+        UI.showLoading(true);
+        UI.showSkeleton();
+
+        // Event Listeners
+        DOM.nav.tickets.addEventListener('click', (e) => { e.preventDefault(); UI.switchView('tickets'); });
+        DOM.nav.dashboard.addEventListener('click', (e) => { e.preventDefault(); UI.switchView('dashboard'); });
+        DOM.conversation.backBtn.addEventListener('click', UI.hideConversation);
+        DOM.forms.reply.addEventListener('submit', handleReplySubmit);
+        DOM.forms.statusSelect.addEventListener('change', handleStatusChange);
+        DOM.forms.search.addEventListener('input', applyFilters);
+        DOM.forms.filterStatus.addEventListener('change', applyFilters);
+        DOM.forms.filterDepartment.addEventListener('change', applyFilters);
+        DOM.forms.replyInput.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = `${this.scrollHeight}px`; });
+
+        // Initial data fetch and start polling
+        pollForTickets().then(() => {
+            UI.showLoading(false);
+            if (ticketsPollingInterval) clearInterval(ticketsPollingInterval);
+            ticketsPollingInterval = setInterval(pollForTickets, 5000); // Poll every 5 seconds
         });
-
-        // --- INITIAL LOAD ---
-        function initializeApp() {
-            UI.showSkeleton();
-            db.ref('tickets').on('value', (snapshot) => {
-                allTickets = snapshot.val() || {};
-                applyFilters();
-                 // If a ticket was open, re-render its list item to update status/time
-                if (currentTicketId) {
-                    const activeItem = document.querySelector(`.ticket-list-item[data-ticket-id="${currentTicketId}"]`);
-                    if (activeItem) activeItem.classList.add('active');
-                }
-            }, (error) => {
-                console.error("Firebase read failed:", error.code);
-                UI.hideSkeleton();
-                DOMElements.ticketsList.container.innerHTML = '<p class="p-4 text-center text-red-500">خطا در اتصال به دیتابیس.</p>';
-            });
-        }
-
-        initializeApp();
-    </script>
+    });
+</script>
 </body>
 </html>
