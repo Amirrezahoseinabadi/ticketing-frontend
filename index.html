@@ -6,6 +6,7 @@
     <title>پشتیبانی</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -39,9 +40,16 @@
         .message-admin { background-color: var(--brand-admin-message); color: white; border-bottom-left-radius: 4px; }
         #reply-box { background-color: var(--brand-secondary-bg); }
         #reply-message { background-color: var(--brand-dark-blue); border-radius: 20px; border: none; padding: 10px 16px; color: var(--brand-text-primary); max-height: 100px; resize: none; }
+        .rating-stars { direction: ltr; }
+        .rating-star { cursor: pointer; color: #6b7280; transition: color 0.2s; }
+        .rating-stars:hover .rating-star { color: #f59e0b; }
+        .rating-stars .rating-star:hover ~ .rating-star { color: #6b7280; }
+        #emoji-picker-container emoji-picker { --background: var(--brand-secondary-bg); --border-color: var(--brand-dark-blue); --text-color: var(--brand-text-primary); }
     </style>
 </head>
 <body class="flex flex-col h-screen">
+
+    <input type="file" id="file-upload" class="hidden" accept="image/*">
 
     <div id="error-view" class="hidden flex-col items-center justify-center h-full text-center p-4">
         <h1 class="text-2xl font-bold text-red-400">خطا</h1>
@@ -57,6 +65,10 @@
          <header class="p-4 text-center text-white text-lg font-bold shadow-md sticky top-0 z-10" style="background-color: var(--brand-secondary-bg);"><h1 id="header-title">تیکت‌ها</h1></header>
         <main id="app-container" class="flex-grow overflow-y-auto">
             <div id="tickets-list-view" class="p-4">
+                <div id="smart-card" class="p-4 rounded-lg shadow-lg mb-4" style="background: linear-gradient(135deg, #3D5A80 0%, #274059 100%);">
+                    <h3 id="smart-card-greeting" class="text-lg font-bold text-white mb-2">سلام! 👋</h3>
+                    <p class="text-sm text-gray-300">برای ارسال تیکت جدید یا مشاهده تیکت‌های قبلی خود از منوی پایین استفاده کنید.</p>
+                </div>
                 <div id="tickets-container" class="space-y-3"></div>
                 <div id="no-tickets-message" class="hidden text-center text-gray-400 mt-16">
                      <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -80,7 +92,15 @@
         <div id="conversation-view" class="absolute top-0 right-0 w-full h-full flex-col bg-[var(--brand-dark-blue)] z-20 hidden">
             <header class="p-3 flex items-center sticky top-0 z-10" style="background-color: var(--brand-secondary-bg);"><button id="back-to-tickets" class="p-2 rounded-full transform rotate-180"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg></button><h2 id="conversation-header" class="text-white font-bold mr-2">گفتگو</h2></header>
             <div id="conversation-container" class="p-4 space-y-2 flex flex-col flex-grow overflow-y-auto"></div>
-            <div id="reply-box" class="p-2 sticky bottom-0 border-t" style="border-color: var(--brand-dark-blue);"><form id="reply-form" class="flex items-center space-x-2 space-x-reverse"><textarea id="reply-message" rows="1" class="flex-grow" placeholder="پاسخ..." required></textarea><button type="submit" class="p-3 rounded-full text-white" style="background-color: var(--brand-light-blue);"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button></form></div>
+            <div id="emoji-picker-container" class="absolute bottom-[70px] right-2 z-30 hidden"><emoji-picker></emoji-picker></div>
+            <div id="reply-box" class="p-2 sticky bottom-0 border-t" style="border-color: var(--brand-dark-blue);">
+                <form id="reply-form" class="flex items-center space-x-2 space-x-reverse">
+                    <button type="button" id="attach-file-btn" class="p-2 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg></button>
+                    <textarea id="reply-message" rows="1" class="flex-grow" placeholder="پاسخ..." required></textarea>
+                    <button type="button" id="emoji-btn" class="p-2 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>
+                    <button type="submit" class="p-3 rounded-full text-white" style="background-color: var(--brand-light-blue);"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button>
+                </form>
+            </div>
             <div id="closed-ticket-banner" class="p-4 text-center bg-[var(--brand-secondary-bg)] text-[var(--brand-text-secondary)] text-sm hidden">این گفتگو توسط پشتیبانی بسته شده است.</div>
         </div>
     </div>
@@ -95,7 +115,7 @@
     let pollingInterval = null;
     let tg;
 
-    const WORKER_URL_BASE = "https://ticketing-maker-api.amiruserbot7.workers.dev"; // آدرس ورکر اصلی شما
+    const WORKER_URL_BASE = "https://ticketing-maker-api.amiruserbot7.workers.dev";
 
     // --- DOM ELEMENTS ---
     const loadingView = document.getElementById('loading-view');
@@ -108,6 +128,12 @@
     const ticketsContainer = document.getElementById('tickets-container');
     const noTicketsMessage = document.getElementById('no-tickets-message');
     const headerTitle = document.getElementById('header-title');
+    const emojiPickerContainer = document.getElementById('emoji-picker-container');
+    const emojiPicker = document.querySelector('emoji-picker');
+    const replyMessageInput = document.getElementById('reply-message');
+    const emojiBtn = document.getElementById('emoji-btn');
+    const attachFileBtn = document.getElementById('attach-file-btn');
+    const fileUploadInput = document.getElementById('file-upload');
     
     // --- INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
@@ -118,6 +144,7 @@
             
             const urlParams = new URLSearchParams(window.location.search);
             platformId = urlParams.get('pid');
+            const ticketIdFromUrl = urlParams.get('ticketId');
 
             if (!platformId) {
                 showError("خطای پیکربندی: شناسه پلتفرم (pid) در آدرس URL یافت نشد.");
@@ -128,7 +155,7 @@
             
             if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
                 telegramUser = tg.initDataUnsafe.user;
-                startApp();
+                startApp(ticketIdFromUrl);
             } else {
                  showError("امکان احراز هویت از طریق تلگرام وجود ندارد. لطفاً مطمئن شوید این صفحه را از داخل تلگرام باز کرده‌اید.");
             }
@@ -146,14 +173,21 @@
         errorView.classList.add('flex');
     }
 
-    async function startApp() {
+    async function startApp(ticketIdFromUrl) {
+        document.getElementById('smart-card-greeting').textContent = `سلام ${telegramUser.first_name || 'کاربر عزیز'}! 👋`;
         loadingView.classList.add('hidden');
         mainAppContainer.classList.remove('hidden');
         mainAppContainer.classList.add('flex');
         await fetchAndRenderTickets();
-        showView('ticketsList');
+        
+        if (ticketIdFromUrl && allTicketsData.find(t => t.id === ticketIdFromUrl)) {
+            openConversation(ticketIdFromUrl);
+        } else {
+            showView('ticketsList');
+        }
+
         if (pollingInterval) clearInterval(pollingInterval);
-        pollingInterval = setInterval(fetchAndRenderTickets, 15000);
+        pollingInterval = setInterval(fetchAndRenderTickets, 10000);
     }
     
     // --- API CALLS ---
@@ -204,7 +238,6 @@
     // --- TICKET LOGIC ---
     async function fetchAndRenderTickets() {
         try {
-            // --- FIX ---: Ensure telegram_id is always sent as a string.
             const result = await apiRequest(`/tickets?telegram_id=${String(telegramUser.id)}`);
             if (result.success) {
                 const tickets = result.data ? Object.keys(result.data).map(key => ({ id: key, ...result.data[key] })) : [];
@@ -213,11 +246,11 @@
                     renderTickets(allTicketsData);
                 }
             } else {
-                 showError(result.error || 'خطا در بارگذاری تیکت‌ها');
+                 if (!currentTicketId) showError(result.error || 'خطا در بارگذاری تیکت‌ها');
             }
         } catch (error) {
             console.error("Polling for tickets failed:", error);
-            showError(error.message);
+            if (!currentTicketId) showError(error.message);
         }
     }
 
@@ -265,7 +298,6 @@
         
         const formData = new FormData(e.target);
         const ticketData = {
-            // --- FIX ---: Ensure telegram_id is always sent as a string.
             telegram_id: String(telegramUser.id),
             user_name: `${telegramUser.first_name || ''} ${telegramUser.last_name || ''}`.trim() || telegramUser.username,
             subject: formData.get('subject'),
@@ -276,7 +308,7 @@
         try {
             await apiRequest('/tickets', { method: 'POST', body: JSON.stringify(ticketData) });
             e.target.reset();
-            await fetchAndRenderTickets(); // Refresh list immediately
+            await fetchAndRenderTickets(); 
             showView('ticketsList');
             tg.HapticFeedback.notificationOccurred('success');
         } catch (error) {
@@ -359,12 +391,35 @@
         fetchAndRenderTickets();
     });
     
-    const replyTextarea = document.getElementById('reply-message');
-    replyTextarea.addEventListener('input', () => {
-        replyTextarea.style.height = 'auto';
-        replyTextarea.style.height = (replyTextarea.scrollHeight) + 'px';
+    replyMessageInput.addEventListener('input', () => {
+        replyMessageInput.style.height = 'auto';
+        replyMessageInput.style.height = (replyMessageInput.scrollHeight) + 'px';
+    });
+
+    emojiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        emojiPickerContainer.classList.toggle('hidden');
+    });
+
+    emojiPicker.addEventListener('emoji-click', event => {
+        const emoji = event.detail.unicode;
+        const textarea = replyMessageInput;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        textarea.value = text.substring(0, start) + emoji + text.substring(end);
+        textarea.selectionStart = textarea.selectionEnd = start + emoji.length;
+        textarea.focus();
+        emojiPickerContainer.classList.add('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!emojiPickerContainer.contains(e.target) && !emojiBtn.contains(e.target)) {
+            emojiPickerContainer.classList.add('hidden');
+        }
     });
 
 </script>
 </body>
 </html>
+
