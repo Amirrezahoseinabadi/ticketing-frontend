@@ -75,13 +75,12 @@
     </div>
 
 <script>
-    // --- SCRIPT LOGIC ---
     const setupForm = document.getElementById('setup-form');
     const createButton = document.getElementById('create-platform-btn');
     const userTokenInput = document.getElementById('user-bot-token');
     const adminTokenInput = document.getElementById('admin-bot-token');
 
-    // آدرس ورکر کلودفلر خود را که در مرحله قبل ساختید، اینجا قرار دهید
+    // آدرس ورکر کلودفلر خود را که دیپلوی کرده‌اید، اینجا قرار دهید
     const WORKER_URL = "https://ticketing-maker-api.amiruserbot7.workers.dev";
 
     setupForm.addEventListener('submit', async (e) => {
@@ -100,11 +99,11 @@
 
         createButton.disabled = true;
         createButton.innerHTML = `
-            <svg class="animate-spin h-5 w-5 inline-block mr-2" viewBox="0 0 24 24">
+            <svg class="animate-spin h-5 w-5 inline-block ml-2" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            در حال بررسی و ساخت...
+            در حال ساخت...
         `;
 
         try {
@@ -120,14 +119,7 @@
                 throw new Error(result.error || 'خطایی در سرور رخ داد. لطفاً بعداً تلاش کنید.');
             }
 
-            // --- CHANGE START ---
-            // بررسی می‌کنیم که پلتفرم جدید ساخته شده یا از قبل وجود داشته
-            if (result.status === 'exists') {
-                 showAlreadyExistsPopup(result.data.miniAppUrl, result.data.adminPanelUrl, result.data.adminBotUsername);
-            } else {
-                 showSuccessPopup(result.data.miniAppUrl, result.data.adminPanelUrl, result.data.adminBotUsername);
-            }
-            // --- CHANGE END ---
+            showSuccessPopup(result.data.miniAppUrl, result.data.adminPanelUrl, result.data.adminBotUsername);
 
         } catch (error) {
             Swal.fire({
@@ -156,7 +148,7 @@
                     </div>
                     <div>
                         <p><strong>۲. فعال‌سازی ربات ادمین:</strong></p>
-                        <p class="text-sm">به ربات ادمین خود (<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-500">@${adminBotUsername}</a>) بروید و دکمه <strong>/start</strong> را بزنید تا اعلان‌ها را دریافت کنید.</p>
+                        <p class="text-sm">به ربات ادمین خود (<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-500">@${adminBotUsername}</a>) بروید و دکمه <strong>Start/</strong> را بزنید تا اعلان‌ها را دریافت کنید.</p>
                     </div>
                      <div>
                         <p><strong>۳. پنل مدیریت شما:</strong></p>
@@ -166,37 +158,6 @@
                 </div>
             `,
             confirmButtonText: 'متوجه شدم',
-            width: '90%',
-            maxWidth: '600px',
-        });
-    }
-
-    // --- NEW FUNCTION ---
-    // این تابع جدید برای نمایش اطلاعات پلتفرمی که از قبل ساخته شده، استفاده می‌شود
-    function showAlreadyExistsPopup(miniAppUrl, adminPanelUrl, adminBotUsername) {
-        Swal.fire({
-            icon: 'info',
-            title: '⚠️ پلتفرم شما قبلاً ساخته شده!',
-            html: `
-                <div class="text-right text-gray-700 space-y-4 p-4 bg-gray-50 rounded-lg">
-                    <p class="font-bold">شما قبلاً با این توکن‌ها یک پلتفرم ایجاد کرده‌اید. اطلاعات دسترسی شما در زیر مجدداً نمایش داده شده است:</p>
-                    <div>
-                        <p><strong>۱. لینک Mini App:</strong></p>
-                        <p class="text-sm">این همان لینکی است که قبلاً دریافت کرده‌اید و نیازی به ثبت مجدد آن نیست.</p>
-                        <input type="text" readonly value="${miniAppUrl}" class="w-full mt-1 p-2 border rounded-md text-left bg-gray-200" onclick="this.select(); document.execCommand('copy');">
-                    </div>
-                    <div>
-                        <p><strong>۲. ربات ادمین:</strong></p>
-                        <p class="text-sm">ربات ادمین شما <a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-500">@${adminBotUsername}</a> است. مطمئن شوید که آن را Start کرده‌اید.</p>
-                    </div>
-                     <div>
-                        <p><strong>۳. پنل مدیریت شما:</strong></p>
-                        <p class="text-sm">از طریق لینک زیر می‌توانید به پنل مدیریت تیکت‌های خود دسترسی داشته باشید.</p>
-                        <a href="${adminPanelUrl}" target="_blank" class="text-blue-500 block text-center mt-1 p-2 border rounded-md bg-blue-100">${adminPanelUrl}</a>
-                    </div>
-                </div>
-            `,
-            confirmButtonText: 'بسیار خب',
             width: '90%',
             maxWidth: '600px',
         });
