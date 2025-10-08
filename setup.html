@@ -22,10 +22,6 @@
             text-align: left;
             direction: ltr;
         }
-        .form-input::placeholder {
-            color: rgba(255, 255, 255, 0.4);
-            text-align: right;
-        }
         .form-input:focus {
             background-color: rgba(255, 255, 255, 0.1);
             border-color: #38bdf8;
@@ -35,7 +31,7 @@
             background-color: #0ea5e9;
             transition: background-color 0.3s ease;
         }
-        .btn-primary:hover:not(:disabled) {
+        .btn-primary:hover {
             background-color: #0284c7;
         }
         .glass-card {
@@ -46,17 +42,8 @@
             border: 1px solid rgba(255, 255, 255, 0.18);
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
-        /* استایل‌های سفارشی برای SweetAlert */
         .swal2-popup {
             font-family: 'Vazirmatn', sans-serif !important;
-        }
-        .swal-input {
-            direction: ltr;
-            text-align: left;
-            margin: 0.5em auto !important;
-            border: 1px solid #ddd;
-            background: #f0f0f0;
-            padding: 8px !important;
         }
     </style>
 </head>
@@ -88,19 +75,18 @@
     </div>
 
 <script>
-    // آدرس ورکر کلودفلر خود را که در مرحله قبل ساختید، اینجا قرار دهید
-    const WORKER_URL = "https://ticketing-maker-api.amiruserbot7.workers.dev";
-
     const setupForm = document.getElementById('setup-form');
     const createButton = document.getElementById('create-platform-btn');
     const userTokenInput = document.getElementById('user-bot-token');
     const adminTokenInput = document.getElementById('admin-bot-token');
+    
+    // The single worker URL that now handles both setup and ticketing logic.
+    const WORKER_URL = "https://support-api-worker.amiruserbot7.workers.dev";
 
     setupForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const userToken = userTokenInput.value.trim();
         const adminToken = adminTokenInput.value.trim();
-
         if (!userToken || !adminToken) {
             Swal.fire({
                 icon: 'error',
@@ -111,7 +97,14 @@
             return;
         }
 
-        setLoading(true);
+        createButton.disabled = true;
+        createButton.innerHTML = `
+            <svg class="animate-spin h-5 w-5 inline-block mr-2" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            در حال ساخت...
+        `;
 
         try {
             const response = await fetch(`${WORKER_URL}/setup`, {
@@ -126,7 +119,7 @@
                 throw new Error(result.error || 'خطایی در سرور رخ داد. لطفاً بعداً تلاش کنید.');
             }
 
-            showSuccessPopup(result.data.miniAppUrl, result.data.adminPanelUrl, result.data.adminBotUsername, result.existed);
+            showSuccessPopup(result.data.miniAppUrl, result.data.adminPanelUrl, result.data.adminBotUsername);
 
         } catch (error) {
             Swal.fire({
@@ -136,50 +129,31 @@
                 confirmButtonText: 'تلاش مجدد'
             });
         } finally {
-            setLoading(false);
+            createButton.disabled = false;
+            createButton.textContent = 'پلتفرم من را بساز';
         }
     });
 
-    function setLoading(isLoading) {
-        createButton.disabled = isLoading;
-        if (isLoading) {
-            createButton.innerHTML = `
-                <svg class="animate-spin h-5 w-5 inline-block ml-2" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                در حال ساخت...
-            `;
-        } else {
-            createButton.textContent = 'پلتفرم من را بساز';
-        }
-    }
-
-    function showSuccessPopup(miniAppUrl, adminPanelUrl, adminBotUsername, existed = false) {
-        const title = existed ? '🎉 پلتفرم شما بازیابی شد!' : '🎉 پلتفرم شما آماده است!';
-        const initialText = existed 
-            ? '<p class="font-bold">این پلتفرم قبلاً ساخته شده بود. اطلاعات آن برای شما بازیابی شد:</p>' 
-            : '<p class="font-bold">مراحل نهایی را برای فعال‌سازی انجام دهید:</p>';
-
+    function showSuccessPopup(miniAppUrl, adminPanelUrl, adminBotUsername) {
         Swal.fire({
             icon: 'success',
-            title: title,
+            title: '🎉 پلتفرم شما آماده است!',
             html: `
                 <div class="text-right text-gray-700 space-y-4 p-4 bg-gray-50 rounded-lg">
-                    ${initialText}
+                    <p class="font-bold">مراحل نهایی را برای فعال‌سازی انجام دهید:</p>
                     <div>
-                        <p><strong>۱. لینک Mini App شما:</strong></p>
-                        <p class="text-sm">این لینک را در <a href="https://t.me/BotFather" target="_blank" class="text-blue-500 hover:underline">BotFather</a> برای ربات کاربری خود ثبت کنید.</p>
-                        <input type="text" readonly value="${miniAppUrl}" class="w-full mt-1 p-2 border rounded-md text-left bg-gray-200 swal-input" onclick="this.select(); document.execCommand('copy');">
+                        <p><strong>۱. فعال‌سازی Mini App:</strong></p>
+                        <p class="text-sm">لینک زیر را کپی کرده و در <a href="https://t.me/BotFather" target="_blank" class="text-blue-500">BotFather</a> برای ربات کاربری خود به عنوان Mini App ثبت کنید.</p>
+                        <input type="text" readonly value="${miniAppUrl}" class="w-full mt-1 p-2 border rounded-md text-left bg-gray-200" onclick="this.select(); document.execCommand('copy');">
                     </div>
                     <div>
                         <p><strong>۲. فعال‌سازی ربات ادمین:</strong></p>
-                        <p class="text-sm">به ربات ادمین خود (<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-500 hover:underline">@${adminBotUsername}</a>) بروید و دکمه <strong>Start/</strong> را بزنید.</p>
+                        <p class="text-sm">به ربات ادمین خود (<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-500">@${adminBotUsername}</a>) بروید و دکمه <strong>/start</strong> را بزنید تا اعلان‌ها را دریافت کنید.</p>
                     </div>
                      <div>
                         <p><strong>۳. پنل مدیریت شما:</strong></p>
                         <p class="text-sm">این لینک را برای مدیریت تیکت‌ها ذخیره کنید.</p>
-                        <a href="${adminPanelUrl}" target="_blank" class="text-blue-500 block text-center mt-1 p-2 border rounded-md bg-blue-100 hover:bg-blue-200">${adminPanelUrl}</a>
+                        <a href="${adminPanelUrl}" target="_blank" class="text-blue-500 block text-center mt-1 p-2 border rounded-md bg-blue-100">${adminPanelUrl}</a>
                     </div>
                 </div>
             `,
@@ -192,4 +166,3 @@
 
 </body>
 </html>
-
