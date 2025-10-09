@@ -200,7 +200,7 @@
                 </div>
             </main>
             <nav id="main-nav" class="nav-bar h-[80px] flex items-center justify-around">
-                <button id="nav-tickets-list" class="nav-button active flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg><span class="text-xs">تیکت‌ها</span></button>
+                <button id="nav-tickets-list" class="nav-button active flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-smalll-5 5v-5z" /></svg><span class="text-xs">تیکت‌ها</span></button>
                 <button id="nav-new-ticket" class="nav-button flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="text-xs">تیکت جدید</span></button>
             </nav>
         </div>
@@ -276,14 +276,15 @@
         let WORKER_URL = '';
         let storeHandle = null;
 
-        // ⚠️ IMPORTANT: Update this with the details from your NEW Firebase project console.
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY", // Get from Project settings > General
+            apiKey: "AIzaSyA9oTsEeVyHGEofeq1EFmi_zG_cT9IYGWE",
             authDomain: "support-platform-saas.firebaseapp.com",
             databaseURL: "https://support-platform-saas-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "support-platform-saas",
-            messagingSenderId: "YOUR_SENDER_ID", // Get from Project settings > Cloud Messaging
-            appId: "YOUR_APP_ID" // Get from Project settings > General
+            storageBucket: "support-platform-saas.appspot.com",
+            messagingSenderId: "237700832715",
+            appId: "1:237700832715:web:f89076405356ae22442a4e",
+            measurementId: "G-5TDRT8Y9S5"
         };
 
         // --- END: Multi-Tenant Configuration ---
@@ -777,7 +778,7 @@
                     text: 'تصویر ارسال شد.',
                     type: 'image_placeholder'
                 };
-                appendMessageToUI({ ...placeholderPayload, created_at: new Date().toISOString() });
+                appendMessageToUI({ ...payload, created_at: new Date().toISOString() });
                 showNotification("تصویر با موفقیت ارسال شد.", true);
             } catch (error) {
                 console.error("Image send failed:", error);
@@ -885,3 +886,4 @@
     </script>
 </body>
 </html>
+
