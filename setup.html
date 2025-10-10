@@ -67,14 +67,19 @@
                     <input type="text" id="admin-chat-id" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="شناسه عددی اکانت تلگرام شما" required pattern="[0-9]+">
                     <p class="text-xs text-gray-400 mt-1">برای دریافت این شناسه، به ربات <a href="https://t.me/userinfobot" target="_blank" class="text-sky-400">@userinfobot</a> پیام دهید.</p>
                 </div>
+                <div>
+                    <label for="user-bot-token" class="block mb-2 text-sm font-medium text-gray-200">۳. توکن ربات اصلی فروشگاه (برای ارسال اعلان به کاربر)</label>
+                    <input type="text" id="user-bot-token" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="توکن رباتی که به هاست شما متصل است" required>
+                     <p class="text-xs text-gray-400 mt-1">این توکن فقط برای ارسال پیام به کاربر استفاده شده و وبهوک آن تغییر نخواهد کرد.</p>
+                </div>
                  <div>
-                    <label for="admin-panel-url" class="block mb-2 text-sm font-medium text-gray-200">۳. آدرس پنل مدیریت (اختیاری)</label>
+                    <label for="admin-panel-url" class="block mb-2 text-sm font-medium text-gray-200">۴. آدرس پنل مدیریت (اختیاری)</label>
                     <input type="text" id="admin-panel-url" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="https://your-admin-panel.com">
                     <p class="text-xs text-gray-400 mt-1">آدرس صفحه‌ای که برای مدیریت تیکت‌ها ساخته‌اید.</p>
                 </div>
                 <div>
                     <button type="submit" id="initiate-btn" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline disabled:opacity-50">
-                        دریافت دستورالعمل وبهوک
+                        دریافت دستورالعمل وبهوک ربات ادمین
                     </button>
                 </div>
             </form>
@@ -82,7 +87,7 @@
     </div>
 
 <script>
-    const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev"; // <-- IMPORTANT: REPLACE WITH YOUR MANAGEMENT WORKER URL
+    const MANAGEMENT_WORKER_URL = "https://management-worker.amiruserbot7.workers.dev"; // <-- IMPORTANT: REPLACE WITH YOUR MANAGEMENT WORKER URL
     let currentSetupData = {};
 
     document.getElementById('setup-form').addEventListener('submit', async (e) => {
@@ -91,11 +96,12 @@
         const formData = {
             storeHandle: document.getElementById('store-handle').value.trim(),
             adminChatId: document.getElementById('admin-chat-id').value.trim(),
+            userBotToken: document.getElementById('user-bot-token').value.trim(),
             adminPanelUrl: document.getElementById('admin-panel-url').value.trim() || 'https://amirrezahoseinabadi.github.io/support-panel-v2/', // Fallback URL
         };
 
-        if (!formData.storeHandle || !formData.adminChatId) {
-            return Swal.fire({ icon: 'error', title: 'خطا', text: 'لطفاً فیلدهای الزامی را پر کنید.', confirmButtonText: 'باشه' });
+        if (!formData.storeHandle || !formData.adminChatId || !formData.userBotToken) {
+            return Swal.fire({ icon: 'error', title: 'خطا', text: 'لطفاً تمام فیلدهای الزامی را پر کنید.', confirmButtonText: 'باشه' });
         }
 
         toggleLoading(initiateBtn, true, 'در حال ایجاد...');
@@ -110,36 +116,29 @@
             if (!response.ok) throw new Error(result.error || 'خطا در برقراری ارتباط با سرور.');
 
             currentSetupData = result.data;
-            showWebhookInstructions(result.data.adminWebhookUrl, result.data.userWebhookUrl);
+            showWebhookInstructions(result.data.adminWebhookUrl);
 
         } catch (error) {
             Swal.fire({ icon: 'error', title: 'عملیات ناموفق', text: error.message, confirmButtonText: 'تلاش مجدد' });
         } finally {
-            toggleLoading(initiateBtn, false, 'دریافت دستورالعمل وبهوک');
+            toggleLoading(initiateBtn, false, 'دریافت دستورالعمل وبهوک ربات ادمین');
         }
     });
 
-    function showWebhookInstructions(adminWebhookUrl, userWebhookUrl) {
+    function showWebhookInstructions(adminWebhookUrl) {
         document.getElementById('main-card').innerHTML = `
             <div class="text-center mb-6">
-                <h1 class="text-2xl font-bold text-white mb-2">مرحله نهایی: تنظیم وبهوک‌ها</h1>
-                <p class="text-gray-300">برای تکمیل فرآیند، وبهوک هر دو ربات خود را تنظیم کنید.</p>
+                <h1 class="text-2xl font-bold text-white mb-2">مرحله نهایی: تنظیم وبهوک ادمین</h1>
+                <p class="text-gray-300">برای تکمیل فرآیند، وبهوک ربات ادمین خود را تنظیم کنید.</p>
             </div>
-            <div class="space-y-6">
-                <div class="text-right text-gray-200 p-4 bg-gray-800/50 rounded-lg">
-                    <p class="font-bold text-lg mb-2">۱. تنظیم ربات ادمین (اعلان‌ها)</p>
-                    <p class="text-sm mb-2">به <a href="https://t.me/BotFather" target="_blank" class="text-sky-400">@BotFather</a> بروید، دستور <code>/setwebhook</code> را اجرا کرده، ربات ادمین خود را انتخاب و URL زیر را برای آن ارسال کنید (کلمه <code class="text-amber-400">&lt;ADMIN_BOT_TOKEN&gt;</code> را با توکن واقعی ربات ادمین جایگزین کنید):</p>
-                    <input type="text" readonly value="${adminWebhookUrl}" class="form-input form-input-ltr w-full mt-2 p-2 border rounded-md text-sm bg-gray-900/70" onclick="this.select(); document.execCommand('copy'); showToast();">
-                </div>
-                <div class="text-right text-gray-200 p-4 bg-gray-800/50 rounded-lg">
-                    <p class="font-bold text-lg mb-2">۲. تنظیم ربات کاربر (Mini App)</p>
-                    <p class="text-sm mb-2">مجدداً دستور <code>/setwebhook</code> را در BotFather اجرا کرده، این بار ربات کاربر خود را انتخاب و URL زیر را برای آن ارسال کنید (کلمه <code class="text-amber-400">&lt;USER_BOT_TOKEN&gt;</code> را با توکن واقعی ربات کاربر جایگزین کنید):</p>
-                    <input type="text" readonly value="${userWebhookUrl}" class="form-input form-input-ltr w-full mt-2 p-2 border rounded-md text-sm bg-gray-900/70" onclick="this.select(); document.execCommand('copy'); showToast();">
-                </div>
+            <div class="text-right text-gray-200 p-4 bg-gray-800/50 rounded-lg">
+                <p class="font-bold text-lg mb-2">تنظیم ربات ادمین (برای دریافت اعلان‌ها)</p>
+                <p class="text-sm mb-2">به <a href="https://t.me/BotFather" target="_blank" class="text-sky-400">@BotFather</a> بروید، دستور <code>/setwebhook</code> را اجرا کرده، ربات ادمین خود را انتخاب و URL زیر را برای آن ارسال کنید. (کلمه <code class="text-amber-400">&lt;ADMIN_BOT_TOKEN&gt;</code> را با توکن واقعی ربات ادمین جایگزین کنید)</p>
+                <input type="text" readonly value="${adminWebhookUrl}" class="form-input form-input-ltr w-full mt-2 p-2 border rounded-md text-sm bg-gray-900/70" onclick="this.select(); document.execCommand('copy'); showToast();">
             </div>
             <div class="mt-8">
                 <button id="verify-btn" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline">
-                    هر دو وبهوک را تنظیم کردم، تایید کن
+                    وبهوک را تنظیم کردم، تایید کن
                 </button>
             </div>
             <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity duration-300">کپی شد!</div>
@@ -161,7 +160,7 @@
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'خطا در تایید.');
 
-            showSuccessPopup(result.data.miniAppUrl, result.data.adminPanelUrl, result.data.adminBotUsername, result.data.userBotUsername);
+            showSuccessPopup(result.data.adminPanelUrl, result.data.adminBotUsername, result.data.userBotUsername);
         
         } catch (error) {
              Swal.fire({
@@ -171,20 +170,19 @@
                 confirmButtonText: 'دوباره تلاش می‌کنم'
             });
         } finally {
-            toggleLoading(verifyBtn, false, 'هر دو وبهوک را تنظیم کردم، تایید کن');
+            toggleLoading(verifyBtn, false, 'وبهوک را تنظیم کردم، تایید کن');
         }
     }
 
-    function showSuccessPopup(miniAppUrl, adminPanelUrl, adminBotUsername, userBotUsername) {
+    function showSuccessPopup(adminPanelUrl, adminBotUsername, userBotUsername) {
         Swal.fire({
             icon: 'success',
             title: '🎉 پلتفرم شما آماده است!',
             html: `
                 <div class="text-right text-gray-700 space-y-4 p-4 bg-gray-50 rounded-lg">
-                    <div>
-                        <p><strong>۱. فعال‌سازی Mini App:</strong></p>
-                        <p class="text-sm">به <a href="https://t.me/BotFather" target="_blank" class="text-blue-500">BotFather</a> بروید، ربات کاربری خود (<a href="https://t.me/${userBotUsername}" target="_blank" class="text-sky-400">@${userBotUsername}</a>) را انتخاب کرده و از بخش <code>Bot Settings > Menu Button</code>، آدرس Mini App خود را روی لینک زیر تنظیم کنید:</p>
-                        <input type="text" readonly value="${miniAppUrl}" class="w-full mt-1 p-2 border rounded-md text-left bg-gray-200" onclick="this.select(); document.execCommand('copy');">
+                     <div>
+                        <p><strong>۱. ربات کاربر شما (<a href="https://t.me/${userBotUsername}" target="_blank" class="text-sky-400">@${userBotUsername}</a>)</strong></p>
+                        <p class="text-sm">این ربات اکنون برای ارسال اعلان به کاربران شما استفاده خواهد شد. وبهوک آن بدون تغییر باقی ماند.</p>
                     </div>
                     <div>
                         <p><strong>۲. فعال‌سازی ربات ادمین:</strong></p>
