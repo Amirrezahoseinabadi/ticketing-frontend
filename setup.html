@@ -58,9 +58,9 @@
             </div>
             <form id="setup-form" class="space-y-6">
                 <div>
-                    <label for="store-handle" class="block mb-2 text-sm font-medium text-gray-200">۱. نام فروشگاه (انگلیسی)</label>
+                    <label for="store-handle" class="block mb-2 text-sm font-medium text-gray-200">۱. شناسه پلتفرم (انگلیسی)</label>
                     <input type="text" id="store-handle" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="e.g., my-online-shop" required pattern="[a-zA-Z0-9-]+">
-                    <p class="text-xs text-gray-400 mt-1">این نام در URL شما استفاده خواهد شد.</p>
+                    <p class="text-xs text-gray-400 mt-1">این نام در URL شما استفاده خواهد شد و غیرقابل تغییر است.</p>
                 </div>
                 <div>
                     <label for="admin-chat-id" class="block mb-2 text-sm font-medium text-gray-200">۲. شناسه عددی تلگرام مدیر</label>
@@ -68,8 +68,8 @@
                     <p class="text-xs text-gray-400 mt-1">برای دریافت این شناسه، به ربات <a href="https://t.me/userinfobot" target="_blank" class="text-sky-400">@userinfobot</a> پیام دهید.</p>
                 </div>
                 <div>
-                    <label for="user-bot-token" class="block mb-2 text-sm font-medium text-gray-200">۳. توکن ربات اصلی فروشگاه (برای کاربر)</label>
-                    <input type="text" id="user-bot-token" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="توکن رباتی که به هاست شما متصل است" required>
+                    <label for="user-bot-token" class="block mb-2 text-sm font-medium text-gray-200">۳. توکن ربات اصلی (برای کاربر)</label>
+                    <input type="text" id="user-bot-token" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="توکن رباتی که کاربران با آن در ارتباطند" required>
                      <p class="text-xs text-gray-400 mt-1">وبهوک این ربات تغییر نخواهد کرد.</p>
                 </div>
                 <div>
@@ -79,7 +79,7 @@
                 </div>
                  <div>
                     <label for="admin-panel-url" class="block mb-2 text-sm font-medium text-gray-200">۵. آدرس پنل مدیریت (اختیاری)</label>
-                    <input type="text" id="admin-panel-url" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="https://your-admin-panel.com">
+                    <input type="url" id="admin-panel-url" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="https://your-admin-panel.com">
                 </div>
                 <div>
                     <button type="submit" id="create-platform-btn" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline disabled:opacity-50">
@@ -91,13 +91,14 @@
     </div>
 
 <script>
-    const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev"; // <-- IMPORTANT: REPLACE
+    // !!! IMPORTANT: This URL should point to a worker that handles the setup logic.
+    const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
     
     document.getElementById('setup-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const createBtn = document.getElementById('create-platform-btn');
         const formData = {
-            storeHandle: document.getElementById('store-handle').value.trim(),
+            storeHandle: document.getElementById('store-handle').value.trim().toLowerCase(),
             adminChatId: document.getElementById('admin-chat-id').value.trim(),
             userBotToken: document.getElementById('user-bot-token').value.trim(),
             adminBotToken: document.getElementById('admin-bot-token').value.trim(),
@@ -130,6 +131,7 @@
 
     function showSuccessPopup(data) {
         const { adminPanelUrl, adminBotUsername, userBotUsername, storeHandle } = data;
+        // IMPORTANT: This URL points to your Mini App frontend. It must be publicly accessible.
         const miniAppUrl = `https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html?storeHandle=${storeHandle}`;
         
         Swal.fire({
@@ -179,4 +181,3 @@
 
 </body>
 </html>
-
