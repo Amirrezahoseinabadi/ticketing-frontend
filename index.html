@@ -255,7 +255,7 @@
         // =================================================================================
 
         const WORKER_URL = 'https://support-api-worker.amiruserbot7.workers.dev';
-        let STORE_HANDLE = null; // This will be dynamically set from the URL
+        let STORE_HANDLE = null; // This will be dynamically set
 
         let telegramUser = null;
         let currentTicketId = null;
@@ -390,10 +390,23 @@
         // =================================================================================
         
         /**
-         * Reads the storeHandle from the URL query parameters.
+         * Reads the storeHandle from Telegram's start_param.
          * @returns {string|null}
          */
-        function getStoreHandleFromUrl() {
+        function getStoreHandleFromTg() {
+            try {
+                const tg = window.Telegram.WebApp;
+                // The startParam can contain other info, we look for 'storeHandle_' prefix
+                if (tg.initDataUnsafe.start_param) {
+                    const params = tg.initDataUnsafe.start_param.split('_');
+                    if (params[0] === 'storeHandle' && params[1]) {
+                        return params[1];
+                    }
+                }
+            } catch (e) {
+                console.error("Could not get start_param:", e);
+            }
+             // Fallback for local testing or if start_param is not set
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('storeHandle');
         }
@@ -761,7 +774,8 @@
         // =================================================================================
 
         document.addEventListener('DOMContentLoaded', () => {
-            STORE_HANDLE = getStoreHandleFromUrl();
+            STORE_HANDLE = getStoreHandleFromTg();
+            
             if (!STORE_HANDLE) {
                 dom.loadingView.innerHTML = `
                     <div class="text-center text-red-400 p-4">
