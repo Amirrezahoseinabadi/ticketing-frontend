@@ -254,9 +254,8 @@
         // SECTION: Configuration & State
         // =================================================================================
 
-        // !!! IMPORTANT: Replace with your actual Worker URL and a unique handle for this store.
         const WORKER_URL = 'https://support-api-worker.amiruserbot7.workers.dev';
-        const STORE_HANDLE = 'main_store'; // This must match a store configured in your Firebase DB.
+        let STORE_HANDLE = null; // This will be dynamically set from the URL
 
         let telegramUser = null;
         let currentTicketId = null;
@@ -368,6 +367,9 @@
          * @returns {Promise<any>} - The parsed JSON response.
          */
         async function apiFetch(endpoint, options = {}) {
+            if (!STORE_HANDLE) {
+                throw new Error("شناسه پلتفرم مشخص نشده است.");
+            }
             const url = `${WORKER_URL}/api/${STORE_HANDLE}${endpoint}`;
             const response = await fetch(url, options);
 
@@ -386,6 +388,15 @@
         // =================================================================================
         // SECTION: Core Application Logic
         // =================================================================================
+        
+        /**
+         * Reads the storeHandle from the URL query parameters.
+         * @returns {string|null}
+         */
+        function getStoreHandleFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('storeHandle');
+        }
 
         function startApp(user) {
             telegramUser = user;
@@ -404,7 +415,6 @@
                 const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}`);
                 allTicketsData = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
                 
-                // If a conversation is open, check if its status has changed
                 if (currentTicketId) {
                     const updatedTicketData = allTicketsData.find(t => t.id === currentTicketId);
                     if (updatedTicketData && currentTicketData && updatedTicketData.status !== currentTicketData.status) {
@@ -415,7 +425,6 @@
                 renderTickets(allTicketsData);
             } catch (error) {
                 console.error("Error fetching tickets:", error);
-                // Optionally show a non-intrusive error to the user
             }
         }
 
@@ -494,7 +503,6 @@
         }
 
         async function deleteTicket(ticketId) {
-            // Using native confirm for simplicity, but a custom modal is better for UX.
             if (confirm('آیا از حذف این تیکت مطمئن هستید؟ این عمل غیرقابل بازگشت است.')) {
                 try {
                     await apiFetch(`/tickets/${ticketId}`, { method: 'DELETE' });
@@ -521,7 +529,7 @@
                     body: JSON.stringify(payload),
                 });
                 showNotification('امتیاز شما با موفقیت ثبت شد.');
-                fetchTickets(); // Re-fetch to show the updated rated state
+                fetchTickets();
             } catch (error) {
                 showNotification(`ثبت امتیاز با خطا مواجه شد: ${error.message}`, false);
                 delete starContainer.dataset.submitting;
@@ -648,7 +656,7 @@
                  showNotification(error.message, false);
              } finally {
                  submitButton.disabled = false;
-                 fetchMessages(currentTicketId); // Refresh to get the definitive state
+                 fetchMessages(currentTicketId);
              }
         }
         
@@ -678,7 +686,7 @@
                 dom.attachFileBtn.disabled = false;
                 submitButton.disabled = false;
                 dom.fileUploadInput.value = '';
-                fetchMessages(currentTicketId); // Refresh to show placeholder
+                fetchMessages(currentTicketId);
             }
         }
         
@@ -704,7 +712,7 @@
                     subject: data.subject,
                     department: data.department,
                     message: data.message,
-                    storeHandle: STORE_HANDLE // Required by worker
+                    storeHandle: STORE_HANDLE
                 };
                 await apiFetch('/tickets', {
                     method: 'POST',
@@ -753,6 +761,19 @@
         // =================================================================================
 
         document.addEventListener('DOMContentLoaded', () => {
+            STORE_HANDLE = getStoreHandleFromUrl();
+            if (!STORE_HANDLE) {
+                dom.loadingView.innerHTML = `
+                    <div class="text-center text-red-400 p-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <h1 class="text-xl font-bold mt-4 text-white">خطا در پیکربندی</h1>
+                        <p class="mt-2 text-gray-300">شناسه پلتفرم (storeHandle) در آدرس Mini App یافت نشد. لطفاً از طریق دکمه منوی ربات تلگرام وارد شوید.</p>
+                    </div>`;
+                return;
+            }
+
             try {
                 const tg = window.Telegram.WebApp;
                 tg.ready();
@@ -761,7 +782,6 @@
                     startApp(tg.initDataUnsafe.user);
                 } else {
                     console.warn("Telegram user data not found. Using mock user for testing.");
-                    // Mock user for local development. Replace with your test data if needed.
                     startApp({id: "12345678", first_name: "Test", last_name: "User"});
                 }
             } catch (error) {
@@ -838,3 +858,4 @@
     </script>
 </body>
 </html>
+
