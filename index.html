@@ -265,6 +265,7 @@
         let messagesPollingInterval = null;
         let hasOpenTicket = false;
         let isSubmitting = false;
+        let newlyCreatedTicket = null; // --- FIX: Add this line ---
 
         const departmentMap = {
             general: 'سوالات متفرقه',
@@ -426,7 +427,23 @@
             if (!telegramUser) return;
             try {
                 const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}`);
-                allTicketsData = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+                let serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+
+                // --- FIX: Logic to prevent disappearing tickets ---
+                // If we are expecting a new ticket and the server hasn't sent it yet,
+                // it means the server response is stale. We will manually add our
+                // optimistic ticket to the list to prevent it from disappearing.
+                if (newlyCreatedTicket && !serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
+                    serverTickets.unshift(newlyCreatedTicket);
+                } 
+                // Once the server includes the new ticket in its response, we can
+                // stop manually adding it.
+                else if (newlyCreatedTicket && serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
+                    newlyCreatedTicket = null;
+                }
+                // --- END FIX ---
+
+                allTicketsData = serverTickets; // Update the main data source
                 
                 if (currentTicketId) {
                     const updatedTicketData = allTicketsData.find(t => t.id === currentTicketId);
@@ -734,33 +751,21 @@
                     body: JSON.stringify(payload),
                 });
                 
-                // --- FIX START ---
-                // 1. Stop the background polling to prevent overwrites.
-                if (ticketsPollingInterval) clearInterval(ticketsPollingInterval);
-                
+                // --- FIX: More robust logic ---
+                newlyCreatedTicket = newTicket; // Store the new ticket to handle server sync delay.
+
                 dom.newTicketForm.reset();
                 showNotification('تیکت شما با موفقیت ارسال شد.');
                 
-                // 2. Add the new ticket to the local state array.
-                allTicketsData.unshift(newTicket);
-                
-                // 3. Re-render the tickets list from the updated local state.
+                allTicketsData.unshift(newTicket); // Optimistically add to the UI.
                 renderTickets(allTicketsData);
                 
-                // 4. Switch the view immediately.
-                showView('ticketsList');
-
-                // 5. After a short delay, restart polling to sync with the server.
-                setTimeout(() => {
-                    listenToTickets();
-                }, 2000); // 2-second delay to allow Firebase to sync
-                // --- FIX END ---
+                showView('ticketsList'); // Switch the view immediately.
+                // Polling continues in the background and will self-correct.
 
             } catch (error) {
                 showNotification(`ارسال تیکت با خطا مواجه شد: ${error.message}`, false);
                 console.error("Error creating ticket:", error);
-                // If there was an error, it's safe to restart polling.
-                listenToTickets();
             } finally {
                 isSubmitting = false;
                 dom.submitNewTicketBtn.disabled = false;
@@ -893,3 +898,4 @@
     </script>
 </body>
 </html>
+
