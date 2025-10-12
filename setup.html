@@ -13,10 +13,10 @@
 
         body {
             font-family: 'Vazirmatn', sans-serif;
-            background: #0D1117; /* Very dark background */
+            background: #111827; /* Softer dark background */
             background-image:
-                radial-gradient(circle at 15% 50%, rgba(10, 207, 255, 0.15), transparent), /* Subtle blue glow */
-                radial-gradient(circle at 85% 50%, rgba(218, 165, 32, 0.1), transparent),   /* Subtle gold glow */
+                radial-gradient(circle at 15% 50%, rgba(10, 207, 255, 0.1), transparent), /* More subtle blue glow */
+                radial-gradient(circle at 85% 50%, rgba(218, 165, 32, 0.08), transparent),   /* More subtle gold glow */
                 url('data:image/svg+xml;utf8,<svg width="100%" height="100%" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 L 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
             background-attachment: fixed;
             background-size: cover, cover, 30px 30px;
@@ -39,33 +39,28 @@
         .glass-card-wrapper::after {
             content: "";
             position: absolute;
-            inset: -2px; /* Controls the size of the glow */
-            border-radius: 2rem; /* Must match the card's border-radius */
-            background: linear-gradient(135deg, rgba(255, 215, 0, 0.7), rgba(10, 207, 255, 0.6));
+            inset: -2px;
+            border-radius: 1.75rem; /* Match card's border-radius */
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.6), rgba(10, 207, 255, 0.5));
             z-index: -1;
-            filter: blur(15px); /* Controls the blurriness of the glow */
-            opacity: 0.8;
-            animation: rotateGlow 8s linear infinite;
+            filter: blur(15px);
+            opacity: 0.7;
+            /* Animation removed for mobile */
         }
 
         .glass-card {
             background: rgba(25, 33, 49, 0.9);
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
-            border-radius: 2rem;
+            border-radius: 1.75rem; /* Slightly adjusted for mobile */
             border: 1px solid rgba(255, 255, 255, 0.15);
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
             animation: fadeInScale 0.9s ease-out forwards;
-            padding: 2.5rem;
+            padding: 2rem 1.5rem; /* Optimized padding for mobile */
             position: relative;
-            z-index: 2; /* To be on top of the glow */
+            z-index: 2;
         }
         
-        @keyframes rotateGlow {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
         @keyframes fadeInScale {
             from { opacity: 0; transform: translateY(30px) scale(0.98); }
             to { opacity: 1; transform: translateY(0) scale(1); }
@@ -75,21 +70,21 @@
             display: inline-flex;
             justify-content: center;
             align-items: center;
-            width: 70px;
-            height: 70px;
+            width: 60px; /* Optimized for mobile */
+            height: 60px; /* Optimized for mobile */
             background: linear-gradient(135deg, rgba(218, 165, 32, 0.2), rgba(218, 165, 32, 0.1));
             border-radius: 50%;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             box-shadow: 0 0 20px rgba(218, 165, 32, 0.3);
         }
         .header-icon i {
-            font-size: 2.5rem;
+            font-size: 2rem; /* Optimized for mobile */
             color: #FFD700;
             text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
         }
 
         .main-title {
-            font-size: 2.8rem;
+            font-size: 2.25rem; /* Optimized for mobile */
             font-weight: 800;
             color: #FFFFFF;
             text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
@@ -97,23 +92,22 @@
         }
 
         .subtitle {
-            font-size: 1.15rem;
+            font-size: 1rem; /* Optimized for mobile */
             color: #B0B0B0;
             font-weight: 400;
-            margin-top: 0.75rem;
+            margin-top: 0.5rem;
         }
         
-        /* New intro text style */
         .intro-text-wrapper {
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 1.25rem 0.5rem;
-            margin: 2rem 0;
+            padding: 1rem 0.5rem; /* Optimized padding */
+            margin: 1.5rem 0; /* Optimized margin */
             background: rgba(0,0,0,0.15);
         }
         .intro-text-wrapper p {
-            font-size: 1.05rem;
-            line-height: 1.9;
+            font-size: 1rem; /* Optimized for mobile */
+            line-height: 1.8; /* Adjusted for readability */
             color: #d1d5db;
         }
         .intro-text-wrapper strong {
@@ -123,8 +117,8 @@
 
         .form-label {
             display: block;
-            margin-bottom: 0.6rem;
-            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
             font-weight: 500;
             color: #C0C0C0;
         }
@@ -134,10 +128,10 @@
         .form-input-icon {
             position: absolute;
             top: 50%;
-            right: 1.2rem;
+            right: 1rem; /* Adjusted for smaller padding */
             transform: translateY(-50%);
             color: rgba(255, 255, 255, 0.3);
-            font-size: 1.1rem;
+            font-size: 1rem;
             pointer-events: none;
             transition: color 0.3s ease;
         }
@@ -147,8 +141,8 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             color: white;
             transition: all 0.3s ease;
-            padding: 0.9rem 1.2rem;
-            padding-right: 3.5rem;
+            padding: 0.8rem 1rem; /* Optimized padding */
+            padding-right: 3rem; /* Space for icon */
             border-radius: 0.75rem;
             font-size: 1rem;
             font-weight: 500;
@@ -157,8 +151,8 @@
         .form-input-ltr {
             text-align: left;
             direction: ltr;
-            padding-left: 1.2rem;
-            padding-right: 3.5rem;
+            padding-left: 1rem;
+            padding-right: 3rem;
         }
 
         .form-input:focus {
@@ -190,7 +184,7 @@
             border: none;
             color: #2a2a2a;
             font-weight: 700;
-            padding: 1rem 1.5rem;
+            padding: 0.85rem 1.5rem; /* Optimized padding for mobile touch */
             border-radius: 0.75rem;
             transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
             box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3);
@@ -249,7 +243,7 @@
                 </p>
             </div>
             
-            <form id="setup-form" class="space-y-7">
+            <form id="setup-form" class="space-y-6">
                 <div>
                     <label for="store-handle" class="form-label">شناسه پلتفرم (به انگلیسی)</label>
                     <div class="form-input-wrapper">
