@@ -360,12 +360,6 @@
         // SECTION: API Communication
         // =================================================================================
         
-        /**
-         * A generic fetch wrapper for calling the worker API.
-         * @param {string} endpoint - The API endpoint (e.g., '/tickets').
-         * @param {object} options - Standard fetch options.
-         * @returns {Promise<any>} - The parsed JSON response.
-         */
         async function apiFetch(endpoint, options = {}) {
             if (!STORE_HANDLE) {
                 throw new Error("شناسه پلتفرم مشخص نشده است.");
@@ -389,14 +383,9 @@
         // SECTION: Core Application Logic
         // =================================================================================
         
-        /**
-         * Reads the storeHandle from Telegram's start_param.
-         * @returns {string|null}
-         */
         function getStoreHandleFromTg() {
             try {
                 const tg = window.Telegram.WebApp;
-                // The startParam can contain other info, we look for 'storeHandle_' prefix
                 if (tg.initDataUnsafe.start_param) {
                     const params = tg.initDataUnsafe.start_param.split('_');
                     if (params[0] === 'storeHandle' && params[1]) {
@@ -406,7 +395,6 @@
             } catch (e) {
                 console.error("Could not get start_param:", e);
             }
-             // Fallback for local testing or if start_param is not set
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('storeHandle');
         }
@@ -426,25 +414,11 @@
             if (!telegramUser) return;
             try {
                 const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}`);
-                const serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
-
-                // --- FIX: A more robust state merging logic ---
-                const ticketMap = new Map();
-                // Add tickets from the current state first
-                allTicketsData.forEach(t => ticketMap.set(t.id, t));
-                // Add or update with fresh tickets from the server
-                serverTickets.forEach(t => ticketMap.set(t.id, t));
+                // The server is the single source of truth. Always replace the local data.
+                allTicketsData = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
                 
-                // If there's a newly created ticket that hasn't appeared on the server yet, ensure it's in the map.
-                if (newlyCreatedTicket && !ticketMap.has(newlyCreatedTicket.id)) {
-                    ticketMap.set(newlyCreatedTicket.id, newlyCreatedTicket);
-                } else if (newlyCreatedTicket && ticketMap.has(newlyCreatedTicket.id)) {
-                    // Once the server returns the new ticket, we can stop tracking it locally.
-                    newlyCreatedTicket = null;
-                }
+                renderTickets(allTicketsData);
 
-                allTicketsData = Array.from(ticketMap.values());
-                
                 if (currentTicketId) {
                     const updatedTicketData = allTicketsData.find(t => t.id === currentTicketId);
                     if (updatedTicketData && currentTicketData && updatedTicketData.status !== currentTicketData.status) {
@@ -452,7 +426,6 @@
                         updateConversationViewUI();
                     }
                 }
-                renderTickets(allTicketsData);
             } catch (error) {
                 console.error("Error fetching tickets:", error);
             }
@@ -465,7 +438,9 @@
         }
 
         function renderTickets(tickets) {
+            // Recalculate hasOpenTicket every time we render from a fresh state.
             hasOpenTicket = tickets.some(ticket => ticket.status !== 'closed');
+            
             if (tickets.length === 0) {
                 dom.ticketsContainer.innerHTML = '';
                 dom.noTicketsMessage.classList.remove('hidden');
@@ -533,18 +508,23 @@
         }
 
         async function deleteTicket(ticketId) {
-            if (confirm('آیا از حذف این تیکت مطمئن هستید؟ این عمل غیرقابل بازگشت است.')) {
+            // This is a custom confirmation modal to avoid using window.confirm
+            showModal('تایید حذف', 'آیا از حذف این تیکت مطمئن هستید؟ این عمل غیرقابل بازگشت است.', true);
+            const closeBtn = document.getElementById('modal-close-btn');
+            const newBtn = closeBtn.cloneNode(true);
+            closeBtn.parentNode.replaceChild(newBtn, closeBtn);
+
+            newBtn.addEventListener('click', async () => {
+                document.getElementById('custom-modal').classList.add('hidden');
                 try {
                     await apiFetch(`/tickets/${ticketId}`, { method: 'DELETE' });
                     showNotification('تیکت با موفقیت حذف شد.');
-                    // --- FIX ---
-                    allTicketsData = allTicketsData.filter(t => t.id !== ticketId);
-                    renderTickets(allTicketsData);
+                    fetchTickets(); // Refetch from server to get the true state
                 } catch (error) {
                     showNotification(`حذف تیکت با خطا مواجه شد: ${error.message}`, false);
                     console.error("Error deleting ticket:", error);
                 }
-            }
+            }, { once: true });
         }
 
         async function submitRating(ticketId, rating) {
@@ -561,12 +541,7 @@
                     body: JSON.stringify(payload),
                 });
                 showNotification('امتیاز شما با موفقیت ثبت شد.');
-                // --- FIX ---
-                const ratedTicket = allTicketsData.find(t => t.id === ticketId);
-                if (ratedTicket) {
-                    ratedTicket.rating = rating;
-                }
-                renderTickets(allTicketsData);
+                fetchTickets(); // Refetch from server to get the true state
             } catch (error) {
                 showNotification(`ثبت امتیاز با خطا مواجه شد: ${error.message}`, false);
                 delete starContainer.dataset.submitting;
@@ -614,18 +589,18 @@
             if (!ticketId) return;
             try {
                 const messagesData = await apiFetch(`/messages?ticket_id=${ticketId}`);
-                const isScrolledToBottom = dom.conversationContainer.scrollHeight - dom.conversationContainer.clientHeight <= dom.conversationContainer.scrollTop + 50;
+                const isScrolledToBottom = conversationContainer.scrollHeight - conversationContainer.clientHeight <= conversationContainer.scrollTop + 50;
                 
-                dom.conversationContainer.innerHTML = '';
+                conversationContainer.innerHTML = '';
                 if (messagesData) {
-                    dom.conversationContainer.innerHTML = Object.values(messagesData)
+                    conversationContainer.innerHTML = Object.values(messagesData)
                         .sort((a,b) => new Date(a.created_at) - new Date(b.created_at))
                         .map(renderMessage).join('');
                     attachHumanRequestListeners();
                 }
                 
                 if(isScrolledToBottom) {
-                    dom.conversationContainer.scrollTop = dom.conversationContainer.scrollHeight;
+                    conversationContainer.scrollTop = conversationContainer.scrollHeight;
                 }
             } catch (error) {
                 console.error("Error fetching messages:", error);
@@ -641,7 +616,7 @@
         function renderMessage(data) {
             const isUser = data.sender === 'user';
             const senderName = isUser 
-                ? `${telegramUser.first_name || 'شما'}` 
+                ? (telegramUser.first_name || 'شما')
                 : (data.source === 'ai' ? 'دستیار هوش مصنوعی' : (departmentMap[currentTicketData?.department] || 'پشتیبانی'));
             const time = new Date(data.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit'});
             
@@ -665,8 +640,8 @@
         }
 
         function appendMessageToUI(messageData) {
-            dom.conversationContainer.innerHTML += renderMessage(messageData);
-            dom.conversationContainer.scrollTop = dom.conversationContainer.scrollHeight;
+            conversationContainer.innerHTML += renderMessage(messageData);
+            conversationContainer.scrollTop = conversationContainer.scrollHeight;
         }
 
         async function sendTextMessage(text) {
@@ -688,17 +663,14 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 });
-                // --- FIX ---
-                if (currentTicketData) {
-                    currentTicketData.status = 'open';
-                    renderTickets(allTicketsData);
-                }
+                // After sending, fetch the latest state for both messages and tickets
+                await fetchMessages(currentTicketId);
+                await fetchTickets(); 
              } catch (error) {
                  console.error("Error sending message:", error);
                  showNotification(error.message, false);
              } finally {
                  submitButton.disabled = false;
-                 fetchMessages(currentTicketId);
              }
         }
         
@@ -721,10 +693,8 @@
 
                 await apiFetch('/messages', { method: 'POST', body: formData });
                 showNotification("تصویر با موفقیت ارسال شد.", true);
-                 if (currentTicketData) {
-                    currentTicketData.status = 'open';
-                    renderTickets(allTicketsData);
-                }
+                await fetchMessages(currentTicketId);
+                await fetchTickets();
             } catch (error) {
                 console.error("Image send failed:", error);
                 showNotification(`ارسال تصویر ناموفق بود: ${error.message}`, false);
@@ -732,7 +702,6 @@
                 dom.attachFileBtn.disabled = false;
                 submitButton.disabled = false;
                 dom.fileUploadInput.value = '';
-                fetchMessages(currentTicketId);
             }
         }
         
@@ -761,18 +730,16 @@
                     storeHandle: STORE_HANDLE
                 };
                 
-                const newTicket = await apiFetch('/tickets', {
+                await apiFetch('/tickets', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 });
                 
-                newlyCreatedTicket = newTicket; 
                 dom.newTicketForm.reset();
                 showNotification('تیکت شما با موفقیت ارسال شد.');
-                allTicketsData.unshift(newTicket); 
-                renderTickets(allTicketsData);
                 showView('ticketsList');
+                await fetchTickets(); // Fetch the new truth from the server
 
             } catch (error) {
                 showNotification(`ارسال تیکت با خطا مواجه شد: ${error.message}`, false);
@@ -833,7 +800,7 @@
                     startApp(tg.initDataUnsafe.user);
                 } else {
                     console.warn("Telegram user data not found. Using mock user for testing.");
-                    startApp({id: "12345678", first_name: "Test", last_name: "User"});
+                    startApp({id: "12345678", first_name: "Test", last_name: "User"}); // Mock user for development
                 }
             } catch (error) {
                 console.error("Could not initialize Telegram Web App:", error);
@@ -909,3 +876,4 @@
     </script>
 </body>
 </html>
+
