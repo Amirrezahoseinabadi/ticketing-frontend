@@ -733,7 +733,7 @@
                     subject: data.subject,
                     department: data.department,
                     message: data.message,
-                    storeHandle: STORE_HANDLE // This was missing
+                    storeHandle: STORE_HANDLE 
                 };
                 await apiFetch('/tickets', {
                     method: 'POST',
