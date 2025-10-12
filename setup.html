@@ -6,83 +6,145 @@
     <title>تیکتینگ ساز | پلتفرم خود را بسازید</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         body {
             font-family: 'Vazirmatn', sans-serif;
-            background: #0F2027;
-            background: -webkit-linear-gradient(to right, #2C5364, #203A43, #0F2027);
-            background: linear-gradient(to right, #2C5364, #203A43, #0F2027);
+            background: #121828;
+            background-image: radial-gradient(circle at top right, rgba(17, 94, 89, 0.3), transparent),
+                              radial-gradient(circle at bottom left, rgba(195, 129, 3, 0.2), transparent);
+            background-attachment: fixed;
+            overflow-y: auto;
         }
+
+        .glass-card {
+            background: rgba(23, 30, 48, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-input-wrapper {
+            position: relative;
+        }
+
+        .form-input-icon {
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.4);
+            pointer-events: none;
+        }
+
         .form-input {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             color: white;
             transition: all 0.3s ease;
+            padding-right: 3rem; /* Space for icon */
         }
+
         .form-input-ltr {
             text-align: left;
             direction: ltr;
+            padding-left: 1rem;
+            padding-right: 3rem;
         }
+
         .form-input:focus {
-            background-color: rgba(255, 255, 255, 0.1);
-            border-color: #38bdf8;
-            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.4);
+            background-color: rgba(0, 0, 0, 0.3);
+            border-color: #D4AF37; /* Gold color */
+            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.2);
         }
+        
         .btn-primary {
-            background-color: #0ea5e9;
-            transition: background-color 0.3s ease;
+            background-image: linear-gradient(to right, #DAA520, #B8860B);
+            border: none;
+            transition: all 0.4s ease;
+            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.3);
+            background-size: 200% auto;
         }
+
         .btn-primary:hover {
-            background-color: #0284c7;
+            background-position: right center; /* change the direction of the change here */
+            box-shadow: 0 6px 20px rgba(218, 165, 32, 0.5);
+            transform: translateY(-2px);
         }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-radius: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
+
         .swal2-popup {
             font-family: 'Vazirmatn', sans-serif !important;
         }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
-    <div class="w-full max-w-lg mx-auto">
-        <div id="main-card" class="glass-card p-8 md:p-12">
-            <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-white mb-2">تیکتینگ ساز 🚀</h1>
-                <p class="text-gray-300">پلتفرم پشتیبانی اختصاصی خود را بسازید</p>
+
+    <div class="w-full max-w-2xl mx-auto">
+        <div class="glass-card p-8 md:p-12">
+            <div class="text-center mb-10">
+                <div class="inline-block p-3 bg-gray-700/50 rounded-full mb-4">
+                    <i class="fas fa-rocket text-3xl text-[#DAA520]"></i>
+                </div>
+                <h1 class="text-4xl font-bold text-white mb-2">پلتفرم خود را خلق کنید</h1>
+                <p class="text-gray-300 text-lg">سرویس تیکتینگ اختصاصی خود را در چند گام راه‌اندازی کنید</p>
             </div>
+            
             <form id="setup-form" class="space-y-6">
                 <div>
-                    <label for="store-handle" class="block mb-2 text-sm font-medium text-gray-200">۱. شناسه پلتفرم (انگلیسی)</label>
-                    <input type="text" id="store-handle" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="e.g., my-online-shop" required pattern="[a-zA-Z0-9-]+">
-                    <p class="text-xs text-gray-400 mt-1">این نام در URL شما استفاده خواهد شد و غیرقابل تغییر است.</p>
+                    <label for="store-handle" class="block mb-2 text-sm font-medium text-gray-200">شناسه پلتفرم (انگلیسی)</label>
+                    <div class="form-input-wrapper">
+                        <i class="fas fa-link form-input-icon"></i>
+                        <input type="text" id="store-handle" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="my-company" required pattern="[a-zA-Z0-9-]+">
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">این نام در URL شما استفاده خواهد شد و غیرقابل تغییر است.</p>
                 </div>
+
                 <div>
-                    <label for="admin-chat-id" class="block mb-2 text-sm font-medium text-gray-200">۲. شناسه عددی تلگرام مدیر</label>
-                    <input type="text" id="admin-chat-id" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="شناسه عددی اکانت تلگرام شما" required pattern="[0-9]+">
-                    <p class="text-xs text-gray-400 mt-1">برای دریافت این شناسه، به ربات <a href="https://t.me/userinfobot" target="_blank" class="text-sky-400">@userinfobot</a> پیام دهید.</p>
+                    <label for="admin-chat-id" class="block mb-2 text-sm font-medium text-gray-200">شناسه عددی تلگرام مدیر</label>
+                    <div class="form-input-wrapper">
+                        <i class="fas fa-user-shield form-input-icon"></i>
+                        <input type="text" id="admin-chat-id" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="شناسه عددی اکانت تلگرام شما" required pattern="[0-9]+">
+                    </div>
+                     <p class="text-xs text-gray-400 mt-2">برای دریافت، به ربات <a href="https://t.me/userinfobot" target="_blank" class="text-amber-400 hover:text-amber-300">@userinfobot</a> پیام دهید.</p>
                 </div>
+
                 <div>
-                    <label for="user-bot-token" class="block mb-2 text-sm font-medium text-gray-200">۳. توکن ربات اصلی (برای کاربر)</label>
-                    <input type="text" id="user-bot-token" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="توکن رباتی که کاربران با آن در ارتباطند" required>
-                     <p class="text-xs text-gray-400 mt-1">وبهوک این ربات تغییر نخواهد کرد.</p>
+                    <label for="user-bot-token" class="block mb-2 text-sm font-medium text-gray-200">توکن ربات کاربران</label>
+                    <div class="form-input-wrapper">
+                         <i class="fab fa-telegram form-input-icon"></i>
+                         <input type="text" id="user-bot-token" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="توکن رباتی که کاربران با آن در ارتباطند" required>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">این ربات به Mini App شما متصل می‌شود.</p>
                 </div>
+
                 <div>
-                    <label for="admin-bot-token" class="block mb-2 text-sm font-medium text-gray-200">۴. توکن ربات ادمین (برای اعلان‌ها)</label>
-                    <input type="text" id="admin-bot-token" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="توکن رباتی که اعلان‌ها را دریافت می‌کند" required>
-                     <p class="text-xs text-gray-400 mt-1">وبهوک این ربات به صورت خودکار تنظیم می‌شود.</p>
+                    <label for="admin-bot-token" class="block mb-2 text-sm font-medium text-gray-200">توکن ربات ادمین (برای اعلان‌ها)</label>
+                    <div class="form-input-wrapper">
+                        <i class="fas fa-bell form-input-icon"></i>
+                        <input type="text" id="admin-bot-token" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="توکن رباتی که اعلان‌ها را دریافت می‌کند" required>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">وبهوک این ربات به صورت خودکار تنظیم می‌شود.</p>
                 </div>
-                 <div>
-                    <label for="admin-panel-url" class="block mb-2 text-sm font-medium text-gray-200">۵. آدرس پنل مدیریت (اختیاری)</label>
-                    <input type="url" id="admin-panel-url" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="https://your-admin-panel.com">
-                </div>
+
                 <div>
-                    <button type="submit" id="create-platform-btn" class="w-full btn-primary text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline disabled:opacity-50">
+                    <label for="admin-panel-url" class="block mb-2 text-sm font-medium text-gray-200">آدرس پنل مدیریت (اختیاری)</label>
+                    <div class="form-input-wrapper">
+                        <i class="fas fa-cog form-input-icon"></i>
+                        <input type="url" id="admin-panel-url" class="form-input form-input-ltr w-full rounded-lg p-3" placeholder="https://your-admin-panel.com">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit" id="create-platform-btn" class="w-full mt-4 btn-primary text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline disabled:opacity-50">
                         ایجاد پلتفرم
                     </button>
                 </div>
@@ -91,6 +153,7 @@
     </div>
 
 <script>
+    // YOUR JAVASCRIPT LOGIC (No changes needed here)
     // !!! IMPORTANT: This URL should point to a worker that handles the setup logic.
     const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
     
@@ -136,22 +199,22 @@
         
         Swal.fire({
             icon: 'success',
-            title: '🎉 پلتفرم شما آماده است!',
+            title: '🎉 پلتفرم شما با موفقیت ساخته شد!',
             html: `
                 <div class="text-right text-gray-700 space-y-4 p-4 bg-gray-50 rounded-lg">
                     <div>
-                        <p><strong>۱. فعال‌سازی Mini App:</strong></p>
-                        <p class="text-sm">به <a href="https://t.me/BotFather" target="_blank" class="text-blue-500">@BotFather</a> بروید، ربات کاربری خود (<a href="https://t.me/${userBotUsername}" target="_blank" class="text-sky-400">@${userBotUsername}</a>) را انتخاب کرده و از بخش <code>Bot Settings > Menu Button</code>، آدرس Mini App خود را روی لینک زیر تنظیم کنید:</p>
+                        <p class="font-bold">۱. فعال‌سازی Mini App:</p>
+                        <p class="text-sm">به <a href="https://t.me/BotFather" target="_blank" class="text-blue-600 font-semibold">@BotFather</a> بروید، ربات کاربری خود (<a href="https://t.me/${userBotUsername}" target="_blank" class="text-sky-500 font-semibold">@${userBotUsername}</a>) را انتخاب کرده و از بخش <code>Bot Settings > Menu Button</code>، آدرس زیر را برای Mini App خود تنظیم کنید:</p>
                         <input type="text" readonly value="${miniAppUrl}" class="w-full mt-1 p-2 border rounded-md text-left bg-gray-200" onclick="this.select(); document.execCommand('copy');">
                     </div>
                     <div>
-                        <p><strong>۲. فعال‌سازی ربات ادمین:</strong></p>
-                        <p class="text-sm">به ربات ادمین خود (<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-500">@${adminBotUsername}</a>) بروید و دستور <code>/start</code> را بزنید تا اعلان‌ها را دریافت کنید.</p>
+                        <p class="font-bold">۲. فعال‌سازی ربات ادمین:</p>
+                        <p class="text-sm">به ربات ادمین خود (<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-600 font-semibold">@${adminBotUsername}</a>) بروید و دستور <code>/start</code> را بزنید تا اعلان‌ها را دریافت کنید.</p>
                     </div>
                      <div>
-                        <p><strong>۳. پنل مدیریت شما:</strong></p>
+                        <p class="font-bold">۳. پنل مدیریت شما:</p>
                         <p class="text-sm">این لینک را برای مدیریت تیکت‌ها ذخیره کنید.</p>
-                        <a href="${adminPanelUrl}" target="_blank" class="text-blue-500 block text-center mt-1 p-2 border rounded-md bg-blue-100">${adminPanelUrl}</a>
+                        <a href="${adminPanelUrl}" target="_blank" class="text-blue-600 block text-center mt-1 p-2 border rounded-md bg-blue-100 hover:bg-blue-200">${adminPanelUrl}</a>
                     </div>
                 </div>
             `,
