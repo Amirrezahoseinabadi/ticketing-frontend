@@ -254,8 +254,8 @@
         // SECTION: Configuration & State
         // =================================================================================
 
-        const WORKER_URL = 'https://ticketing.amiruserbot7.workers.dev'; // CORRECTED WORKER URL
-        let STORE_HANDLE = null; // This will be dynamically set
+        const WORKER_URL = 'https://ticketing.amiruserbot7.workers.dev';
+        let STORE_HANDLE = null; 
 
         let telegramUser = null;
         let currentTicketId = null;
@@ -316,7 +316,7 @@
         };
 
         // =================================================================================
-        // SECTION: UI Functions (Modals, Toasts, Views)
+        // SECTION: UI Functions
         // =================================================================================
         
         let activeToastTimeout = null;
@@ -360,12 +360,6 @@
         // SECTION: API Communication
         // =================================================================================
         
-        /**
-         * A generic fetch wrapper for calling the worker API.
-         * @param {string} endpoint - The API endpoint (e.g., '/tickets').
-         * @param {object} options - Standard fetch options.
-         * @returns {Promise<any>} - The parsed JSON response.
-         */
         async function apiFetch(endpoint, options = {}) {
             if (!STORE_HANDLE) {
                 throw new Error("شناسه پلتفرم مشخص نشده است.");
@@ -379,9 +373,8 @@
                 result = JSON.parse(resultText);
             } catch (e) {
                 console.error("Failed to parse JSON response:", resultText);
-                throw new Error(`پاسخ غیرمنتظره از سرور دریافت شد. Status: ${response.status}`);
+                throw new Error(`پاسخ غیرمنتظره از سرور. Status: ${response.status}`);
             }
-
 
             if (!response.ok) {
                 throw new Error(result.error || 'خطای ناشناخته در سرور');
@@ -397,24 +390,15 @@
         // SECTION: Core Application Logic
         // =================================================================================
         
-        /**
-         * Reads the storeHandle from Telegram's start_param.
-         * @returns {string|null}
-         */
         function getStoreHandleFromTg() {
             try {
                 const tg = window.Telegram.WebApp;
-                // The startParam can contain other info, we look for 'storeHandle_' prefix
                 if (tg.initDataUnsafe.start_param) {
-                    const params = tg.initDataUnsafe.start_param.split('_');
-                    if (params[0] === 'storeHandle' && params[1]) {
-                        return params[1];
-                    }
+                    return tg.initDataUnsafe.start_param;
                 }
             } catch (e) {
                 console.error("Could not get start_param:", e);
             }
-             // Fallback for local testing or if start_param is not set
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('storeHandle');
         }
@@ -446,6 +430,7 @@
                 renderTickets(allTicketsData);
             } catch (error) {
                 console.error("Error fetching tickets:", error);
+                showNotification(error.message, false);
             }
         }
 
@@ -474,10 +459,6 @@
             const departmentName = departmentMap[data.department] || data.department;
             const animationDelay = index * 80;
             
-            const deleteButton = data.status === 'closed' 
-                ? `<button data-id="${data.id}" class="delete-ticket-btn p-1"><svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>`
-                : '';
-
             let ratingSection = '';
             if (data.status === 'closed') {
                 if (data.rating) {
@@ -499,7 +480,7 @@
                 </div>
                 <div class="flex justify-between items-center text-xs mt-4 pt-2 border-t" style="border-color: var(--brand-dark-blue);">
                     <span style="color: var(--brand-text-secondary);">${departmentName}</span>
-                    <div class="flex items-center">${deleteButton}<span style="color: var(--brand-text-secondary);">${creationDate}</span></div>
+                    <div class="flex items-center"><span style="color: var(--brand-text-secondary);">${creationDate}</span></div>
                 </div>
                 ${ratingSection}
             </div>`;
@@ -512,28 +493,12 @@
                     openConversation(card.dataset.id);
                 });
             });
-            document.querySelectorAll('.delete-ticket-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => { e.stopPropagation(); deleteTicket(btn.dataset.id); });
-            });
             document.querySelectorAll('.rating-star').forEach(star => {
                 star.addEventListener('click', (e) => {
                     e.stopPropagation();
                     submitRating(star.dataset.id, parseInt(star.dataset.ratingValue));
                 });
             });
-        }
-
-        async function deleteTicket(ticketId) {
-            if (confirm('آیا از حذف این تیکت مطمئن هستید؟ این عمل غیرقابل بازگشت است.')) {
-                try {
-                    await apiFetch(`/tickets/${ticketId}`, { method: 'DELETE' });
-                    showNotification('تیکت با موفقیت حذف شد.');
-                    fetchTickets();
-                } catch (error) {
-                    showNotification(`حذف تیکت با خطا مواجه شد: ${error.message}`, false);
-                    console.error("Error deleting ticket:", error);
-                }
-            }
         }
 
         async function submitRating(ticketId, rating) {
@@ -605,7 +570,6 @@
                     dom.conversationContainer.innerHTML = Object.values(messagesData)
                         .sort((a,b) => new Date(a.created_at) - new Date(b.created_at))
                         .map(renderMessage).join('');
-                    attachHumanRequestListeners();
                 }
                 
                 if(isScrolledToBottom) {
@@ -629,40 +593,24 @@
                 : (data.source === 'ai' ? 'دستیار هوش مصنوعی' : (departmentMap[currentTicketData?.department] || 'پشتیبانی'));
             const time = new Date(data.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit'});
             
-            let messageContent = '';
-            if (data.type === 'image_placeholder') {
-                messageContent = `<div class="flex items-center space-x-2 space-x-reverse italic opacity-80"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" /></svg><p class="text-sm">تصویر ارسال شد</p></div>`;
-            } else {
-                messageContent = `<p class="whitespace-pre-wrap text-sm">${data.text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-300 underline">$1</a>')}</p>`;
-            }
-
-            const humanRequestButton = data.source === 'ai'
-                ? `<div class="mt-3 pt-2 border-t border-white/10"><p class="text-xs text-gray-400 mb-2">اگر این پیام مشکلتان را برطرف نکرد:</p><button class="request-human-btn text-xs w-full text-center py-2 px-3 rounded-lg border border-sky-500 text-sky-400 hover:bg-sky-500 hover:text-white transition-colors duration-200" data-ticket-id="${currentTicketId}">برای اتصال به کارشناس کلیک کنید</button></div>`
-                : '';
+            let messageContent = `<p class="whitespace-pre-wrap text-sm">${data.text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-300 underline">$1</a>')}</p>`;
 
             return `
             <div class="flex flex-col ${isUser ? 'self-end items-end' : 'self-start items-start'} max-w-xs md:max-w-md">
                 <p class="sender-name" style="color: ${isUser ? '#82aaff' : '#a2a2a2'}">${senderName}</p>
-                <div class="message-bubble ${isUser ? 'message-user' : 'message-admin'}">${messageContent}${humanRequestButton}</div>
+                <div class="message-bubble ${isUser ? 'message-user' : 'message-admin'}">${messageContent}</div>
                 <span class="message-time px-2 w-full ${isUser ? 'text-left' : 'text-right'}">${time}</span>
             </div>`;
-        }
-
-        function appendMessageToUI(messageData) {
-            dom.conversationContainer.innerHTML += renderMessage(messageData);
-            dom.conversationContainer.scrollTop = dom.conversationContainer.scrollHeight;
         }
 
         async function sendTextMessage(text) {
              if (!currentTicketId || !text) return;
              
-             const tempPayload = { sender: 'user', text, created_at: new Date().toISOString() };
              const payload = { ticket_id: currentTicketId, sender: 'user', text };
              
              const submitButton = dom.replyForm.querySelector('button[type="submit"]');
              submitButton.disabled = true;
              
-             appendMessageToUI(tempPayload);
              dom.replyMessageInput.value = '';
              dom.replyMessageInput.style.height = 'auto';
 
@@ -679,36 +627,6 @@
                  submitButton.disabled = false;
                  fetchMessages(currentTicketId);
              }
-        }
-        
-        async function handleImageUpload(file) {
-            if (!file) return;
-            if (file.size > 50 * 1024 * 1024) { // 50MB limit
-                return showNotification("حجم فایل نباید بیشتر از 50 مگابایت باشد.", false);
-            }
-
-            const submitButton = dom.replyForm.querySelector('button[type="submit"]');
-            dom.attachFileBtn.disabled = true;
-            submitButton.disabled = true;
-            showNotification("در حال ارسال تصویر...", true, 0);
-
-            try {
-                const formData = new FormData();
-                formData.append('ticket_id', currentTicketId);
-                formData.append('sender', 'user');
-                formData.append('image', file);
-
-                await apiFetch('/messages', { method: 'POST', body: formData });
-                showNotification("تصویر با موفقیت ارسال شد.", true);
-            } catch (error) {
-                console.error("Image send failed:", error);
-                showNotification(`ارسال تصویر ناموفق بود: ${error.message}`, false);
-            } finally {
-                dom.attachFileBtn.disabled = false;
-                submitButton.disabled = false;
-                dom.fileUploadInput.value = '';
-                fetchMessages(currentTicketId);
-            }
         }
         
         async function handleNewTicketSubmit(event) {
@@ -755,27 +673,6 @@
             }
         }
 
-        function attachHumanRequestListeners() {
-            document.querySelectorAll('.request-human-btn').forEach(button => {
-                if (button.dataset.listenerAttached) return;
-                button.dataset.listenerAttached = 'true';
-                button.addEventListener('click', async (e) => {
-                    const ticketId = e.target.dataset.ticketId;
-                    e.target.disabled = true;
-                    e.target.textContent = 'در حال ارسال...';
-                    try {
-                        await apiFetch(`/tickets/${ticketId}/request-human`, { method: 'POST' });
-                        showNotification('درخواست شما برای اتصال به کارشناس ثبت شد.');
-                        e.target.textContent = 'درخواست ثبت شد';
-                        e.target.classList.add('opacity-50', 'cursor-not-allowed');
-                    } catch (error) {
-                        showNotification(error.message, false);
-                        e.target.disabled = false;
-                        e.target.textContent = 'برای اتصال به کارشناس کلیک کنید';
-                    }
-                });
-            });
-        }
 
         // =================================================================================
         // SECTION: Initialization & Event Listeners
@@ -791,7 +688,7 @@
                           <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <h1 class="text-xl font-bold mt-4 text-white">خطا در پیکربندی</h1>
-                        <p class="mt-2 text-gray-300">شناسه پلتفرم (storeHandle) در آدرس Mini App یافت نشد. لطفاً از طریق دکمه منوی ربات تلگرام وارد شوید.</p>
+                        <p class="mt-2 text-gray-300">شناسه پلتفرم (storeHandle) یافت نشد. لطفاً از طریق دکمه منوی ربات تلگرام وارد شوید.</p>
                     </div>`;
                 return;
             }
@@ -812,7 +709,7 @@
             }
         });
 
-        // --- Main Navigation ---
+        // --- Event Listeners ---
         dom.navButtons.ticketsList.addEventListener('click', () => showView('ticketsList'));
         dom.navButtons.newTicket.addEventListener('click', () => {
             if (hasOpenTicket) {
@@ -823,7 +720,6 @@
             }
         });
 
-        // --- Form Submissions ---
         dom.newTicketForm.addEventListener('submit', handleNewTicketSubmit);
         dom.replyForm.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -831,7 +727,6 @@
             if(text) sendTextMessage(text);
         });
 
-        // --- Buttons & Modals ---
         dom.backToTicketsBtn.addEventListener('click', closeConversation);
         dom.infoModalCloseBtn.addEventListener('click', () => {
             dom.infoModal.classList.add('hidden');
@@ -843,7 +738,6 @@
             document.getElementById('custom-modal').classList.remove('flex');
         });
 
-        // --- File & Emoji Pickers ---
         dom.attachFileBtn.addEventListener('click', () => dom.fileUploadInput.click());
         dom.fileUploadInput.addEventListener('change', (e) => {
             if (e.target.files?.[0]) handleImageUpload(e.target.files[0]);
@@ -863,15 +757,13 @@
             }
         });
 
-        // --- Auto-resizing Textarea ---
         dom.replyMessageInput.addEventListener('input', () => {
             dom.replyMessageInput.style.height = 'auto';
             dom.replyMessageInput.style.height = `${dom.replyMessageInput.scrollHeight}px`;
         });
         
-        // --- External Links ---
         const openFaq = () => {
-            const faqUrl = 'https://faqhub.amiruserbot7.workers.dev/'; // Replace with your FAQ URL
+            const faqUrl = 'https://faqhub.amiruserbot7.workers.dev/'; 
             window.Telegram?.WebApp.openLink(faqUrl) || window.open(faqUrl, '_blank');
         };
         dom.faqButton.addEventListener('click', openFaq);
