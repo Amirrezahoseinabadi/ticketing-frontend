@@ -265,7 +265,6 @@
         let messagesPollingInterval = null;
         let hasOpenTicket = false;
         let isSubmitting = false;
-        let newlyCreatedTicket = null; // --- FIX: Add this line ---
 
         const departmentMap = {
             general: 'سوالات متفرقه',
@@ -427,23 +426,24 @@
             if (!telegramUser) return;
             try {
                 const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}`);
-                let serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+                const serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
 
-                // --- FIX: Logic to prevent disappearing tickets ---
-                // If we are expecting a new ticket and the server hasn't sent it yet,
-                // it means the server response is stale. We will manually add our
-                // optimistic ticket to the list to prevent it from disappearing.
-                if (newlyCreatedTicket && !serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
-                    serverTickets.unshift(newlyCreatedTicket);
-                } 
-                // Once the server includes the new ticket in its response, we can
-                // stop manually adding it.
-                else if (newlyCreatedTicket && serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
+                // --- FIX: A more robust state merging logic ---
+                const ticketMap = new Map();
+                // Add tickets from the current state first
+                allTicketsData.forEach(t => ticketMap.set(t.id, t));
+                // Add or update with fresh tickets from the server
+                serverTickets.forEach(t => ticketMap.set(t.id, t));
+                
+                // If there's a newly created ticket that hasn't appeared on the server yet, ensure it's in the map.
+                if (newlyCreatedTicket && !ticketMap.has(newlyCreatedTicket.id)) {
+                    ticketMap.set(newlyCreatedTicket.id, newlyCreatedTicket);
+                } else if (newlyCreatedTicket && ticketMap.has(newlyCreatedTicket.id)) {
+                    // Once the server returns the new ticket, we can stop tracking it locally.
                     newlyCreatedTicket = null;
                 }
-                // --- END FIX ---
 
-                allTicketsData = serverTickets; // Update the main data source
+                allTicketsData = Array.from(ticketMap.values());
                 
                 if (currentTicketId) {
                     const updatedTicketData = allTicketsData.find(t => t.id === currentTicketId);
@@ -537,7 +537,9 @@
                 try {
                     await apiFetch(`/tickets/${ticketId}`, { method: 'DELETE' });
                     showNotification('تیکت با موفقیت حذف شد.');
-                    fetchTickets();
+                    // --- FIX ---
+                    allTicketsData = allTicketsData.filter(t => t.id !== ticketId);
+                    renderTickets(allTicketsData);
                 } catch (error) {
                     showNotification(`حذف تیکت با خطا مواجه شد: ${error.message}`, false);
                     console.error("Error deleting ticket:", error);
@@ -559,7 +561,12 @@
                     body: JSON.stringify(payload),
                 });
                 showNotification('امتیاز شما با موفقیت ثبت شد.');
-                fetchTickets();
+                // --- FIX ---
+                const ratedTicket = allTicketsData.find(t => t.id === ticketId);
+                if (ratedTicket) {
+                    ratedTicket.rating = rating;
+                }
+                renderTickets(allTicketsData);
             } catch (error) {
                 showNotification(`ثبت امتیاز با خطا مواجه شد: ${error.message}`, false);
                 delete starContainer.dataset.submitting;
@@ -681,6 +688,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 });
+                // --- FIX ---
+                if (currentTicketData) {
+                    currentTicketData.status = 'open';
+                    renderTickets(allTicketsData);
+                }
              } catch (error) {
                  console.error("Error sending message:", error);
                  showNotification(error.message, false);
@@ -709,6 +721,10 @@
 
                 await apiFetch('/messages', { method: 'POST', body: formData });
                 showNotification("تصویر با موفقیت ارسال شد.", true);
+                 if (currentTicketData) {
+                    currentTicketData.status = 'open';
+                    renderTickets(allTicketsData);
+                }
             } catch (error) {
                 console.error("Image send failed:", error);
                 showNotification(`ارسال تصویر ناموفق بود: ${error.message}`, false);
@@ -751,17 +767,12 @@
                     body: JSON.stringify(payload),
                 });
                 
-                // --- FIX: More robust logic ---
-                newlyCreatedTicket = newTicket; // Store the new ticket to handle server sync delay.
-
+                newlyCreatedTicket = newTicket; 
                 dom.newTicketForm.reset();
                 showNotification('تیکت شما با موفقیت ارسال شد.');
-                
-                allTicketsData.unshift(newTicket); // Optimistically add to the UI.
+                allTicketsData.unshift(newTicket); 
                 renderTickets(allTicketsData);
-                
-                showView('ticketsList'); // Switch the view immediately.
-                // Polling continues in the background and will self-correct.
+                showView('ticketsList');
 
             } catch (error) {
                 showNotification(`ارسال تیکت با خطا مواجه شد: ${error.message}`, false);
@@ -898,4 +909,3 @@
     </script>
 </body>
 </html>
-
