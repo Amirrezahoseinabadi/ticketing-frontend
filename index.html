@@ -254,7 +254,7 @@
         // SECTION: Configuration & State
         // =================================================================================
 
-        const WORKER_URL = 'https://ticketing.amiruserbot7.workers.dev';
+        const WORKER_URL = 'https://support-api-worker.amiruserbot7.workers.dev';
         let STORE_HANDLE = null; // This will be dynamically set
 
         let telegramUser = null;
@@ -727,7 +727,10 @@
                     message: data.message,
                     storeHandle: STORE_HANDLE
                 };
-                await apiFetch('/tickets', {
+                
+                // --- FIX START ---
+                // 1. Capture the response which contains the newly created ticket data.
+                const newTicket = await apiFetch('/tickets', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
@@ -735,8 +738,16 @@
                 
                 dom.newTicketForm.reset();
                 showNotification('تیکت شما با موفقیت ارسال شد.');
-                fetchTickets();
+                
+                // 2. Add the new ticket to the local state array.
+                allTicketsData.unshift(newTicket);
+                
+                // 3. Re-render the tickets list from the updated local state.
+                renderTickets(allTicketsData);
+                // --- FIX END ---
+                
                 setTimeout(() => showView('ticketsList'), 500);
+
             } catch (error) {
                 showNotification(`ارسال تیکت با خطا مواجه شد: ${error.message}`, false);
                 console.error("Error creating ticket:", error);
@@ -872,5 +883,3 @@
     </script>
 </body>
 </html>
-
-
