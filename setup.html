@@ -224,8 +224,8 @@
 			--text-light: #E6EEF5;
 			--gold: #FFC857;
 			--text-on-light: #1A202C; /* Dark text for popups */
-            --stage-width: 420px; /* Width of the single-column view */
-            --nav-height: 70px; /* Height of the navigation bar */
+            --stage-width: 380px; /* کاهش عرض برای موبایل */
+            --nav-height: 60px; /* کاهش ارتفاع ناوبری */
 		}
 
 		html,body{height:100%;}
@@ -270,7 +270,7 @@
 			display: flex;
 			align-items: center;
 			justify-content: center;
-            padding: 1rem;
+            padding: 0.5rem; /* کاهش پدینگ اطراف محتوا */
             width: 100%; 
             height: 100%;
 			transition: all 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55); 
@@ -309,7 +309,7 @@
             width: var(--stage-width);
             max-width: 100%;
             height: auto; 
-            min-height: 500px;
+            min-height: 480px; /* کاهش ارتفاع مینیمم */
         }
         
         /* NOTE: .form-grid-container removed as per user request */
@@ -317,50 +317,52 @@
 		/* left card (visual/brand) */
 		.brand-card{
 			background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
-			border-radius:1rem;
-			padding:1.6rem;
-			box-shadow: 0 10px 30px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+			border-radius:0.75rem; /* کاهش گوشه‌ها */
+			padding:1rem; /* کاهش پدینگ */
+			box-shadow: 0 8px 24px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
 			position:relative;
 			overflow:hidden;
 			backdrop-filter: blur(6px) saturate(120%);
 			border: 1px solid rgba(255,255,255,0.04);
 			display:flex;
 			flex-direction:column;
-			gap:1rem;
+			gap:0.8rem; /* کاهش فاصله داخلی */
 		}
 
 		.brand-hero{
 			display:flex;
-			gap:1rem;
+			gap:0.8rem; /* کاهش فاصله داخلی */
 			align-items:center;
 		}
 		.logo-circle{
-			width:72px; height:72px; border-radius:18px;
+			width:64px; height:64px; border-radius:16px; /* کاهش ابعاد لوگو */
 			background: linear-gradient(135deg,var(--accent1),var(--accent2));
 			display:flex; align-items:center; justify-content:center;
-			box-shadow: 0 10px 30px rgba(0,114,255,0.18);
+			box-shadow: 0 8px 20px rgba(0,114,255,0.18);
 			transform: rotate(-6deg);
 		}
-		.logo-circle svg{width:36px; height:36px; color:white}
+		.logo-circle svg{width:32px; height:32px; color:white} /* کاهش ابعاد SVG */
 
-		.brand-title{font-weight:800; font-size:1.45rem; letter-spacing:0.2px; color:var(--text-light)}
-		.brand-sub{color:var(--muted); font-weight:500; margin-top:0.1rem}
+		.brand-title{font-weight:700; font-size:1.3rem; letter-spacing:0.2px; color:var(--text-light)} /* کاهش سایز فونت */
+		.brand-sub{color:var(--muted); font-weight:500; margin-top:0.1rem; font-size:0.9rem} /* کاهش سایز فونت */
 
 		.stats{
-			display:flex; gap:0.6rem; margin-top:auto; align-items:center; justify-content:space-between;
+			display:flex; gap:0.5rem; margin-top:auto; align-items:center; justify-content:space-between;
 		}
-		.stat-item{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:0.7rem 0.9rem; border-radius:0.8rem; border:1px solid rgba(255,255,255,0.02)}
-		.stat-item .num{font-weight:700; font-size:1.1rem}
-		.stat-item .lbl{font-size:0.8rem; color:var(--muted)}
+		.stat-item{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:0.5rem 0.7rem; border-radius:0.6rem; border:1px solid rgba(255,255,255,0.02)} /* کاهش پدینگ */
+		.stat-item .num{font-weight:700; font-size:1rem} /* کاهش سایز فونت */
+		.stat-item .lbl{font-size:0.75rem; color:var(--muted)} /* کاهش سایز فونت */
 
 		/* right card (form) */
 		.form-card{
 			background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-			border-radius:1rem;
-			padding:1.6rem;
-			box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+			border-radius:0.75rem; /* کاهش گوشه‌ها */
+			padding:1rem; /* کاهش پدینگ */
+			box-shadow: 0 8px 24px rgba(2,6,23,0.6);
 			border:1px solid rgba(255,255,255,0.04);
 			backdrop-filter: blur(6px);
+            width: var(--stage-width); /* محدود کردن عرض فرم */
+            max-width: 100%;
 		}
         
         /* Success Card Styling (Stage 3) and Profile/Dashboard Cards */
@@ -368,37 +370,40 @@
             width: 100%;
             max-width: 680px; 
             background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-            border-radius:1.5rem; 
-            padding:2.5rem;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.08);
+            border-radius:1rem; /* کاهش گوشه‌ها */
+            padding:1.5rem; /* کاهش پدینگ */
+            box-shadow: 0 15px 45px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.08);
             border:1px solid rgba(255,255,255,0.06);
             backdrop-filter: blur(8px);
             text-align: right;
+            max-width: var(--stage-width); /* محدود کردن حداکثر عرض */
         }
 
-		.headline{display:flex; align-items:center; gap:0.8rem}
-		.headline h1{font-size:1.45rem; font-weight:800; color:var(--text-light)}
-		.headline p{color:var(--muted); margin:0}
+		.headline{display:flex; align-items:center; gap:0.6rem}
+		.headline h1{font-size:1.3rem; font-weight:700; color:var(--text-light)} /* کاهش سایز فونت */
+		.headline p{color:var(--muted); margin:0; font-size:0.85rem} /* کاهش سایز فونت */
 
 		.glass-input{
 			background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
 			border:1px solid rgba(255,255,255,0.05);
-			padding:0.75rem 1rem; border-radius:0.7rem; font-weight:600; color:var(--text-light);
-			box-shadow: 0 6px 16px rgba(2,6,23,0.5);
+			padding:0.6rem 0.8rem; border-radius:0.6rem; font-weight:500; color:var(--text-light); /* کاهش پدینگ و گوشه‌ها */
+			box-shadow: 0 4px 12px rgba(2,6,23,0.5);
 			transition: all 0.18s ease;
+            font-size: 0.95rem; /* کاهش سایز فونت ورودی */
 		}
 
-		.form-label{font-weight:700; color:var(--muted); font-size:0.85rem}
-		.hint{font-size:0.83rem; color:var(--muted)}
+		.form-label{font-weight:600; color:var(--muted); font-size:0.8rem} /* کاهش سایز فونت */
+		.hint{font-size:0.75rem; color:var(--muted)} /* کاهش سایز فونت */
 
 		.btn-cta{
-			display:inline-flex; align-items:center; gap:0.6rem; justify-content:center;
-			padding:0.85rem 1.1rem; border-radius:0.75rem; font-weight:800; cursor:pointer;
+			display:inline-flex; align-items:center; gap:0.5rem; justify-content:center;
+			padding:0.7rem 1rem; border-radius:0.6rem; font-weight:700; cursor:pointer; /* کاهش پدینگ و گوشه‌ها */
 			background:linear-gradient(90deg,var(--accent2),var(--accent1)); color:#fff; border:none;
-			box-shadow: 0 12px 30px rgba(0,114,255,0.25);
+			box-shadow: 0 8px 20px rgba(0,114,255,0.25);
 			transition: transform .18s ease, box-shadow .18s ease;
+            font-size: 1rem; /* کاهش سایز فونت دکمه */
 		}
-		.btn-cta:hover{transform:translateY(-4px); box-shadow: 0 18px 45px rgba(0,114,255,0.30)}
+		.btn-cta:hover{transform:translateY(-3px); box-shadow: 0 12px 30px rgba(0,114,255,0.30)} /* کاهش میزان حرکت و سایه */
 		.btn-cta:disabled{
 			opacity: 0.6;
 			pointer-events: none;
@@ -413,8 +418,8 @@
             background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
             border: 1px solid rgba(255,255,255,0.1);
             color: var(--accent1);
-            padding: 0.5rem 0.8rem;
-            border-radius: 0.5rem;
+            padding: 0.4rem 0.7rem; /* کاهش پدینگ */
+            border-radius: 0.4rem; /* کاهش گوشه‌ها */
             transition: all 0.2s;
         }
         .btn-copy:hover {
@@ -422,10 +427,10 @@
             color: var(--text-light);
         }
 
-		.muted-row{display:flex; gap:0.6rem; align-items:center; color:var(--muted); font-size:0.9rem}
+		.muted-row{display:flex; gap:0.5rem; align-items:center; color:var(--muted); font-size:0.8rem} /* کاهش فاصله و سایز فونت */
 
 		/* tiny badges */
-		.badge{padding:0.3rem 0.55rem; border-radius:999px; font-size:0.78rem; background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03)}
+		.badge{padding:0.25rem 0.45rem; border-radius:999px; font-size:0.75rem; background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03)} /* کاهش ابعاد */
 
 		/* helper for LTR inputs */
 		.ltr{direction:ltr; text-align:left}
@@ -436,7 +441,7 @@
 			.brand-card{order:2}
 			.form-card{order:1}
             .stage-container {
-                padding: 1rem; 
+                padding: 0.5rem; 
             }
             :root{
                 --stage-width: 100%;
@@ -454,7 +459,7 @@
 		input:focus, textarea:focus{outline:none; box-shadow:0 6px 20px rgba(0,114,255,0.12); border-color:var(--accent2)}
 
 		/* footer */
-		.small-foot{font-size:0.82rem; color:var(--muted)}
+		.small-foot{font-size:0.75rem; color:var(--muted)} /* کاهش سایز فونت */
 
         /* --- Navigation Bar Styling (New) --- */
         #nav-bar {
@@ -481,8 +486,8 @@
             width: 25%;
             height: 100%;
             color: var(--muted);
-            font-size: 0.7rem;
-            font-weight: 700;
+            font-size: 0.65rem; /* کاهش سایز فونت ناوبری */
+            font-weight: 600;
             cursor: pointer;
             transition: color 0.2s ease, transform 0.2s ease;
         }
@@ -492,7 +497,7 @@
         }
 
         .nav-item i {
-            font-size: 1.2rem;
+            font-size: 1.1rem; /* کاهش سایز آیکون ناوبری */
             margin-bottom: 2px;
         }
 	</style>
@@ -518,7 +523,7 @@
 
                     <p class="hint mt-4">با طراحی واکنش‌گرا و امکانات API-first، تیکت‌تل آماده اتصال به هر سرویس و ابزار مورد نیاز شماست. راه‌اندازی تنها با چند کلیک.</p>
 
-                    <div style="margin-top:1rem;">
+                    <div style="margin-top:0.8rem;">
                         <div class="muted-row" style="justify-content:space-between">
                             <div class="badge">Enterprise Ready</div>
                             <div class="badge">GDPR-friendly</div>
@@ -526,7 +531,7 @@
                         </div>
                     </div>
 
-                    <div class="stats mt-4">
+                    <div class="stats mt-3">
                         <div class="stat-item">
                             <div class="num">120+</div>
                             <div class="lbl">شرکت‌های متصل</div>
@@ -541,8 +546,8 @@
                         </div>
                     </div>
 
-                    <div style="margin-top:1.2rem; display:flex; gap:0.8rem; align-items:center;">
-                        <button class="btn-cta text-lg flex-1" onclick="navigateTo('setup')">
+                    <div style="margin-top:1rem; display:flex; gap:0.6rem; align-items:center;">
+                        <button class="btn-cta flex-1" onclick="navigateTo('setup')">
                             <i class="fas fa-play"></i> شروع راه‌اندازی پلتفرم
                         </button>
                         <div class="small-foot">یا به مستندات مراجعه کنید</div>
@@ -557,7 +562,7 @@
             <div id="stage-setup" class="stage-container stage-hidden" data-view="setup">
                 
                 <!-- Right / Form card (Now taking center stage) -->
-                <section class="form-card w-full max-w-2xl"> <!-- Max width increased for better centered look -->
+                <section class="form-card"> <!-- Max width increased for better centered look -->
                     <div class="headline">
                         <div>
                             <h1>راه‌اندازی پلتفرم شما</h1>
@@ -568,7 +573,7 @@
                         </div>
                     </div>
 
-                    <form id="setup-form" class="mt-4 space-y-4">
+                    <form id="setup-form" class="mt-4 space-y-3"> <!-- کاهش فواصل به space-y-3 -->
                         <!-- Form fields remain the same -->
                         <div>
                             <label for="store-handle" class="form-label">شناسه پلتفرم (انگلیسی)</label>
@@ -597,7 +602,7 @@
                             <input id="admin-bot-token" class="glass-input ltr w-full" placeholder="توکن ربات اعلان‌ها" required>
                         </div>
 
-                        <div style="display:flex; gap:0.8rem; align-items:center">
+                        <div style="display:flex; gap:0.8rem; align-items:center; margin-top: 1.2rem !important;">
                             <!-- Button is now immediately enabled by renderApp for unrestricted access -->
                             <button id="create-platform-btn" class="btn-cta flex-1" type="submit" disabled><i class="fas fa-spinner animate-spin"></i> در حال اتصال...</button>
                         </div>
@@ -608,13 +613,13 @@
                         </div>
                     </form>
 
-                    <div style="margin-top:1rem; display:flex; gap:0.6rem; align-items:center; justify-content:space-between">
+                    <div style="margin-top:0.8rem; display:flex; gap:0.6rem; align-items:center; justify-content:space-between">
                         <div class="small-foot">نیاز به کمک؟ <a href="https://amirrezahoseinabadi.github.io/support" target="_blank" style="color:var(--accent1);">پشتیبانی</a></div>
                         <div class="small-foot">طراحی شده برای کسب‌وکارهای ایرانی</div>
                     </div>
                     
                     <!-- Explicit back button added below the form -->
-                    <div class="mt-4 pt-4 border-t border-white/10">
+                    <div class="mt-3 pt-3 border-t border-white/10">
                         <button class="btn-cta text-sm w-full" onclick="navigateTo('home')">
                             <i class="fas fa-arrow-right-to-bracket rotate-180"></i> بازگشت به صفحه اصلی
                         </button>
