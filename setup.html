@@ -93,8 +93,12 @@
                     // Fetch user-specific and public platform data
                     setupDataListeners(actualUserId);
                     
-                    // --- تغییر جدید: تنظیم پرچم آماده بودن احراز هویت ---
+                    // --- تغییر جدید: تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
                     window.isAuthReady = true;
+                    // چون enablePlatformCreationButton در اسکریپت اصلی است و باید حتما فعال شود، آن را صدا می زنیم
+                    if (typeof enablePlatformCreationButton === 'function') {
+                        enablePlatformCreationButton();
+                    }
                     // --- پایان تغییر جدید ---
                     
                     // Update UI to show authenticated content
@@ -714,10 +718,7 @@
                 adminChatIdInput.value = window.state.user.tgUserId;
             }
             
-            // اگر احراز هویت آماده بود، دکمه را فعال کن
-            if (window.isAuthReady) {
-                enablePlatformCreationButton();
-            }
+            // اگر احراز هویت آماده بود، دکمه را فعال کن -- این بخش حالا در onAuthStateChanged انجام می شود و اینجا حذف می گردد
             
             // For initial load, we don't need a transition, just ensure correct state
             // If the user has a platform handle, default to the Dashboard view
