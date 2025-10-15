@@ -150,7 +150,7 @@
     <!-- Loading View -->
     <div id="loading-view" class="flex flex-col items-center justify-center h-full text-center p-4">
         <svg class="animate-spin h-10 w-10 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <p class="mt-4 text-white text-sm">در حال احراز هویت...</p>
+        <p id="loading-text" class="mt-4 text-white text-sm">در حال احراز هویت...</p>
     </div>
 
     <!-- Main Application Container -->
@@ -164,7 +164,7 @@
                 <div id="tickets-list-view" class="p-4">
                     <div id="smart-card" class="p-4 rounded-lg shadow-lg mb-4 fade-in-item" style="background: linear-gradient(135deg, #3D5A80 0%, #274059 100%);">
                         <h3 id="smart-card-greeting" class="text-lg font-bold text-white mb-3">سلام کاربر عزیز! 👋</h3>
-                        <p class="text-sm mb-4 p-3 rounded-lg" style="background-color: rgba(0,0,0,0.2);"><span class="text-xl">💡</span> <span class="font-bold">نکته:</span> برای دریافت پاسخ سریع‌تر، مشکل خود را با جزئیات کامل شرح دهید.</p>
+                        <p id="smart-card-tip" class="text-sm mb-4 p-3 rounded-lg" style="background-color: rgba(0,0,0,0.2);"><span class="text-xl">💡</span> <span class="font-bold">نکته:</span> برای دریافت پاسخ سریع‌تر، مشکل خود را با جزئیات کامل شرح دهید.</p>
                         <button id="faq-button" class="w-full text-white text-sm px-4 py-2.5 rounded-md" style="background-color: var(--brand-light-blue);">مشاهده سوالات متداول</button>
                     </div>
                     <div id="tickets-container" class="space-y-3"></div>
@@ -194,8 +194,8 @@
             </main>
             <!-- Main Navigation -->
             <nav id="main-nav" class="nav-bar h-[80px] flex items-center justify-around">
-                <button id="nav-tickets-list" class="nav-button active flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg><span class="text-xs">تیکت‌ها</span></button>
-                <button id="nav-new-ticket" class="nav-button flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="text-xs">تیکت جدید</span></button>
+                <button id="nav-tickets-list" class="nav-button active flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg><span class="text-xs" id="nav-text-tickets">تیکت‌ها</span></button>
+                <button id="nav-new-ticket" class="nav-button flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="text-xs" id="nav-text-new-ticket">تیکت جدید</span></button>
             </nav>
         </div>
 
@@ -224,7 +224,7 @@
                 </form>
             </div>
             <div id="closed-ticket-banner" class="p-4 text-center bg-[var(--brand-secondary-bg)] text-[var(--brand-text-secondary)] text-sm hidden">
-                <p>این گفتگو توسط پشتیبانی بسته شده است.</p>
+                <p id="closed-ticket-text">این گفتگو توسط پشتیبانی بسته شده است.</p>
             </div>
         </div>
     </div>
@@ -232,9 +232,9 @@
     <!-- Modals and Toasts -->
     <div id="info-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 transition-opacity duration-300">
         <div class="glass-modal-content p-6 w-full max-w-md flex flex-col max-h-[90vh]">
-            <h3 class="text-xl font-bold mb-4 text-white text-center">راهنمای ارسال تیکت</h3>
+            <h3 id="info-modal-title" class="text-xl font-bold mb-4 text-white text-center">راهنمای ارسال تیکت</h3>
             <div class="overflow-y-auto pr-2 space-y-4 text-sm text-[var(--brand-text-secondary)]">
-                <p>لطفا <a href="#" id="faq-link-modal" class="text-blue-300 hover:underline">صفحه سوالات متداول</a> را بررسی کنید. شاید پاسخ شما آنجا باشد!</p>
+                <p id="info-modal-tip">لطفا <a href="#" id="faq-link-modal" class="text-blue-300 hover:underline">صفحه سوالات متداول</a> را بررسی کنید. شاید پاسخ شما آنجا باشد!</p>
             </div>
             <button id="info-modal-close-btn" class="mt-6 pt-4 border-t border-white/10 text-white px-6 py-2.5 rounded-md w-full transition" style="background-color: var(--brand-light-blue);">متوجه شدم</button>
         </div>
@@ -255,7 +255,7 @@
         // =================================================================================
 
         const WORKER_URL = 'https://ticketing.amiruserbot7.workers.dev';
-        let STORE_HANDLE = null; // This will be dynamically set
+        let STORE_HANDLE = null; 
 
         let telegramUser = null;
         let currentTicketId = null;
@@ -265,7 +265,10 @@
         let messagesPollingInterval = null;
         let hasOpenTicket = false;
         let isSubmitting = false;
-        let newlyCreatedTicket = null; // --- FIX: Add this line ---
+        let newlyCreatedTicket = null; 
+        
+        // *** NEW: Global object to hold custom texts fetched from the worker ***
+        let CUSTOM_TEXTS = {};
 
         const departmentMap = {
             general: 'سوالات متفرقه',
@@ -291,7 +294,10 @@
             ticketsListView: document.getElementById('tickets-list-view'),
             newTicketView: document.getElementById('new-ticket-view'),
             conversationView: document.getElementById('conversation-view'),
+            // Updated Nav buttons to use IDs for text update
             navButtons: { ticketsList: document.getElementById('nav-tickets-list'), newTicket: document.getElementById('nav-new-ticket') },
+            navTextTickets: document.getElementById('nav-text-tickets'), // NEW
+            navTextNewTicket: document.getElementById('nav-text-new-ticket'), // NEW
             headerTitle: document.getElementById('header-title'),
             ticketsContainer: document.getElementById('tickets-container'),
             noTicketsMessage: document.getElementById('no-tickets-message'),
@@ -302,6 +308,7 @@
             conversationHeader: document.getElementById('conversation-header'),
             replyBox: document.getElementById('reply-box'),
             closedTicketBanner: document.getElementById('closed-ticket-banner'),
+            closedTicketText: document.getElementById('closed-ticket-text'), // NEW
             replyForm: document.getElementById('reply-form'),
             replyMessageInput: document.getElementById('reply-message'),
             fileUploadInput: document.getElementById('file-upload'),
@@ -309,13 +316,19 @@
             emojiBtn: document.getElementById('emoji-btn'),
             infoModal: document.getElementById('info-modal'),
             infoModalCloseBtn: document.getElementById('info-modal-close-btn'),
-            faqButton: document.getElementById('faq-button'),
+            // Smart Card Elements
+            greetingCard: document.getElementById('smart-card-greeting'), // Used for Greeting Title
+            smartCardTip: document.getElementById('smart-card-tip'), // NEW: Used for Quick Tip Message
+            faqButton: document.getElementById('faq-button'), // Used for FAQ Button Text
+            // Info Modal Texts
+            infoModalTitle: document.getElementById('info-modal-title'), // NEW
+            infoModalTip: document.getElementById('info-modal-tip'), // NEW
             faqLinkModal: document.getElementById('faq-link-modal'),
             emojiPickerContainer: document.getElementById('emoji-picker-container'),
             emojiPicker: document.querySelector('emoji-picker'),
-            greetingCard: document.getElementById('smart-card-greeting'),
+            loadingText: document.getElementById('loading-text'), // NEW
         };
-
+        
         // =================================================================================
         // SECTION: UI Functions (Modals, Toasts, Views)
         // =================================================================================
@@ -348,10 +361,12 @@
             dom.newTicketView.classList.add('hidden');
             if (viewName === 'ticketsList') {
                 dom.ticketsListView.classList.remove('hidden');
-                dom.headerTitle.textContent = 'تیکت‌ها';
+                // Use custom text or fallback
+                dom.headerTitle.textContent = CUSTOM_TEXTS.headerTickets || 'تیکت‌ها'; 
             } else if (viewName === 'newTicket') {
                 dom.newTicketView.classList.remove('hidden');
-                dom.headerTitle.textContent = 'تیکت جدید';
+                // Use custom text or fallback
+                dom.headerTitle.textContent = CUSTOM_TEXTS.headerNewTicket || 'تیکت جدید';
             }
             Object.values(dom.navButtons).forEach(btn => btn.classList.remove('active'));
             if (dom.navButtons[viewName]) dom.navButtons[viewName].classList.add('active');
@@ -364,7 +379,6 @@
         /**
          * A generic fetch wrapper for calling the worker API.
          * @param {string} endpoint - The API endpoint (e.g., '/tickets').
-         * @param {object} options - Standard fetch options.
          * @returns {Promise<any>} - The parsed JSON response.
          */
         async function apiFetch(endpoint, options = {}) {
@@ -384,6 +398,23 @@
                 throw new Error(result.error || "پاسخ ناموفق از سرور");
             }
             return result.data;
+        }
+
+        /**
+         * Fetches custom texts from the worker's new endpoint.
+         * @param {string} storeHandle 
+         * @returns {Promise<object>} The custom texts object, or an empty object on failure.
+         */
+        async function fetchCustomTexts(storeHandle) {
+            try {
+                // Endpoint is now /api/[storeHandle]/texts
+                const data = await apiFetch(`/texts`); 
+                return data;
+            } catch (e) {
+                console.error("Failed to load custom texts:", e);
+                // Return defaults defined in the worker if fetching fails
+                return {}; 
+            }
         }
 
         // =================================================================================
@@ -412,15 +443,52 @@
             return urlParams.get('storeHandle');
         }
 
-        function startApp(user) {
+        async function startApp(user) {
             telegramUser = user;
+            
+            // *** NEW STEP: Fetch custom texts before rendering the UI ***
+            dom.loadingText.textContent = "در حال بارگذاری تنظیمات...";
+            CUSTOM_TEXTS = await fetchCustomTexts(STORE_HANDLE);
+            applyCustomTextsToDOM();
+            // **********************************************************
+
             const userName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'کاربر';
-            dom.greetingCard.textContent = `سلام ${userName}! 👋`;
+            dom.greetingCard.textContent = `${CUSTOM_TEXTS.greetingTitle || 'سلام کاربر عزیز! 👋'}`;
+            
             dom.loadingView.classList.add('hidden');
             dom.mainAppContainer.classList.remove('hidden');
             dom.mainAppContainer.classList.add('flex');
             showView('ticketsList');
             listenToTickets();
+        }
+
+        /**
+         * Applies fetched custom texts to all relevant DOM elements.
+         */
+        function applyCustomTextsToDOM() {
+            // Smart Card
+            dom.smartCardTip.innerHTML = (CUSTOM_TEXTS.quickTipMessage || '💡 نکته: برای دریافت پاسخ سریع‌تر، مشکل خود را با جزئیات کامل و دقیق شرح دهید.').replace('نکته:', '<span class="font-bold">نکته:</span>');
+            dom.faqButton.textContent = CUSTOM_TEXTS.faqButtonText || 'مشاهده سوالات متداول';
+
+            // Navigation
+            dom.navTextTickets.textContent = CUSTOM_TEXTS.navTickets || 'تیکت‌ها';
+            dom.navTextNewTicket.textContent = CUSTOM_TEXTS.navNewTicket || 'تیکت جدید';
+
+            // Headers (will be set dynamically by showView, but setting default here)
+            dom.headerTitle.textContent = CUSTOM_TEXTS.headerTickets || 'تیکت‌ها';
+            dom.conversationHeader.textContent = CUSTOM_TEXTS.headerConversation || 'گفتگو';
+
+            // Modals
+            dom.infoModalTitle.textContent = CUSTOM_TEXTS.infoModalTitle || 'راهنمای ارسال تیکت';
+            dom.infoModalTip.innerHTML = (CUSTOM_TEXTS.infoModalTip || 'لطفا <a href="#" id="faq-link-modal" class="text-blue-300 hover:underline">صفحه سوالات متداول</a> را بررسی کنید. شاید پاسخ شما آنجا باشد!');
+            
+            // Buttons
+            dom.submitNewTicketBtn.textContent = CUSTOM_TEXTS.submitNewTicketBtn || 'ارسال';
+            dom.infoModalCloseBtn.textContent = CUSTOM_TEXTS.modalCloseBtn || 'متوجه شدم';
+            document.getElementById('modal-close-btn').textContent = CUSTOM_TEXTS.modalCloseBtn || 'باشه';
+
+            // Banner
+            dom.closedTicketText.textContent = CUSTOM_TEXTS.closedTicketBanner || 'این گفتگو توسط پشتیبانی بسته شده است.';
         }
 
         async function fetchTickets() {
@@ -593,9 +661,17 @@
                 currentTicketId = null;
                 currentTicketData = null;
             }, 300);
+            // Re-apply correct header title after closing
+            dom.headerTitle.textContent = CUSTOM_TEXTS.headerTickets || 'تیکت‌ها';
         }
 
         function updateConversationViewUI() {
+            // Apply custom text for conversation header
+            dom.conversationHeader.textContent = currentTicketData.subject;
+            
+            // Apply custom text for closed banner
+            dom.closedTicketText.textContent = CUSTOM_TEXTS.closedTicketBanner || 'این گفتگو توسط پشتیبانی بسته شده است.';
+            
             if (currentTicketData?.status === 'closed') {
                 dom.replyBox.classList.add('hidden');
                 dom.closedTicketBanner.classList.remove('hidden');
@@ -735,7 +811,7 @@
 
             isSubmitting = true;
             dom.submitNewTicketBtn.disabled = true;
-            dom.submitNewTicketBtn.textContent = 'در حال ارسال...';
+            dom.submitNewTicketBtn.textContent = CUSTOM_TEXTS.submittingNewTicketBtn || 'در حال ارسال...';
             
             try {
                 const payload = {
@@ -767,7 +843,7 @@
             } finally {
                 isSubmitting = false;
                 dom.submitNewTicketBtn.disabled = false;
-                dom.submitNewTicketBtn.textContent = 'ارسال';
+                dom.submitNewTicketBtn.textContent = CUSTOM_TEXTS.submitNewTicketBtn || 'ارسال';
             }
         }
 
@@ -832,10 +908,13 @@
         dom.navButtons.ticketsList.addEventListener('click', () => showView('ticketsList'));
         dom.navButtons.newTicket.addEventListener('click', () => {
             if (hasOpenTicket) {
-                showModal('امکان ایجاد تیکت جدید وجود ندارد', 'شما در حال حاضر یک تیکت باز دارید. لطفا تا زمان بسته شدن آن منتظر بمانید.', true);
+                showModal(CUSTOM_TEXTS.ticketLimitTitle || 'امکان ایجاد تیکت جدید وجود ندارد', CUSTOM_TEXTS.ticketLimitMessage || 'شما در حال حاضر یک تیکت باز دارید. لطفا تا زمان بسته شدن آن منتظر بمانید.', true);
             } else {
                 dom.infoModal.classList.add('flex');
                 dom.infoModal.classList.remove('hidden');
+                // Ensure modal title/tip are updated if texts are slow to load
+                dom.infoModalTitle.textContent = CUSTOM_TEXTS.infoModalTitle || 'راهنمای ارسال تیکت';
+                dom.infoModalTip.innerHTML = (CUSTOM_TEXTS.infoModalTip || 'لطفا <a href="#" id="faq-link-modal" class="text-blue-300 hover:underline">صفحه سوالات متداول</a> را بررسی کنید. شاید پاسخ شما آنجا باشد!');
             }
         });
 
@@ -886,12 +965,20 @@
         });
         
         // --- External Links ---
-        const openFaq = () => {
-            const faqUrl = 'https://faqhub.amiruserbot7.workers.dev/'; // Replace with your FAQ URL
+        const openFaq = (e) => {
+            // Use custom URL or fallback
+            const faqUrl = CUSTOM_TEXTS.faqUrl || 'https://faqhub.amiruserbot7.workers.dev/'; 
+            if (e) e.preventDefault();
             window.Telegram?.WebApp.openLink(faqUrl) || window.open(faqUrl, '_blank');
         };
         dom.faqButton.addEventListener('click', openFaq);
-        dom.faqLinkModal.addEventListener('click', (e) => { e.preventDefault(); openFaq(); });
+        
+        // Listener for the dynamic link inside the info modal
+        document.addEventListener('click', (e) => {
+             if (e.target && e.target.id === 'faq-link-modal') {
+                openFaq(e);
+             }
+        });
 
     </script>
 </body>
