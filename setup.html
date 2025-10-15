@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>تیکت تل — راه‌اندازی و پروفایل</title>
+	<title>تیکت تل — راه‌اندازی پلتفرم</title>
 	<script src="https://cdn.tailwindcss.com"></script>
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> 
 	<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -28,6 +28,7 @@
         function enablePlatformCreationButton() {
             const btn = document.getElementById('create-platform-btn');
             if (btn) {
+                // دکمه را فعال کرده و متن نهایی را قرار می دهد
                 btn.disabled = false;
                 btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
             }
@@ -134,8 +135,9 @@
             const initialTgInfo = getTelegramUserInfo();
             window.state.user = { ...window.state.user, ...initialTgInfo };
             
-            // فعال سازی دکمه بلافاصله
+            // --- تغییر الگو برای رفع مشکل: فعال سازی دکمه بلافاصله پس از بارگذاری اطلاعات ---
             enablePlatformCreationButton();
+            // --- پایان تغییر الگو ---
 
             const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
             if (currentStage) {
@@ -579,7 +581,7 @@
 
 		/* small responsive tweaks */
 		@media (max-width:920px){
-			/* Removed .form-grid-container responsive settings */
+			.container{grid-template-columns:1fr;}
 			.brand-card{order:2}
 			.form-card{order:1}
             .stage-container {
@@ -641,6 +643,31 @@
         .nav-item i {
             font-size: 1.2rem;
             margin-bottom: 2px;
+        }
+        
+        /* SweetAlert custom styling for dark mode */
+		.swal2-popup {
+			font-family: 'Vazirmatn', sans-serif !important;
+			background: #f7fafc !important; /* light background for reading */
+			color: var(--text-on-light) !important;
+		}
+		.swal2-title, .swal2-html-container {
+			color: var(--text-on-light) !important;
+		}
+		.swal2-confirm{
+			background:linear-gradient(90deg,var(--accent2),var(--accent1)) !important;
+			box-shadow: 0 4px 10px rgba(0,114,255,0.25) !important;
+			color: #fff !important;
+		}
+		.swal2-input, .swal2-textarea{
+			border: 1px solid #CBD5E0 !important;
+			color: var(--text-on-light) !important;
+			background: #EDF2F7 !important;
+		}
+        .swal2-html-container input[type="text"] {
+            border: 1px solid #CBD5E0 !important;
+            background: #EDF2F7 !important;
+            color: var(--text-on-light) !important;
         }
 	</style>
 </head>
@@ -745,7 +772,13 @@
                         </div>
 
                         <div style="display:flex; gap:0.8rem; align-items:center">
-                            <button id="create-platform-btn" class="btn-cta flex-1" type="submit" disabled><i class="fas fa-spinner animate-spin"></i> در حال اتصال...</button>
+                            <!--
+                                دکمه دیگر disabled نیست، اما متن اولیه آن وضعیت اتصال را نشان می دهد
+                                و در صورت موفقیت آمیز نبودن renderApp، دکمه به طور پیش فرض غیرفعال می ماند.
+                            -->
+                            <button id="create-platform-btn" class="btn-cta flex-1" type="submit">
+                                <i class="fas fa-spinner animate-spin"></i> در حال اتصال...
+                            </button>
                         </div>
 
                         <div class="hint" style="display:flex; justify-content:space-between;">
@@ -838,8 +871,15 @@
         function enablePlatformCreationButton() {
             const btn = document.getElementById('create-platform-btn');
             if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
+                // اگر شناسه تلگرام در دسترس است، دکمه را فعال کن
+                if (window.state.user.tgUserId) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
+                } else {
+                    // اگر شناسه در دسترس نیست، آن را غیرفعال نگه دار
+                    btn.disabled = true;
+                    btn.innerHTML = `<i class='fas fa-exclamation-circle'></i> شناسه تلگرام یافت نشد`;
+                }
             }
         }
 
@@ -944,7 +984,7 @@
             const initialTgInfo = getTelegramUserInfo();
             window.state.user = { ...window.state.user, ...initialTgInfo };
             
-            // فعال سازی دکمه بلافاصله
+            // فعال سازی دکمه بلافاصله پس از بارگذاری اطلاعات
             enablePlatformCreationButton();
 
             const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
