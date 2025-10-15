@@ -74,6 +74,10 @@
             // Auth listener and custom token sign-in
             onAuthStateChanged(window.auth, (user) => {
                 if (user) {
+                    // --- لاگ وضعیت احراز هویت موفق ---
+                    console.log(`[Firebase Auth] Success. UID: ${user.uid}, Anonymous: ${user.isAnonymous}`);
+                    // --- پایان لاگ ---
+
                     // بروزرسانی UID و نام کاربری با داده‌های فایربیس (معمولاً anonymous یا token-based)
                     window.state.user = { 
                         ...window.state.user, 
@@ -93,23 +97,32 @@
                     // Fetch user-specific and public platform data
                     setupDataListeners(actualUserId);
                     
-                    // --- تغییر جدید: تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
+                    // --- تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
                     window.isAuthReady = true;
-                    // FIX: فراخوانی مستقیم تابع پس از تعریف آن در انتهای این ماژول
                     window.enablePlatformCreationButton();
-                    // --- پایان تغییر جدید ---
+                    // --- پایان تغییر ---
                     
                     // Update UI to show authenticated content
                     renderApp(); 
                 } else {
+                    // --- لاگ وضعیت احراز هویت ناموفق و تلاش مجدد ---
+                    console.warn("[Firebase Auth] No user signed in. Attempting sign-in...");
+                    // --- پایان لاگ ---
+                    
                     // تلاش برای ورود با توکن Canvas یا ورود ناشناس
                     if (initialAuthToken) {
                         signInWithCustomToken(window.auth, initialAuthToken).catch(error => {
-                            console.error("Custom token sign-in failed:", error);
-                            signInAnonymously(window.auth).catch(console.error);
+                            console.error("[Firebase Auth] Custom token sign-in failed:", error);
+                            // Fallback to anonymous sign-in
+                            signInAnonymously(window.auth).catch(err => {
+                                console.error("[Firebase Auth] Anonymous sign-in failed:", err);
+                            });
                         });
                     } else {
-                        signInAnonymously(window.auth).catch(console.error);
+                        // Direct anonymous sign-in
+                        signInAnonymously(window.auth).catch(err => {
+                            console.error("[Firebase Auth] Anonymous sign-in failed:", err);
+                        });
                     }
                 }
             });
@@ -128,6 +141,10 @@
                     }
                 }
                 renderProfile(); // Rerender profile on data change
+            }, (error) => {
+                // --- لاگ خطای دسترسی Firestore ---
+                console.error("[Firestore Error] Access denied/Listener failed:", error.code, error.message);
+                // --- پایان لاگ ---
             });
         }
 
@@ -810,8 +827,20 @@
 		function finishSetup(result){
             // Ensure Firestore objects are available globally
             if (!window.db || !window.doc || !window.setDoc || !FIREBASE_DOC_PATH) {
-                console.error("Firebase services or path not ready for saving data.");
-                Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما به دلیل عدم اتصال فایربیس، اطلاعات آن در پروفایل شما ذخیره نشد.'});
+                
+                // --- تغییرات اصلی برای نمایش خطای دقیق‌تر ---
+                const detailedError = `اطلاعات پلتفرم ذخیره نشد. دلیل احتمالی: 
+                1. احراز هویت Firebase ناموفق است. 
+                2. قوانین امنیتی Firestore دسترسی به مسیر مالکیت را مسدود کرده است.
+                3. لطفاً در کنسول مرورگر به دنبال پیام‌های [Firestore Error] بگردید.
+                `;
+                console.error("Firebase services or path not ready for saving data.", detailedError);
+                Swal.fire({
+                    icon:'warning', 
+                    title:'پلتفرم ساخته شد (Worker)', 
+                    text:'اما به دلیل عدم دسترسی به دیتابیس یا خطای احراز هویت، اطلاعات پلتفرم در پروفایل شما ثبت نشد. برای رفع مشکل با پشتیبانی تماس بگیرید.', 
+                    footer: '<a href="#" onclick="console.log(\'Current UID:\', window.auth.currentUser?.uid, \'Auth Ready:\', window.isAuthReady); Swal.close(); return false;">مشاهده جزئیات عیب‌یابی در کنسول</a>'
+                });
                 showSuccess(result); // Show success message without saving
                 return;
             }
@@ -833,8 +862,21 @@
                     showSuccess(result);
                 })
                 .catch(error => {
-                    console.error("Error saving platform details:", error);
-                    Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اطلاعات آن در پروفایل شما ذخیره نشد. لطفاً با پشتیبانی تماس بگیرید.'});
+                    console.error("Error saving platform details (Permission/Network issue):", error);
+                    // این خطا مستقیماً از Firestore است و معمولاً به دلیل `Permission Denied` رخ می‌دهد
+                    let swalTitle = 'خطا در ذخیره پروفایل';
+                    let swalText = 'پلتفرم ساخته شد، اما ذخیره‌سازی اطلاعات آن در پروفایل شما با شکست مواجه شد (احتمالاً به دلیل قوانین امنیتی).';
+
+                    if (error.code === 'permission-denied') {
+                         swalText = '❌ **خطای دسترسی (Permission Denied):** پلتفرم ساخته شد، اما به دلیل قوانین امنیتی Firestore، امکان ثبت آن در پروفایل شما وجود ندارد. لطفاً قوانین امنیتی Firestore را بررسی کنید تا کاربران احراز هویت شده بتوانند در مسیر `artifacts/{appId}/users/{userId}/profile/main` بنویسند.';
+                    }
+
+                    Swal.fire({
+                        icon:'error', 
+                        title:swalTitle, 
+                        html: swalText,
+                        confirmButtonText: 'متوجه شدم'
+                    });
                     showSuccess(result); // Show success message anyway
                 });
 		}
@@ -899,6 +941,10 @@
             
             // Check if authentication flag is set
             if (!window.isAuthReady || !window.auth.currentUser || window.auth.currentUser.isAnonymous) {
+                // --- لاگ وضعیت احراز هویت در زمان کلیک ---
+                console.error(`[Auth Check] isAuthReady: ${window.isAuthReady}, Current User: ${!!window.auth.currentUser}, Is Anonymous: ${window.auth.currentUser?.isAnonymous}`);
+                // --- پایان لاگ ---
+
                 // نمایش خطای مجدد
                 Swal.fire({icon:'error', title:'خطا', text:'احراز هویت کامل نشده است. لطفاً Mini App را یک بار ببندید و دوباره باز کنید.'});
                 return;
