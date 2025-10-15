@@ -600,32 +600,32 @@
                             <p class="brand-sub">فیلدها را پر کنید تا پلتفرم شما ظرف چند ثانیه ساخته شود.</p>
                         </div>
                         <div style="margin-left:auto; text-align:left">
-                            <div class="badge">Secure</div>
+                            
                         </div>
                     </div>
 
                     <form id="setup-form" class="mt-4 space-y-3"> <!-- کاهش فواصل به space-y-3 -->
                         <!-- Form fields remain the same -->
                         <div>
-                            <label for="store-handle" class="form-label">شناسه پلتفرم (انگلیسی)</label>
+                            <label for="store-handle" class="form-label">شناسه یکتای پلتفرم (در URL استفاده می‌شود)</label>
                             <div style="display:flex; gap:0.6rem; align-items:center">
-                                <input id="store-handle" class="glass-input ltr w-full" placeholder="مثال: kafsh-store یا my-mobile" pattern="[a-zA-Z0-9-]+" required>
-                                <div class="badge">url/your-handle</div>
+                                <input id="store-handle" class="glass-input ltr w-full" placeholder="مثال: kafsh-store یا my-mobile (بعد از ساخت غیرقابل تغییر)" pattern="[a-zA-Z0-9-]+" required>
+                                
                             </div>
-                            <div class="hint">این شناسه در URL پلتفرم استفاده می‌شود و بعد از ساخت، تغییرپذیر نیست.</div>
+                            
                         </div>
 
                         <div>
-                            <label for="admin-chat-id" class="form-label">شناسه عددی تلگرام مدیر</label>
+                            <label for="admin-chat-id" class="form-label">شناسه عددی تلگرام مدیر (Admin Chat ID)</label>
                             <!-- NOTE: Prefill with Telegram ID if available -->
                             <input id="admin-chat-id" class="glass-input ltr w-full" placeholder="مثال: 123456789" pattern="[0-9]+" required>
-                            <div class="hint">برای دریافت شناسه به ربات <a href="https://t.me/userinfobot" target="_blank" style="color:var(--accent1);">@userinfobot</a> پیام دهید.</div>
+                            
                         </div>
 
                         <div>
                             <label for="user-bot-token" class="form-label">توکن ربات کاربران</label>
                             <input id="user-bot-token" class="glass-input ltr w-full" placeholder="توکن رباتی که کاربران با آن در ارتباطند" required>
-                            <div class="hint">این ربات به عنوان Mini App عمل می‌کند.</div>
+                            
                         </div>
 
                         <div>
@@ -638,23 +638,17 @@
                             <button id="create-platform-btn" class="btn-cta flex-1" type="submit" disabled><i class="fas fa-spinner animate-spin"></i> در حال اتصال...</button>
                         </div>
 
-                        <div class="hint" style="display:flex; justify-content:space-between;">
-                            <span>وب‌هوک ادمین به صورت خودکار تنظیم می‌شود</span>
+                        <div class="hint flex justify-between items-center" style="margin-top: 0.8rem !important;">
+                            <div class="small-foot">نیاز به کمک؟ <a href="https://amirrezahoseinabadi.github.io/support" target="_blank" style="color:var(--accent1);">پشتیبانی</a></div>
                             <span class="muted-row">نسخه <strong style="margin-inline:6px; color:var(--gold)">1.0.0</strong></span>
                         </div>
                     </form>
 
-                    <div style="margin-top:0.8rem; display:flex; gap:0.6rem; align-items:center; justify-content:space-between">
-                        <div class="small-foot">نیاز به کمک؟ <a href="https://amirrezahoseinabadi.github.io/support" target="_blank" style="color:var(--accent1);">پشتیبانی</a></div>
-                        <div class="small-foot">طراحی شده برای کسب‌وکارهای ایرانی</div>
-                    </div>
+                    
                     
                     <!-- Explicit back button added below the form -->
-                    <div class="mt-3 pt-3 border-t border-white/10">
-                        <button class="btn-cta text-sm w-full" onclick="navigateTo('home')">
-                            <i class="fas fa-arrow-right-to-bracket rotate-180"></i> بازگشت به صفحه اصلی
-                        </button>
-                    </div>
+                    <!-- حذف دکمه بازگشت به صفحه اصلی -->
+                    
                 </section>
             </div>
 
@@ -677,7 +671,7 @@
             <div id="stage-dashboard" class="stage-container stage-hidden" data-view="dashboard">
                 <section id="dashboard-card" class="content-card w-full max-w-xl">
                     <h1 class="text-2xl font-extrabold text-white mb-6 border-b border-white/10 pb-3">🗂️ داشبورد پلتفرم</h1>
-                    <p class="text-gray-400 mb-4">این بخش برای مدیریت تیکت‌ها و تنظیمات کلی پلتفرم شما طراحی شده است.</p>
+                    <p class="gray-400 mb-4">این بخش برای مدیریت تیکت‌ها و تنظیمات کلی پلتفرم شما طراحی شده است.</p>
                     <div id="dashboard-status" class="space-y-3">
                         <!-- Dynamic content will go here -->
                         <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">وضعیت:</span> <span class="text-green-400">✅ فعال</span></div>
