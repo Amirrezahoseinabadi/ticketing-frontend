@@ -34,37 +34,41 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // Global variable for Firebase instances
+        window.db = null;
+        window.auth = null;
+        window.FIREBASE_DOC_PATH = null;
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
             if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
                 return {
-                    uid: tgUser.id ? tgUser.id.toString() : null, // ID تلگرام را به عنوان UID اولیه در نظر میگیریم
+                    // ID تلگرام را به عنوان tgUserId ذخیره می‌کنیم
+                    tgUserId: tgUser.id ? tgUser.id.toString() : null, 
                     username: tgUser.username || tgUser.first_name,
                     first_name: tgUser.first_name,
                     isAnonymous: false,
                     isTelegramAuth: true,
-                    tgUserId: tgUser.id.toString()
                 };
             }
             return {
-                uid: null, // Initial UID should be null until Firebase is ready
+                tgUserId: null, 
                 username: 'کاربر میهمان',
                 isAnonymous: true,
                 isTelegramAuth: false,
-                tgUserId: null
             };
         }
         
         // تنظیم اطلاعات اولیه کاربر
         const initialTgInfo = getTelegramUserInfo();
-        window.state.user = { ...window.state.user, ...initialTgInfo };
-        if (initialTgInfo.uid) {
-            // اگر از تلگرام UID داریم، از آن به عنوان پیش‌فرض استفاده می‌کنیم
-            window.state.user.uid = initialTgInfo.uid;
-            window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${initialTgInfo.uid}/profile/main`;
-        }
+        window.state.user = { 
+            ...window.state.user, 
+            ...initialTgInfo, 
+            uid: null // UID فایربیس، پس از احراز هویت تنظیم می‌شود
+        };
+        
 
         if (firebaseConfig) {
             window.firebaseApp = initializeApp(firebaseConfig);
@@ -74,10 +78,10 @@
             // Auth listener and custom token sign-in
             onAuthStateChanged(window.auth, (user) => {
                 if (user) {
-                    // بروزرسانی UID و نام کاربری با داده‌های فایربیس (معمولاً anonymous یا token-based)
+                    // بروزرسانی UID فایربیس
                     window.state.user = { 
                         ...window.state.user, 
-                        uid: user.uid, 
+                        uid: user.uid, // This is the actual Firebase UID
                         isAnonymous: user.isAnonymous
                     };
                     
@@ -87,11 +91,10 @@
                     }
                     
                     // تنظیم مسیر Firestore بر اساس UID واقعی Firebase
-                    const actualUserId = user.uid;
-                    window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${actualUserId}/profile/main`;
+                    window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${user.uid}/profile/main`;
                     
                     // Fetch user-specific and public platform data
-                    setupDataListeners(actualUserId);
+                    setupDataListeners(user.uid);
                     
                     // --- تنظیم پرچم آماده بودن احراز هویت ---
                     window.isAuthReady = true;
@@ -116,6 +119,8 @@
             // 1. Listen to the user's private document (for profile data, e.g., display name)
             const userDocRef = doc(window.db, `artifacts/${appId}/users/${uid}/profile/main`);
             onSnapshot(userDocRef, (docSnap) => {
+                const oldHandle = window.state.platform.storeHandle;
+                
                 if (docSnap.exists()) {
                     // Update state with platform data if available
                     const data = docSnap.data();
@@ -124,33 +129,48 @@
                         window.state.platform = data.platform;
                     }
                 }
+                
+                // اگر دیتای جدیدی از پلتفرم (مثلاً پس از ساخت) لود شده باشد
+                if (window.state.platform.storeHandle && window.state.platform.storeHandle !== oldHandle) {
+                    // اگر در نمای Success بودیم، به داشبورد هدایت کن
+                    if (window.state.currentView === 'success') {
+                        navigateTo('dashboard');
+                    }
+                }
+                
                 renderProfile(); // Rerender profile on data change
             });
 
             // 2. Try to sync if the user has an existing platform that wasn't found in their profile
-            if (window.state.user.isTelegramAuth && !window.state.platform.storeHandle) {
-                trySyncExistingPlatform(uid);
-            }
+            // این تابع حتی اگر user.isTelegramAuth هم نباشد، اجرا می‌شود اما با Firebase UID
+            trySyncExistingPlatform(uid);
         }
 
         /**
-         * NEW FUNCTION: Searches the worker's Realtime Database for a store linked to the admin's Telegram ID.
+         * UPDATED FUNCTION: Searches the worker for a store linked to the admin's Firebase UID.
          */
         async function trySyncExistingPlatform(firebaseUid) {
-            const { tgUserId } = window.state.user;
-            if (!tgUserId || window.state.platform.storeHandle) return; 
+            const { storeHandle } = window.state.platform;
+            
+            // اگر قبلاً Handle را در پروفایل Firestore داشتیم یا UID فایربیس آماده نبود، کاری نمی‌کنیم
+            if (storeHandle || !firebaseUid) return; 
 
-            // آدرس Worker اصلی که حالا شامل منطق sync است
+            // آدرس Worker اصلی
             const SYNC_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
+            // NEW ENDPOINT
+            const SYNC_ENDPOINT = `${SYNC_WORKER_URL}/get-store-by-admin-id`; 
 
+            console.log(`Attempting sync using Firebase UID: ${firebaseUid}`);
+            
             try {
                 const payload = {
-                    adminChatId: tgUserId,
+                    // بجای tgUserId، از firebaseUid استفاده می‌کنیم که قطعی است
                     firebaseUid: firebaseUid,
-                    appId: appId 
+                    // adminChatId را هم برای احراز هویت در Worker ارسال می‌کنیم (اختیاری)
+                    adminChatId: window.state.user.tgUserId || null, 
                 };
 
-                const res = await fetch(`${SYNC_WORKER_URL}/sync-store-by-admin-id`, {
+                const res = await fetch(SYNC_ENDPOINT, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -161,16 +181,26 @@
                 if (res.status === 200 && data.success && data.data) {
                     // Store found! Save it to the current user's Firestore profile
                     const platformData = data.data;
+                    
+                    // این متغیرها باید چک شوند چون ممکن است auth و db هنوز لود نشده باشند
+                    if (!window.db || !window.doc || !window.FIREBASE_DOC_PATH) {
+                        console.warn("Sync successful but Firebase modules not fully ready yet. Data will be saved by onSnapshot.");
+                        // در این حالت onSnapshot مسئول دریافت داده خواهد بود
+                        return;
+                    }
+
                     const userDocRef = doc(window.db, window.FIREBASE_DOC_PATH);
                     
                     // Update the user's Firestore profile with the found platform data
+                    // onSnapshot listener handles the final state update and rendering
                     await setDoc(userDocRef, { platform: platformData }, { merge: true });
                     
                     console.log(`Successfully synced existing platform: ${platformData.storeHandle}`);
-                    // onSnapshot automatically updates the state after this setDoc call
                     
-                } else if (res.status !== 404) {
-                    console.warn(`Sync failed for tgUserId ${tgUserId}:`, data.error || data.message || 'Worker error');
+                } else if (res.status === 404) {
+                    console.log(`No existing platform found for UID ${firebaseUid}.`);
+                } else {
+                    console.warn(`Sync failed for UID ${firebaseUid}:`, data.error || data.message || 'Worker error');
                 }
 
             } catch(error) {
@@ -651,7 +681,8 @@
         // Global state object
         window.state = {
             currentView: 'home',
-            user: { uid: 'guest', username: 'کاربر مهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null },
+            // uid will be the Firebase UID after successful sign-in
+            user: { uid: 'guest', username: 'کاربر مهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null }, 
             platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null }
         };
 
@@ -794,8 +825,8 @@
             const platformHandleDisplay = platform.storeHandle ? `<span class="ltr font-mono text-lg text-green-400">${platform.storeHandle}</span>` : `<span class="text-red-400">---</span>`;
             
             // Determine the UID to display: TG ID if authenticated via TG, otherwise Firebase UID
-            const displayUID = user.tgUserId || uid;
-            const displayUIDLabel = user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه فایربیس (مهمان)';
+            const displayUID = user.uid || user.tgUserId || '---';
+            const displayUIDLabel = user.uid && !user.isAnonymous ? 'شناسه فایربیس (مدیر)' : (user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه فایربیس (مهمان)');
 
 
             profileCard.innerHTML = `
@@ -865,7 +896,6 @@
             }
 
             // بررسی شرط اصلی: آیا همه متغیرهای Firebase و احراز هویت آماده‌اند؟
-            // توجه: isAuthReady فقط برای نمایش صحیح در داشبورد مهم است، نه برای سابمیت.
             if (!window.db || !window.doc || !window.setDoc || !window.FIREBASE_DOC_PATH) {
                  // اگر آماده نبود، 200 میلی‌ثانیه صبر کن و دوباره تلاش کن (Polling)
                  console.warn(`Firebase services not yet available (Retry ${retries}). Waiting...`);
@@ -958,7 +988,11 @@
 				return;
 			}
             
-            // *** بخش اعتبارسنجی Firebase حذف شده است تا محدودیتی ایجاد نشود ***
+            // NEW: Ensure Firebase UID is available for the Worker
+            if (!window.state.user.uid) {
+                Swal.fire({icon:'error', title:'خطا', text:'لطفاً منتظر بمانید تا اتصال امن (احراز هویت فایربیس) برقرار شود.'});
+                return;
+            }
 
 			// START LOADING: تغییر وضعیت دکمه به لودینگ
 			toggleLoading(btn, true, 'در حال ساخت پلتفرم...');
@@ -968,7 +1002,9 @@
 				adminChatId: document.getElementById('admin-chat-id').value.trim(),
 				userBotToken: document.getElementById('user-bot-token').value.trim(),
 				adminBotToken: document.getElementById('admin-bot-token').value.trim(),
-				miniAppUrl: `https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html?storeHandle=${storeHandleInput.value.trim().toLowerCase()}`
+				miniAppUrl: `https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html?storeHandle=${storeHandleInput.value.trim().toLowerCase()}`,
+                // ADDING FIREBASE UID
+                firebaseUid: window.state.user.uid
 			};
 
 
