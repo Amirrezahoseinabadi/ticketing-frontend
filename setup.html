@@ -23,6 +23,9 @@
         // Expose necessary Firestore functions globally
         window.doc = doc;
         window.setDoc = setDoc;
+        
+        // Flag to track authentication readiness status
+        window.isAuthReady = false; 
 
         // Log setup
         // setLogLevel('debug'); // Uncomment for debugging Firestore logs
@@ -89,6 +92,11 @@
                     
                     // Fetch user-specific and public platform data
                     setupDataListeners(actualUserId);
+                    
+                    // --- تغییر جدید: تنظیم پرچم آماده بودن احراز هویت ---
+                    window.isAuthReady = true;
+                    // --- پایان تغییر جدید ---
+                    
                     // Update UI to show authenticated content
                     renderApp(); 
                 } else {
@@ -510,7 +518,7 @@
                         </div>
 
                         <div style="display:flex; gap:0.8rem; align-items:center">
-                            <button id="create-platform-btn" class="btn-cta flex-1" type="submit"><i class="fas fa-rocket"></i> ساخت پلتفرم جدید</button>
+                            <button id="create-platform-btn" class="btn-cta flex-1" type="submit" disabled><i class="fas fa-spinner animate-spin"></i> در حال اتصال...</button>
                         </div>
 
                         <div class="hint" style="display:flex; justify-content:space-between;">
@@ -599,6 +607,16 @@
         const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
         // NOTE: FIREBASE_DOC_PATH will be dynamically updated after successful auth
         let FIREBASE_DOC_PATH = null; 
+        
+        // --- توابع کمکی ---
+        
+        function enablePlatformCreationButton() {
+            const btn = document.getElementById('create-platform-btn');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
+            }
+        }
 
 		// Utility function to copy text to clipboard
 		function copyToClipboard(elementId) {
@@ -694,6 +712,11 @@
             const adminChatIdInput = document.getElementById('admin-chat-id');
             if (adminChatIdInput && window.state.user.tgUserId) {
                 adminChatIdInput.value = window.state.user.tgUserId;
+            }
+            
+            // اگر احراز هویت آماده بود، دکمه را فعال کن
+            if (window.isAuthReady) {
+                enablePlatformCreationButton();
             }
             
             // For initial load, we don't need a transition, just ensure correct state
@@ -873,8 +896,9 @@
 				return;
 			}
             
-            // Re-check authentication status based on Firebase's currentUser state
-            if (!window.db || !window.auth || !window.auth.currentUser || window.auth.currentUser.isAnonymous) {
+            // Check if authentication flag is set
+            if (!window.isAuthReady || !window.auth.currentUser || window.auth.currentUser.isAnonymous) {
+                // نمایش خطای مجدد
                 Swal.fire({icon:'error', title:'خطا', text:'احراز هویت کامل نشده است. لطفاً Mini App را یک بار ببندید و دوباره باز کنید.'});
                 return;
             }
