@@ -186,9 +186,71 @@
                 console.error("Error during platform sync attempt:", error);
             }
         }
+        
+        /**
+         * MANUAL RECOVERY FUNCTION: Searches RTDB by StoreHandle and verifies with tgUserId.
+         */
+        async function recoverPlatform(storeHandle) {
+            const btn = document.getElementById('recover-btn');
+            toggleLoading(btn, true, 'در حال بازیابی...');
+            
+            const { tgUserId, uid } = window.state.user;
+            
+            if (!tgUserId) {
+                Swal.fire({icon:'warning', title:'خطا', text:'لطفاً از طریق Mini App تلگرام وارد شوید تا شناسه شما مشخص شود.'});
+                toggleLoading(btn, false, 'بازیابی پلتفرم');
+                return;
+            }
+            
+            // Endpoint جدید برای بازیابی دستی بر اساس Handle و AdminId
+            const RECOVERY_WORKER_URL = `${MANAGEMENT_WORKER_URL}/recover-store-by-handle`;
+            
+            try {
+                const payload = {
+                    storeHandle: storeHandle.toLowerCase().trim(),
+                    adminChatId: tgUserId,
+                    firebaseUid: uid,
+                    appId: appId
+                };
+
+                const res = await fetch(RECOVERY_WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (res.status === 200 && data.success && data.data) {
+                    // Store found and verified! Save it to Firestore.
+                    const platformData = data.data;
+                    const userDocRef = doc(window.db, window.FIREBASE_DOC_PATH);
+                    await setDoc(userDocRef, { platform: platformData }, { merge: true });
+                    
+                    Swal.fire({icon:'success', title:'موفقیت!', text:`پلتفرم ${storeHandle} با موفقیت به پروفایل شما متصل شد.`});
+                    
+                    // Close modal and navigate to dashboard
+                    closeModal('recovery-modal');
+                    navigateTo('dashboard');
+                    
+                } else if (res.status === 404) {
+                    throw new Error('پلتفرم مورد نظر یافت نشد یا شناسه تلگرام شما با سازنده آن مطابقت ندارد.');
+                } else {
+                    throw new Error(data.error || 'خطایی نامشخص در هنگام بازیابی رخ داد.');
+                }
+
+            } catch(error) {
+                Swal.fire({icon:'error', title:'خطا در بازیابی', text: error.message || error.toString()});
+            } finally {
+                // دکمه را به حالت عادی برگردان
+                toggleLoading(document.getElementById('recover-btn'), false, '<i class="fas fa-undo-alt"></i> بازیابی پلتفرم');
+            }
+        }
+
 
         // Expose functions globally for use in HTML/scripts
         window.setupDataListeners = setupDataListeners;
+        window.recoverPlatform = recoverPlatform; // Expose the new function
     </script>
     <!-- END FIREBASE MODULES -->
 
@@ -354,6 +416,40 @@
             backdrop-filter: blur(8px);
             text-align: right;
         }
+        
+        /* --- Modal Styling --- */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: visibility 0.3s, opacity 0.3s;
+        }
+
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: var(--bg-dark);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            width: 90%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        /* --- End Modal Styling --- */
+
 
 		.headline{display:flex; align-items:center; gap:0.8rem}
 		.headline h1{font-size:1.45rem; font-weight:800; color:var(--text-light)}
@@ -399,6 +495,19 @@
         .btn-copy:hover {
             background: rgba(255,255,255,0.1);
             color: var(--text-light);
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-light);
+            padding: 0.85rem 1.1rem; 
+            border-radius: 0.75rem; 
+            font-weight: 700;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.2s ease;
+        }
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
         }
 
 		.muted-row{display:flex; gap:0.6rem; align-items:center; color:var(--muted); font-size:0.9rem}
@@ -633,6 +742,31 @@
             </div>
 
         </div> <!-- end #main-view -->
+        
+        <!-- MODAL for Manual Recovery (NEW) -->
+        <div id="recovery-modal" class="modal" onclick="if(event.target.id === 'recovery-modal') closeModal('recovery-modal')">
+            <div class="modal-content">
+                <h2 class="text-xl font-bold mb-4">🔍 بازیابی پلتفرم موجود</h2>
+                <p class="text-sm text-gray-400 mb-4">اگر قبلاً پلتفرمی ساخته‌اید اما در پروفایل شما نمایش داده نمی‌شود، نام (Handle) آن را وارد کنید تا به شناسه تلگرام شما متصل شود.</p>
+                
+                <form onsubmit="event.preventDefault(); recoverPlatform(document.getElementById('recovery-handle').value);">
+                    <label for="recovery-handle" class="form-label mb-2 block">شناسه پلتفرم (Handle)</label>
+                    <input id="recovery-handle" class="glass-input ltr w-full mb-4" placeholder="مثال: my-store" required>
+
+                    <div class="flex gap-3 mt-4">
+                        <button type="submit" id="recover-btn" class="btn-cta flex-1">
+                            <i class="fas fa-undo-alt"></i> بازیابی پلتفرم
+                        </button>
+                        <button type="button" class="btn-secondary" onclick="closeModal('recovery-modal')">
+                            انصراف
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- END MODAL -->
+
+
 	</main>
     
     <!-- Bottom Navigation Bar (New) -->
@@ -669,7 +803,7 @@
         // NOTE: FIREBASE_DOC_PATH will be dynamically updated after successful auth
         let FIREBASE_DOC_PATH = null; 
         
-        // --- توابع کمکی ---
+        // --- توابع کمکی عمومی ---
         
         function enablePlatformCreationButton() {
             const btn = document.getElementById('create-platform-btn');
@@ -678,6 +812,14 @@
                 btn.disabled = false;
                 btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
             }
+        }
+        
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
         }
 
 		// Utility function to copy text to clipboard
@@ -701,6 +843,18 @@
 						copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
 					}, 2000);
 				}
+			}
+		}
+
+		function toggleLoading(button, isLoading, text){
+			if(isLoading){
+				button.disabled=true;
+				// SVG برای Spinner (لودینگ)
+				button.innerHTML = `<svg class='animate-spin' style='width:18px;height:18px' viewBox='0 0 24 24'><circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4' fill='none'></circle><path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'></path></svg> ${text}`;
+			} else {
+				button.disabled=false;
+				// آیکون اصلی دکمه
+				button.innerHTML = `<i class='fas fa-rocket'></i> ${text}`;
 			}
 		}
         
@@ -802,6 +956,7 @@
             }
 
             const status = platform.storeHandle ? 'پلتفرم راه‌اندازی شده' : 'نیاز به راه‌اندازی پلتفرم';
+            const statusColor = platform.storeHandle ? 'text-green-400' : 'text-yellow-400';
             const platformHandleDisplay = platform.storeHandle ? `<span class="ltr font-mono text-lg text-green-400">${platform.storeHandle}</span>` : `<span class="text-red-400">---</span>`;
             
             // Determine the UID to display: TG ID if authenticated via TG, otherwise Firebase UID
@@ -824,7 +979,7 @@
                     
                     <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
                         <span class="font-bold text-gray-300">وضعیت:</span>
-                        <span class="font-extrabold ${platform.storeHandle ? 'text-green-400' : 'text-yellow-400'}">${status}</span>
+                        <span class="font-extrabold ${statusColor}">${status}</span>
                     </div>
 
                     <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
@@ -838,8 +993,11 @@
                             <a href="https://t.me/${platform.adminBotUsername}" target="_blank" class="text-blue-400 font-mono ltr">@${platform.adminBotUsername}</a>
                         </div>
                     ` : `
-                        <button class="btn-cta text-sm w-full mt-4" onclick="navigateTo('setup')">
+                        <button class="btn-cta text-sm w-full mt-4 mb-2" onclick="navigateTo('setup')">
                             شروع راه‌اندازی پلتفرم
+                        </button>
+                        <button class="btn-secondary text-sm w-full" onclick="openModal('recovery-modal')">
+                            <i class="fas fa-undo-alt"></i> بازیابی پلتفرم موجود
                         </button>
                     `}
                 </div>
@@ -863,6 +1021,9 @@
                     <p class="text-red-400 p-4 rounded-lg" style="background:rgba(255,0,0,0.1);">⛔ پلتفرمی برای این حساب کاربری راه‌اندازی نشده است.</p>
                     <button class="btn-cta text-sm w-full mt-4" onclick="navigateTo('setup')">
                         شروع راه‌اندازی پلتفرم
+                    </button>
+                    <button class="btn-secondary text-sm w-full mt-2" onclick="openModal('recovery-modal')">
+                         <i class="fas fa-undo-alt"></i> بازیابی پلتفرم موجود
                     </button>
                  `;
             }
@@ -1027,21 +1188,6 @@
                 toggleLoading(btn,false,'ساخت پلتفرم جدید');
 			}
 		});
-
-		function toggleLoading(button, isLoading, text){
-			if(isLoading){
-				button.disabled=true;
-				// SVG برای Spinner (لودینگ)
-				button.innerHTML = `<svg class='animate-spin' style='width:18px;height:18px' viewBox='0 0 24 24'><circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4' fill='none'></circle><path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'></path></svg> ${text}`;
-			} else {
-				button.disabled=false;
-				// آیکون اصلی دکمه
-				button.innerHTML = `<i class='fas fa-rocket'></i> ${text}`;
-			}
-		}
-
-        // Initialize App View
-        window.addEventListener('load', renderApp);
 
 	</script>
 </body>
