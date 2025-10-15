@@ -93,13 +93,8 @@
                     // Fetch user-specific and public platform data
                     setupDataListeners(actualUserId);
                     
-                    // --- تغییر جدید: تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
+                    // --- تنظیم پرچم آماده بودن احراز هویت ---
                     window.isAuthReady = true;
-                    // چون enablePlatformCreationButton در اسکریپت اصلی است و باید حتما فعال شود، آن را صدا می زنیم
-                    if (typeof enablePlatformCreationButton === 'function') {
-                        enablePlatformCreationButton();
-                    }
-                    // --- پایان تغییر جدید ---
                     
                     // Update UI to show authenticated content
                     renderApp(); 
@@ -523,7 +518,7 @@
                         </div>
 
                         <div style="display:flex; gap:0.8rem; align-items:center">
-                            <!-- INITIAL STATE: Button starts disabled with the correct loading text. enablePlatformCreationButton handles activation later. -->
+                            <!-- Button is now immediately enabled by renderApp for unrestricted access -->
                             <button id="create-platform-btn" class="btn-cta flex-1" type="submit" disabled><i class="fas fa-spinner animate-spin"></i> در حال اتصال...</button>
                         </div>
 
@@ -618,13 +613,10 @@
         
         function enablePlatformCreationButton() {
             const btn = document.getElementById('create-platform-btn');
-            // Check if Firebase Auth is ready AND if the button is currently in the disabled 'connecting' state
-            if (window.isAuthReady && btn.disabled) {
+            // این تابع فقط برای فعال کردن دکمه و تنظیم متن آن در لود اولیه است.
+            if (btn) {
                 btn.disabled = false;
-                // Check for the spinning icon text, and only reset if it's the initial "در حال اتصال..." state
-                if (btn.innerHTML.includes('در حال اتصال...')) {
-                     btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
-                }
+                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
             }
         }
 
@@ -730,6 +722,9 @@
             } else {
                  navigateTo(window.state.currentView); // Ensure home is active
             }
+            
+            // *** تغییر جدید: فعال‌سازی دکمه در اینجا برای رفع مشکل "در حال اتصال" ***
+            enablePlatformCreationButton();
         }
         
         function renderProfile() {
@@ -809,18 +804,30 @@
             }
         }
 
+		// *** تابع اصلاح‌شده: افزودن مکانیزم انتظار (Polling) برای آماده بودن Firebase ***
+		function finishSetup(result, retries = 0){
+            // اگر بیش از حد تلاش کرد و هنوز Firebase آماده نبود، متوقف کن
+            if (retries > 10) { 
+                 console.error("Firebase readiness timeout reached.");
+                 Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اتصال فایربیس برای ذخیره پروفایل زمان‌بندی نشد. لطفاً Mini App را دوباره باز کنید.'});
+                 showSuccess(result);
+                 return;
+            }
 
-		function finishSetup(result){
-            // Ensure Firestore objects are available globally
-            if (!window.db || !window.doc || !window.setDoc || !FIREBASE_DOC_PATH) {
-                console.error("Firebase services or path not ready for saving data.");
-                Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما به دلیل عدم اتصال فایربیس، اطلاعات آن در پروفایل شما ذخیره نشد.'});
-                showSuccess(result); // Show success message without saving
-                return;
+            // بررسی شرط اصلی: آیا همه متغیرهای Firebase و احراز هویت آماده‌اند؟
+            // توجه: isAuthReady فقط برای نمایش صحیح در داشبورد مهم است، نه برای سابمیت.
+            if (!window.db || !window.doc || !window.setDoc || !window.FIREBASE_DOC_PATH) {
+                 // اگر آماده نبود، 200 میلی‌ثانیه صبر کن و دوباره تلاش کن (Polling)
+                 console.warn(`Firebase services not yet available (Retry ${retries}). Waiting...`);
+                 setTimeout(() => finishSetup(result, retries + 1), 200);
+                 return;
             }
             
+            // --- اگر همه چیز آماده بود، ذخیره‌سازی را انجام بده ---
+            console.log("Firebase services are ready. Proceeding to save platform data.");
+
             // Save platform details to user's private profile document
-            const userDocRef = window.doc(window.db, FIREBASE_DOC_PATH);
+            const userDocRef = window.doc(window.db, window.FIREBASE_DOC_PATH);
             const dataToSave = { 
                 storeHandle: result.storeHandle,
                 adminBotUsername: result.adminBotUsername,
@@ -837,8 +844,9 @@
                 })
                 .catch(error => {
                     console.error("Error saving platform details:", error);
-                    Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اطلاعات آن در پروفایل شما ذخیره نشد. لطفاً با پشتیبانی تماس بگیرید.'});
-                    showSuccess(result); // Show success message anyway
+                    // نمایش خطای ذخیره‌سازی حتی اگر پلتفرم ساخته شده باشد
+                    Swal.fire({icon:'error', title:'خطا در ذخیره', text:`پلتفرم ساخته شد، اما در ذخیره اطلاعات آن در پروفایل شما خطایی رخ داد: ${error.message}`});
+                    showSuccess(result); 
                 });
 		}
 
@@ -900,12 +908,11 @@
 				return;
 			}
             
-            // Check if authentication flag is set
-            if (!window.isAuthReady || !window.auth.currentUser || window.auth.currentUser.isAnonymous) {
-                // اگر دکمه فعال بود، این خطا نباید رخ دهد، اما برای اطمینان مجددا بررسی می‌شود.
-                Swal.fire({icon:'error', title:'خطا', text:'احراز هویت کامل نشده است. لطفاً Mini App را یک بار ببندید و دوباره باز کنید.'});
-                return;
-            }
+            // *** تغییر کلیدی: حذف اعتبار سنجی Firebase قبل از ارسال به Worker ***
+            // if (!window.isAuthReady || !window.auth.currentUser || window.auth.currentUser.isAnonymous) {
+            //     Swal.fire({icon:'error', title:'خطا', text:'خطا در احراز هویت. Mini App باید توسط تلگرام اجرا شود.'});
+            //     return;
+            // }
 
 			// START LOADING: تغییر وضعیت دکمه به لودینگ
 			toggleLoading(btn, true, 'در حال ساخت پلتفرم...');
@@ -925,18 +932,18 @@
 					method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
 				});
 				
-                // --- تغییر اصلی: مدیریت امن خواندن JSON ---
+                // --- مدیریت امن خواندن JSON و خطاها ---
                 let data = {};
                 const resText = await res.text(); // اول متن خام را می‌خوانیم
                 try {
                     data = JSON.parse(resText);
                 } catch (jsonError) {
-                    // اگر Worker پاسخ غیر JSON داد (مثلاً خطای 500 بدون بدنه مناسب)، باید خطا را از متن خام بگیریم.
+                    // اگر Worker پاسخ غیر JSON داد (مثلاً خطای 500 بدون بدنه مناسب)
                     if (!res.ok) {
-                        throw new Error(`Worker Error: ${res.status} ${res.statusText}. Response: ${resText.substring(0, 100)}...`);
+                        throw new Error(`خطای سرور: ${res.status}. پاسخ نامفهوم. کنسول را بررسی کنید.`);
                     }
                 }
-                // --- پایان تغییر اصلی ---
+                // --- پایان مدیریت امن خواندن JSON ---
 
                 // بررسی وضعیت پاسخ Worker (واسط)
 				if(!res.ok) {
@@ -945,7 +952,7 @@
                         throw new Error(`شناسه پلتفرم (${payload.storeHandle}) قبلاً استفاده شده است. لطفاً یک شناسه دیگر انتخاب کنید.`);
                     }
                     // برای سایر خطاها
-                    const errorMessage = data.error || `خطا در برقراری ارتباط با Worker (${res.status}). لطفاً کنسول را بررسی کنید.`;
+                    const errorMessage = data.error || `خطا در Worker (${res.status}). کنسول را بررسی کنید.`;
                     throw new Error(errorMessage);
                 }
 
@@ -953,10 +960,10 @@
 				isSuccess = true;
 
 			}catch(err){
-				// END LOADING ON FAILURE: در صورت خطا، دکمه را از حالت لودینگ خارج می‌کند
+				// نمایش خطا
 				Swal.fire({icon:'error', title:'عملیات ناموفق', text: err.message || err.toString()});
 			}finally{
-				// --- تغییر دوم: در هر صورت دکمه را آزاد می‌کند ---
+				// در هر صورت دکمه را آزاد می‌کند
                 toggleLoading(btn,false,'ساخت پلتفرم جدید');
 			}
 		});
