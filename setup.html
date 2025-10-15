@@ -18,7 +18,7 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         // NOTE: Firestore imports are kept but mostly unused now, only for auth listeners which are crucial.
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // Expose necessary Firestore functions globally (kept for backward compatibility but unused in finishSetup)
         window.doc = doc;
@@ -27,13 +27,21 @@
         // Flag to track authentication readiness status
         window.isAuthReady = false; 
 
-        // Log setup
-        // setLogLevel('debug'); // Uncomment for debugging Firestore logs
-
         // Global variables injected by Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- تابع جدید: فعال سازی دکمه ساخت پلتفرم (به جای تعریف در اسکریپت اصلی) ---
+        function enablePlatformCreationButton() {
+            const btn = document.getElementById('create-platform-btn');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
+            }
+        }
+        window.enablePlatformCreationButton = enablePlatformCreationButton; // Expose globally
+        // ---------------------------------------------------------------------------------
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
@@ -93,11 +101,9 @@
                     // Fetch user-specific and public platform data
                     setupDataListeners(actualUserId);
                     
-                    // --- تغییر جدید: تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
+                    // --- تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
                     window.isAuthReady = true;
-                    if (typeof enablePlatformCreationButton === 'function') {
-                        enablePlatformCreationButton();
-                    }
+                    enablePlatformCreationButton();
                     // --- پایان تغییر جدید ---
                     
                     // Update UI to show authenticated content
@@ -615,6 +621,7 @@
         
         // --- توابع کمکی ---
         
+        // این تابع از ماژول Firebase فراخوانی می شود و باید در حوزه جهانی (Global scope) اصلی تعریف شود
         function enablePlatformCreationButton() {
             const btn = document.getElementById('create-platform-btn');
             if (btn) {
@@ -718,8 +725,6 @@
             if (adminChatIdInput && window.state.user.tgUserId) {
                 adminChatIdInput.value = window.state.user.tgUserId;
             }
-            
-            // اگر احراز هویت آماده بود، دکمه را فعال کن -- این بخش حالا در onAuthStateChanged انجام می شود و اینجا حذف می گردد
             
             // For initial load, we don't need a transition, just ensure correct state
             // If the user has a platform handle, default to the Dashboard view
