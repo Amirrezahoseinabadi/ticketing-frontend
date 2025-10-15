@@ -924,11 +924,27 @@
 				const res = await fetch(`${MANAGEMENT_WORKER_URL}/setup`,{
 					method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
 				});
-				const data = await res.json();
 				
+                // --- تغییر اصلی: مدیریت امن خواندن JSON ---
+                let data = {};
+                const resText = await res.text(); // اول متن خام را می‌خوانیم
+                try {
+                    data = JSON.parse(resText);
+                } catch (jsonError) {
+                    // اگر Worker پاسخ غیر JSON داد (مثلاً خطای 500 بدون بدنه مناسب)، باید خطا را از متن خام بگیریم.
+                    if (!res.ok) {
+                        throw new Error(`Worker Error: ${res.status} ${res.statusText}. Response: ${resText.substring(0, 100)}...`);
+                    }
+                }
+                // --- پایان تغییر اصلی ---
+
                 // بررسی وضعیت پاسخ Worker (واسط)
 				if(!res.ok) {
-                    // اگر پاسخ 400 یا 500 بود، متن خطا را از Worker می‌خوانیم و نمایش می‌دهیم
+                    // اگر خطا 409 (Conflict) بود، یعنی شناسه تکراری است.
+                    if (res.status === 409) {
+                        throw new Error(`شناسه پلتفرم (${payload.storeHandle}) قبلاً استفاده شده است. لطفاً یک شناسه دیگر انتخاب کنید.`);
+                    }
+                    // برای سایر خطاها
                     const errorMessage = data.error || `خطا در برقراری ارتباط با Worker (${res.status}). لطفاً کنسول را بررسی کنید.`;
                     throw new Error(errorMessage);
                 }
@@ -940,10 +956,8 @@
 				// END LOADING ON FAILURE: در صورت خطا، دکمه را از حالت لودینگ خارج می‌کند
 				Swal.fire({icon:'error', title:'عملیات ناموفق', text: err.message || err.toString()});
 			}finally{
-				if(!isSuccess) { 
-					// اطمینان از خروج دکمه از حالت لودینگ در صورت عدم موفقیت
-					toggleLoading(btn,false,'ساخت پلتفرم جدید');
-				}
+				// --- تغییر دوم: در هر صورت دکمه را آزاد می‌کند ---
+                toggleLoading(btn,false,'ساخت پلتفرم جدید');
 			}
 		});
 
