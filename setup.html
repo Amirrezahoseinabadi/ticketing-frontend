@@ -25,14 +25,8 @@
         
         // --- توابع احراز هویت و فعال سازی ---
         
-        function enablePlatformCreationButton() {
-            const btn = document.getElementById('create-platform-btn');
-            if (btn) {
-                // دکمه را فعال کرده و متن نهایی را قرار می دهد
-                btn.disabled = false;
-                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
-            }
-        }
+        // **این تابع حذف شد تا دکمه بلافاصله فعال باشد**
+        // function enablePlatformCreationButton() { ... }
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
@@ -135,9 +129,8 @@
             const initialTgInfo = getTelegramUserInfo();
             window.state.user = { ...window.state.user, ...initialTgInfo };
             
-            // --- تغییر الگو برای رفع مشکل: فعال سازی دکمه بلافاصله پس از بارگذاری اطلاعات ---
-            enablePlatformCreationButton();
-            // --- پایان تغییر الگو ---
+            // **دکمه دیگر نیازی به فعال سازی ندارد و همیشه فعال است**
+            // enablePlatformCreationButton(); 
 
             const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
             if (currentStage) {
@@ -309,10 +302,11 @@
 				return;
 			}
             
-            // Check if Telegram user ID is present for security (since we removed Firebase Auth)
+            // Check if Telegram user ID is present for security (This check can remain for user experience)
             if (!window.state.user.tgUserId) {
-                Swal.fire({icon:'error', title:'خطا', text:'لطفاً Mini App را از داخل یک چت با ربات باز کنید تا بتوانیم هویت شما را تأیید کنیم.'});
-                return;
+                // If the user's ID is missing, we still allow them to proceed since the worker doesn't strictly need it, 
+                // but we warn them about the profile experience.
+                console.warn("Telegram User ID is missing, but proceeding with setup as per request.");
             }
 
 			toggleLoading(btn, true, 'در حال ساخت پلتفرم...');
@@ -773,11 +767,10 @@
 
                         <div style="display:flex; gap:0.8rem; align-items:center">
                             <!--
-                                دکمه دیگر disabled نیست، اما متن اولیه آن وضعیت اتصال را نشان می دهد
-                                و در صورت موفقیت آمیز نبودن renderApp، دکمه به طور پیش فرض غیرفعال می ماند.
+                                دکمه اکنون همیشه فعال است و متن نهایی را در HTML دارد
                             -->
                             <button id="create-platform-btn" class="btn-cta flex-1" type="submit">
-                                <i class="fas fa-spinner animate-spin"></i> در حال اتصال...
+                                <i class="fas fa-rocket"></i> ساخت پلتفرم جدید
                             </button>
                         </div>
 
@@ -868,20 +861,7 @@
         
         // --- توابع احراز هویت و فعال سازی ---
         
-        function enablePlatformCreationButton() {
-            const btn = document.getElementById('create-platform-btn');
-            if (btn) {
-                // اگر شناسه تلگرام در دسترس است، دکمه را فعال کن
-                if (window.state.user.tgUserId) {
-                    btn.disabled = false;
-                    btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
-                } else {
-                    // اگر شناسه در دسترس نیست، آن را غیرفعال نگه دار
-                    btn.disabled = true;
-                    btn.innerHTML = `<i class='fas fa-exclamation-circle'></i> شناسه تلگرام یافت نشد`;
-                }
-            }
-        }
+        // **تابع enablePlatformCreationButton حذف شد**
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
@@ -984,8 +964,7 @@
             const initialTgInfo = getTelegramUserInfo();
             window.state.user = { ...window.state.user, ...initialTgInfo };
             
-            // فعال سازی دکمه بلافاصله پس از بارگذاری اطلاعات
-            enablePlatformCreationButton();
+            // **نیازی به enablePlatformCreationButton نیست. دکمه در HTML فعال است.**
 
             const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
             if (currentStage) {
@@ -1157,11 +1136,11 @@
 				return;
 			}
             
-            // Check if Telegram user ID is present for security (since we removed Firebase Auth)
-            if (!window.state.user.tgUserId) {
-                Swal.fire({icon:'error', title:'خطا', text:'لطفاً Mini App را از داخل یک چت با ربات باز کنید تا بتوانیم هویت شما را تأیید کنیم.'});
-                return;
-            }
+            // **هشدار در مورد شناسه تلگرام را حذف کردم تا هیچ محدودیتی برای احراز هویت ایجاد نشود.**
+            // if (!window.state.user.tgUserId) {
+            //     Swal.fire({icon:'error', title:'خطا', text:'لطفاً Mini App را از داخل یک چت با ربات باز کنید تا بتوانیم هویت شما را تأیید کنیم.'});
+            //     return;
+            // }
 
 			toggleLoading(btn, true, 'در حال ساخت پلتفرم...');
 
