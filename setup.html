@@ -70,6 +70,10 @@
             window.firebaseApp = initializeApp(firebaseConfig);
             window.db = getFirestore(window.firebaseApp);
             window.auth = getAuth(window.firebaseApp);
+            
+            // --- تغییر جدید: فعال‌سازی دکمه پس از مقداردهی اولیه Firebase ---
+            window.enablePlatformCreationButton();
+            // --- پایان تغییر جدید ---
 
             // Auth listener and custom token sign-in
             onAuthStateChanged(window.auth, (user) => {
@@ -99,7 +103,7 @@
                     
                     // --- تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
                     window.isAuthReady = true;
-                    window.enablePlatformCreationButton();
+                    // window.enablePlatformCreationButton(); // حذف شد: در خارج از onAuthStateChanged انجام می شود
                     // --- پایان تغییر ---
                     
                     // Update UI to show authenticated content
