@@ -95,10 +95,8 @@
                     
                     // --- تغییر جدید: تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
                     window.isAuthReady = true;
-                    // چون enablePlatformCreationButton در اسکریپت اصلی است و باید حتما فعال شود، آن را صدا می زنیم
-                    if (typeof enablePlatformCreationButton === 'function') {
-                        enablePlatformCreationButton();
-                    }
+                    // FIX: فراخوانی مستقیم تابع پس از تعریف آن در انتهای این ماژول
+                    window.enablePlatformCreationButton();
                     // --- پایان تغییر جدید ---
                     
                     // Update UI to show authenticated content
@@ -135,6 +133,18 @@
 
         // Expose functions globally for use in HTML/scripts
         window.setupDataListeners = setupDataListeners;
+
+        /**
+         * FIX: این تابع به این بلوک ماژول منتقل شده تا تضمین شود قبل از فراخوانی آن در onAuthStateChanged
+         * تعریف شده و در دسترس است.
+         */
+        window.enablePlatformCreationButton = function() {
+            const btn = document.getElementById('create-platform-btn');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
+            }
+        }
     </script>
     <!-- END FIREBASE MODULES -->
 
@@ -614,14 +624,6 @@
         
         // --- توابع کمکی ---
         
-        function enablePlatformCreationButton() {
-            const btn = document.getElementById('create-platform-btn');
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
-            }
-        }
-
 		// Utility function to copy text to clipboard
 		function copyToClipboard(elementId) {
 			const copyText = document.getElementById(elementId);
@@ -717,8 +719,6 @@
             if (adminChatIdInput && window.state.user.tgUserId) {
                 adminChatIdInput.value = window.state.user.tgUserId;
             }
-            
-            // اگر احراز هویت آماده بود، دکمه را فعال کن -- این بخش حالا در onAuthStateChanged انجام می شود و اینجا حذف می گردد
             
             // For initial load, we don't need a transition, just ensure correct state
             // If the user has a platform handle, default to the Dashboard view
