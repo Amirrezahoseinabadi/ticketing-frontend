@@ -42,6 +42,7 @@
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
+            // Get user info from Telegram WebApp SDK
             if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
                 return {
@@ -51,22 +52,26 @@
                     first_name: tgUser.first_name,
                     isAnonymous: false,
                     isTelegramAuth: true,
+                    // NEW: Add photo_url for profile picture
+                    photo_url: tgUser.photo_url || null, 
                 };
             }
             return {
                 tgUserId: null, 
                 username: 'کاربر میهمان',
+                first_name: 'کاربر',
                 isAnonymous: true,
                 isTelegramAuth: false,
+                photo_url: null,
             };
         }
         
         // تنظیم اطلاعات اولیه کاربر
         const initialTgInfo = getTelegramUserInfo();
         window.state.user = { 
-            ...window.state.user, 
+            uid: 'guest', // Initial Firebase UID placeholder
+            platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null },
             ...initialTgInfo, 
-            uid: null // UID فایربیس، پس از احراز هویت تنظیم می‌شود
         };
         
 
@@ -531,6 +536,28 @@
             font-size: 1.1rem; /* کاهش سایز آیکون ناوبری */
             margin-bottom: 2px;
         }
+        
+        /* NEW: Profile specific styles */
+        .profile-pic-container {
+            width: 96px; 
+            height: 96px; 
+            border-radius: 50%;
+            overflow: hidden;
+            margin: 0 auto 1rem;
+            border: 4px solid var(--accent1);
+            box-shadow: 0 0 10px rgba(0, 114, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent2), var(--accent1));
+        }
+        .profile-pic-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
 	</style>
 </head>
 <body>
@@ -718,7 +745,7 @@
         window.state = {
             currentView: 'home',
             // uid will be the Firebase UID after successful sign-in
-            user: { uid: 'guest', username: 'کاربر مهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null }, 
+            user: { uid: 'guest', username: 'کاربر مهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null, photo_url: null }, 
             platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null }
         };
 
@@ -849,35 +876,48 @@
             const { user, platform } = window.state;
             const uid = user.uid || '---';
             
-            // Display Telegram username or first name if available, otherwise fall back
-            let displayUsername = user.username;
-            if (user.isTelegramAuth) {
-                displayUsername = user.username ? `@${user.username}` : user.first_name || 'کاربر تلگرام';
-            } else {
-                displayUsername = user.username;
+            // Determine display name
+            let displayUsername = user.first_name || 'کاربر';
+            if (user.isTelegramAuth && user.username) {
+                displayUsername = `@${user.username}`;
+            } else if (user.isAnonymous) {
+                 displayUsername = 'کاربر میهمان';
             }
-
-            const status = platform.storeHandle ? 'پلتفرم راه‌اندازی شده' : 'نیاز به راه‌اندازی پلتفرم';
-            const platformHandleDisplay = platform.storeHandle ? `<span class="ltr font-mono text-lg text-green-400">${platform.storeHandle}</span>` : `<span class="text-red-400">---</span>`;
             
-            // Determine the UID to display: TG ID if authenticated via TG, otherwise Firebase UID
+            // Determine the UID to display
             const displayUID = user.uid || user.tgUserId || '---';
             const displayUIDLabel = user.uid && !user.isAnonymous ? 'شناسه فایربیس (مدیر)' : (user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه فایربیس (مهمان)');
 
+            // Determine profile picture HTML
+            let profilePicHtml;
+            const fallbackLetter = (user.first_name || 'U').substring(0, 1).toUpperCase();
+            
+            if (user.photo_url) {
+                profilePicHtml = `<div class="profile-pic-container"><img src="${user.photo_url}" alt="Profile Avatar" onerror="this.onerror=null;this.style.display='none'; this.parentNode.innerHTML='${fallbackLetter}'"></div>`;
+            } else {
+                profilePicHtml = `<div class="profile-pic-container">${fallbackLetter}</div>`;
+            }
+
+
+            const status = platform.storeHandle ? 'پلتفرم راه‌اندازی شده' : 'نیاز به راه‌اندازی پلتفرم';
+            const statusColor = platform.storeHandle ? 'text-green-400' : 'text-yellow-400';
+            const statusIcon = platform.storeHandle ? '✅' : '⚠️';
+            const platformHandleDisplay = platform.storeHandle ? `<span class="ltr font-mono text-base text-blue-400">${platform.storeHandle}</span>` : `<span class="text-red-400">---</span>`;
+            
 
             profileCard.innerHTML = `
-                <div class="text-center mb-8">
-                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${(user.first_name || 'U').substring(0,1).toUpperCase()}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
-                    <h2 class="text-2xl font-extrabold text-white">${displayUsername}</h2>
-                    <p class="text-sm text-gray-400">${displayUIDLabel}: ${displayUID}</p>
+                <div class="text-center mb-6">
+                    ${profilePicHtml}
+                    <h2 class="text-xl font-extrabold text-white mt-2">${displayUsername}</h2>
+                    <p class="text-xs text-gray-400 mt-1">${displayUIDLabel}: ${displayUID}</p>
                 </div>
                 
-                <div class="space-y-4 pt-4 border-t border-white/10">
-                    <h3 class="text-xl font-bold text-white mb-3">وضعیت پلتفرم</h3>
+                <div class="space-y-3 pt-4 border-t border-white/10">
+                    <h3 class="text-lg font-bold text-white mb-3">وضعیت پلتفرم</h3>
                     
                     <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
                         <span class="font-bold text-gray-300">وضعیت:</span>
-                        <span class="font-extrabold ${platform.storeHandle ? 'text-green-400' : 'text-yellow-400'}">${status}</span>
+                        <span class="font-extrabold ${statusColor}">${statusIcon} ${status}</span>
                     </div>
 
                     <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
@@ -888,8 +928,11 @@
                     ${platform.storeHandle ? `
                         <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
                             <span class="font-bold text-gray-300">ربات ادمین:</span>
-                            <a href="https://t.me/${platform.adminBotUsername}" target="_blank" class="text-blue-400 font-mono ltr">@${platform.adminBotUsername}</a>
+                            <a href="https://t.me/${platform.adminBotUsername}" target="_blank" class="text-blue-400 font-mono ltr text-sm">@${platform.adminBotUsername}</a>
                         </div>
+                        <button class="btn-cta text-sm w-full mt-4" onclick="alert('TODO: Implement Admin Panel link/logic')">
+                            <i class="fas fa-cog"></i> ورود به پنل مدیریت
+                        </button>
                     ` : `
                         <button class="btn-cta text-sm w-full mt-4" onclick="navigateTo('setup')">
                             شروع راه‌اندازی پلتفرم
