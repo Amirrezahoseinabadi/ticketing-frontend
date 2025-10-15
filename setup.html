@@ -9,6 +9,9 @@
 	<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     
+    <!-- تلگرام Mini App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <!-- FIREBASE MODULES -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -29,6 +32,37 @@
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
+        // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
+        function getTelegramUserInfo() {
+            if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+                return {
+                    uid: tgUser.id ? tgUser.id.toString() : null, // ID تلگرام را به عنوان UID اولیه در نظر میگیریم
+                    username: tgUser.username || tgUser.first_name,
+                    first_name: tgUser.first_name,
+                    isAnonymous: false,
+                    isTelegramAuth: true,
+                    tgUserId: tgUser.id.toString()
+                };
+            }
+            return {
+                uid: null, // Initial UID should be null until Firebase is ready
+                username: 'کاربر میهمان',
+                isAnonymous: true,
+                isTelegramAuth: false,
+                tgUserId: null
+            };
+        }
+        
+        // تنظیم اطلاعات اولیه کاربر
+        const initialTgInfo = getTelegramUserInfo();
+        window.state.user = { ...window.state.user, ...initialTgInfo };
+        if (initialTgInfo.uid) {
+            // اگر از تلگرام UID داریم، از آن به عنوان پیش‌فرض استفاده می‌کنیم
+            window.state.user.uid = initialTgInfo.uid;
+            window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${initialTgInfo.uid}/profile/main`;
+        }
+
         if (firebaseConfig) {
             window.firebaseApp = initializeApp(firebaseConfig);
             window.db = getFirestore(window.firebaseApp);
@@ -37,19 +71,33 @@
             // Auth listener and custom token sign-in
             onAuthStateChanged(window.auth, (user) => {
                 if (user) {
+                    // بروزرسانی UID و نام کاربری با داده‌های فایربیس (معمولاً anonymous یا token-based)
                     window.state.user = { 
+                        ...window.state.user, 
                         uid: user.uid, 
-                        username: user.email ? user.email.split('@')[0] : 'کاربر مهمان',
                         isAnonymous: user.isAnonymous
                     };
+                    
+                    // اگر احراز هویت Mini App نبود، نام کاربری را از ایمیل یا حالت پیش‌فرض می‌گیرد.
+                    if (!window.state.user.isTelegramAuth) {
+                        window.state.user.username = user.email ? user.email.split('@')[0] : 'کاربر مهمان';
+                    }
+                    
+                    // تنظیم مسیر Firestore بر اساس UID واقعی Firebase
+                    const actualUserId = user.uid;
+                    window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${actualUserId}/profile/main`;
+                    
                     // Fetch user-specific and public platform data
-                    setupDataListeners(user.uid);
+                    setupDataListeners(actualUserId);
                     // Update UI to show authenticated content
                     renderApp(); 
                 } else {
-                    // Sign in anonymously if no token is available for a temporary session
+                    // تلاش برای ورود با توکن Canvas یا ورود ناشناس
                     if (initialAuthToken) {
-                        signInWithCustomToken(window.auth, initialAuthToken).catch(console.error);
+                        signInWithCustomToken(window.auth, initialAuthToken).catch(error => {
+                            console.error("Custom token sign-in failed:", error);
+                            signInAnonymously(window.auth).catch(console.error);
+                        });
                     } else {
                         signInAnonymously(window.auth).catch(console.error);
                     }
@@ -69,12 +117,8 @@
                         window.state.platform = data.platform;
                     }
                 }
-                renderProfile();
+                renderProfile(); // Rerender profile on data change
             });
-
-            // 2. Listen to the public platform settings (assuming platform configs are public or linked)
-            // For this example, we'll store the platform data in the private user profile document 
-            // to simplify the scope. The setup form saves it there.
         }
 
         // Expose functions globally for use in HTML/scripts
@@ -449,6 +493,7 @@
 
                         <div>
                             <label for="admin-chat-id" class="form-label">شناسه عددی تلگرام مدیر</label>
+                            <!-- NOTE: Prefill with Telegram ID if available -->
                             <input id="admin-chat-id" class="glass-input ltr w-full" placeholder="مثال: 123456789" pattern="[0-9]+" required>
                             <div class="hint">برای دریافت شناسه به ربات <a href="https://t.me/userinfobot" target="_blank" style="color:var(--accent1);">@userinfobot</a> پیام دهید.</div>
                         </div>
@@ -547,7 +592,7 @@
         // Global state object
         window.state = {
             currentView: 'home',
-            user: { uid: 'guest', username: 'کاربر مهمان', isAnonymous: true },
+            user: { uid: 'guest', username: 'کاربر مهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null },
             platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null }
         };
 
@@ -645,10 +690,10 @@
                 });
             }
             
-            // Update initial Firebase doc path
-            if (window.auth && window.auth.currentUser) {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                FIREBASE_DOC_PATH = `artifacts/${appId}/users/${window.auth.currentUser.uid}/profile/main`;
+            // Prefill admin-chat-id if we have the Telegram ID
+            const adminChatIdInput = document.getElementById('admin-chat-id');
+            if (adminChatIdInput && window.state.user.tgUserId) {
+                adminChatIdInput.value = window.state.user.tgUserId;
             }
             
             // For initial load, we don't need a transition, just ensure correct state
@@ -664,15 +709,28 @@
             const profileCard = document.getElementById('profile-card');
             const { user, platform } = window.state;
             const uid = user.uid || '---';
-            const username = user.username || 'نامشخص';
+            
+            // Display Telegram username or first name if available, otherwise fall back
+            let displayUsername = user.username;
+            if (user.isTelegramAuth) {
+                displayUsername = user.username ? `@${user.username}` : user.first_name || 'کاربر تلگرام';
+            } else {
+                displayUsername = user.username;
+            }
+
             const status = platform.storeHandle ? 'پلتفرم راه‌اندازی شده' : 'نیاز به راه‌اندازی پلتفرم';
             const platformHandleDisplay = platform.storeHandle ? `<span class="ltr font-mono text-lg text-green-400">${platform.storeHandle}</span>` : `<span class="text-red-400">---</span>`;
+            
+            // Determine the UID to display: TG ID if authenticated via TG, otherwise Firebase UID
+            const displayUID = user.tgUserId || uid;
+            const displayUIDLabel = user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه فایربیس (مهمان)';
+
 
             profileCard.innerHTML = `
                 <div class="text-center mb-8">
-                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${username.substring(0,2).toUpperCase()}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
-                    <h2 class="text-2xl font-extrabold text-white">${username}</h2>
-                    <p class="text-sm text-gray-400">شناسه کاربری: ${uid}</p>
+                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${(user.first_name || 'U').substring(0,1).toUpperCase()}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
+                    <h2 class="text-2xl font-extrabold text-white">${displayUsername}</h2>
+                    <p class="text-sm text-gray-400">${displayUIDLabel}: ${displayUID}</p>
                 </div>
                 
                 <div class="space-y-4 pt-4 border-t border-white/10">
@@ -815,8 +873,9 @@
 				return;
 			}
             
-            if (!window.db || !window.auth || !window.auth.currentUser) {
-                Swal.fire({icon:'error', title:'خطا', text:'احراز هویت کامل نشده است. لطفاً چند لحظه صبر کنید.'});
+            // Re-check authentication status based on Firebase's currentUser state
+            if (!window.db || !window.auth || !window.auth.currentUser || window.auth.currentUser.isAnonymous) {
+                Swal.fire({icon:'error', title:'خطا', text:'احراز هویت کامل نشده است. لطفاً Mini App را یک بار ببندید و دوباره باز کنید.'});
                 return;
             }
 
