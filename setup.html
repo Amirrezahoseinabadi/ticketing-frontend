@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<title>تیکت تل — راه‌اندازی پلتفرم</title>
+	<title>تیکت تل — راه‌اندازی و پروفایل</title>
 	<script src="https://cdn.tailwindcss.com"></script>
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> 
 	<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,358 +12,131 @@
     <!-- تلگرام Mini App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
-    <!-- CORE JAVASCRIPT LOGIC -->
-    <script>
-        // Global state object
-        window.state = {
-            currentView: 'home',
-            user: { username: 'کاربر میهمان', isTelegramAuth: false, tgUserId: null },
-            platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null }
-        };
+    <!-- FIREBASE MODULES -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // Export doc and setDoc to window for use in non-module scripts
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Expose necessary Firestore functions globally
+        window.doc = doc;
+        window.setDoc = setDoc;
+        
+        // Flag to track authentication readiness status
+        window.isAuthReady = false; 
 
-        const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
-        
-        // --- توابع احراز هویت و فعال سازی ---
-        
-        // **تابع enablePlatformCreationButton حذف شد**
+        // Log setup
+        // setLogLevel('debug'); // Uncomment for debugging Firestore logs
+
+        // Global variables injected by Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
-            // چک می کند که آیا آبجکت Telegram و داده های کاربر وجود دارند
             if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
                 return {
+                    uid: tgUser.id ? tgUser.id.toString() : null, // ID تلگرام را به عنوان UID اولیه در نظر میگیریم
                     username: tgUser.username || tgUser.first_name,
                     first_name: tgUser.first_name,
+                    isAnonymous: false,
                     isTelegramAuth: true,
                     tgUserId: tgUser.id.toString()
                 };
             }
             return {
+                uid: null, // Initial UID should be null until Firebase is ready
                 username: 'کاربر میهمان',
+                isAnonymous: true,
                 isTelegramAuth: false,
                 tgUserId: null
             };
         }
         
-        // --- توابع کمکی عمومی ---
+        // تنظیم اطلاعات اولیه کاربر
+        const initialTgInfo = getTelegramUserInfo();
+        window.state.user = { ...window.state.user, ...initialTgInfo };
+        if (initialTgInfo.uid) {
+            // اگر از تلگرام UID داریم، از آن به عنوان پیش‌فرض استفاده می‌کنیم
+            window.state.user.uid = initialTgInfo.uid;
+            window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${initialTgInfo.uid}/profile/main`;
+        }
 
-		function copyToClipboard(elementId) {
-			const copyText = document.getElementById(elementId);
-			if (copyText) {
-				copyText.select();
-				document.execCommand('copy');
-				const copyBtn = copyText.nextElementSibling;
-				if (copyBtn) {
-					copyBtn.innerHTML = '<i class="fas fa-check"></i>';
-					Swal.fire({
-						toast: true,
-						position: 'top-end',
-						icon: 'success',
-						title: 'آدرس کپی شد',
-						showConfirmButton: false,
-						timer: 1500
-					});
-					setTimeout(() => {
-						copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
-					}, 2000);
-				}
-			}
-		}
-        
-        // --- Stage (View) Management Functions ---
-        
-        function navigateTo(targetView) {
-            if (window.state.currentView === targetView) return;
+        if (firebaseConfig) {
+            window.firebaseApp = initializeApp(firebaseConfig);
+            window.db = getFirestore(window.firebaseApp);
+            window.auth = getAuth(window.firebaseApp);
 
-            const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
-            const nextStage = document.querySelector(`.stage-container[data-view="${targetView}"]`);
-            const navItems = document.querySelectorAll('.nav-item');
-            
-            if (!currentStage || !nextStage) {
-                console.error('Invalid view transition:', window.state.currentView, '->', targetView);
-                return;
-            }
-
-            // Update navigation bar active class
-            navItems.forEach(item => {
-                item.classList.remove('active');
-                if (item.getAttribute('data-target') === targetView) {
-                    item.classList.add('active');
+            // Auth listener and custom token sign-in
+            onAuthStateChanged(window.auth, (user) => {
+                if (user) {
+                    // بروزرسانی UID و نام کاربری با داده‌های فایربیس (معمولاً anonymous یا token-based)
+                    window.state.user = { 
+                        ...window.state.user, 
+                        uid: user.uid, 
+                        isAnonymous: user.isAnonymous
+                    };
+                    
+                    // اگر احراز هویت Mini App نبود، نام کاربری را از ایمیل یا حالت پیش‌فرض می‌گیرد.
+                    if (!window.state.user.isTelegramAuth) {
+                        window.state.user.username = user.email ? user.email.split('@')[0] : 'کاربر مهمان';
+                    }
+                    
+                    // تنظیم مسیر Firestore بر اساس UID واقعی Firebase
+                    const actualUserId = user.uid;
+                    window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${actualUserId}/profile/main`;
+                    
+                    // Fetch user-specific and public platform data
+                    setupDataListeners(actualUserId);
+                    
+                    // --- تغییر جدید: تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
+                    window.isAuthReady = true;
+                    // چون enablePlatformCreationButton در اسکریپت اصلی است و باید حتما فعال شود، آن را صدا می زنیم
+                    if (typeof enablePlatformCreationButton === 'function') {
+                        enablePlatformCreationButton();
+                    }
+                    // --- پایان تغییر جدید ---
+                    
+                    // Update UI to show authenticated content
+                    renderApp(); 
+                } else {
+                    // تلاش برای ورود با توکن Canvas یا ورود ناشناس
+                    if (initialAuthToken) {
+                        signInWithCustomToken(window.auth, initialAuthToken).catch(error => {
+                            console.error("Custom token sign-in failed:", error);
+                            signInAnonymously(window.auth).catch(console.error);
+                        });
+                    } else {
+                        signInAnonymously(window.auth).catch(console.error);
+                    }
                 }
             });
-            
-            // Render content for the target view before transition starts
-            if (targetView === 'profile') renderProfile();
-            if (targetView === 'dashboard') renderDashboard();
-
-            // 1. Start the exit animation for the current stage
-            currentStage.classList.remove('stage-active');
-            currentStage.classList.add('stage-exit');
-            
-            // 2. Schedule the enter animation for the next stage after a short delay
-            setTimeout(() => {
-                currentStage.classList.remove('stage-exit');
-                currentStage.classList.add('stage-hidden'); 
-                
-                nextStage.classList.remove('stage-hidden');
-                nextStage.classList.add('stage-enter');
-                nextStage.classList.add('stage-active');
-                window.state.currentView = targetView;
-            }, 300); 
-            
-             setTimeout(() => {
-                nextStage.classList.remove('stage-enter');
-            }, 1000);
         }
-
-        // Renamed functions for clarity with new navigation system
-        const navigateToForm = () => navigateTo('setup');
-        const transitionToSuccess = () => navigateTo('success');
-
-
-        // --- Dynamic Rendering Functions ---
-
-        function renderApp() {
-            // تنظیم اطلاعات اولیه کاربر
-            const initialTgInfo = getTelegramUserInfo();
-            window.state.user = { ...window.state.user, ...initialTgInfo };
-            
-            // **نیازی به enablePlatformCreationButton نیست. دکمه در HTML فعال است.**
-
-            const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
-            if (currentStage) {
-                // Ensure only the current view is active on load
-                document.querySelectorAll('.stage-container').forEach(stage => {
-                    if (stage !== currentStage) {
-                        stage.classList.remove('stage-active', 'stage-enter', 'stage-exit');
-                        stage.classList.add('stage-hidden');
+        
+        function setupDataListeners(uid) {
+            // 1. Listen to the user's private document (for profile data, e.g., display name)
+            const userDocRef = doc(window.db, `artifacts/${appId}/users/${uid}/profile/main`);
+            onSnapshot(userDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    // Update state with platform data if available
+                    const data = docSnap.data();
+                    window.state.user = { ...window.state.user, ...data };
+                    if (data.platform) {
+                        window.state.platform = data.platform;
                     }
-                });
-            }
-            
-            // Prefill admin-chat-id if we have the Telegram ID
-            const adminChatIdInput = document.getElementById('admin-chat-id');
-            if (adminChatIdInput && window.state.user.tgUserId) {
-                adminChatIdInput.value = window.state.user.tgUserId;
-            }
-            
-            // For initial load, we don't need a transition, just ensure correct state
-            if (window.state.platform.storeHandle && window.state.currentView === 'home') {
-                 navigateTo('dashboard');
-            } else {
-                 navigateTo(window.state.currentView); // Ensure home is active
-            }
-        }
-        
-        function renderProfile() {
-            const profileCard = document.getElementById('profile-card');
-            const { user, platform } = window.state;
-            
-            let displayUsername = user.username;
-            if (user.isTelegramAuth) {
-                // نمایش نام کاربری (@username) یا نام کوچک (first_name) اگر @username وجود نداشت
-                displayUsername = user.username ? `@${user.username}` : user.first_name || 'کاربر تلگرام';
-            }
-            
-            const status = platform.storeHandle ? 'پلتفرم راه‌اندازی شده' : 'نیاز به راه‌اندازی پلتفرم';
-            const platformHandleDisplay = platform.storeHandle ? `<span class="ltr font-mono text-lg text-green-400">${platform.storeHandle}</span>` : `<span class="text-red-400">---</span>`;
-            
-            const displayUID = user.tgUserId || '---';
-            const displayUIDLabel = user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه کاربری (میهمان)';
-
-            // تعیین حرف اول برای عکس پروفایل
-            const avatarText = (user.first_name || 'U').substring(0,1).toUpperCase();
-
-
-            profileCard.innerHTML = `
-                <div class="text-center mb-8">
-                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${avatarText}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
-                    <h2 class="text-2xl font-extrabold text-white">${displayUsername}</h2>
-                    <p class="text-sm text-gray-400">${displayUIDLabel}: ${displayUID}</p>
-                </div>
-                
-                <div class="space-y-4 pt-4 border-t border-white/10">
-                    <h3 class="text-xl font-bold text-white mb-3">وضعیت پلتفرم</h3>
-                    
-                    <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
-                        <span class="font-bold text-gray-300">وضعیت:</span>
-                        <span class="font-extrabold ${platform.storeHandle ? 'text-green-400' : 'text-yellow-400'}">${status}</span>
-                    </div>
-
-                    <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
-                        <span class="font-bold text-gray-300">شناسه پلتفرم:</span>
-                        ${platformHandleDisplay}
-                    </div>
-
-                    ${platform.storeHandle ? `
-                        <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
-                            <span class="font-bold text-gray-300">ربات ادمین:</span>
-                            <a href="https://t.me/${platform.adminBotUsername}" target="_blank" class="text-blue-400 font-mono ltr">@${platform.adminBotUsername}</a>
-                        </div>
-                    ` : `
-                        <button class="btn-cta text-sm w-full mt-4" onclick="navigateTo('setup')">
-                            شروع راه‌اندازی پلتفرم
-                        </button>
-                    `}
-                </div>
-            `;
+                }
+                renderProfile(); // Rerender profile on data change
+            });
         }
 
-        function renderDashboard() {
-            const dashboardCard = document.getElementById('dashboard-card');
-            const handleSpan = document.getElementById('dash-handle');
-            const statusDiv = document.getElementById('dashboard-status');
-            const { platform } = window.state;
-            
-            if (platform.storeHandle) {
-                 statusDiv.innerHTML = `
-                    <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">وضعیت:</span> <span class="text-green-400">✅ فعال</span></div>
-                    <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">شناسه پلتفرم:</span> <span id="dash-handle" class="ltr text-blue-400 font-mono">${platform.storeHandle}</span></div>
-                    <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">ربات کاربران:</span> <span class="ltr text-yellow-400 font-mono">@${platform.userBotUsername}</span></div>
-                 `;
-            } else {
-                 statusDiv.innerHTML = `
-                    <p class="text-red-400 p-4 rounded-lg" style="background:rgba(255,0,0,0.1);">⛔ پلتفرمی برای این حساب کاربری راه‌اندازی نشده است.</p>
-                    <button class="btn-cta text-sm w-full mt-4" onclick="navigateTo('setup')">
-                        شروع راه‌اندازی پلتفرم
-                    </button>
-                 `;
-            }
-        }
-
-
-		function finishSetup(result){
-            // Update the local state directly with the successful worker response
-            const dataFromWorker = { 
-                storeHandle: result.storeHandle,
-                adminBotUsername: result.adminBotUsername,
-                userBotUsername: result.userBotUsername,
-            };
-            
-            window.state.platform = dataFromWorker; 
-            
-            // Show success message and transition to dashboard (relying only on worker success)
-            showSuccess(result);
-		}
-
-
-		function showSuccess(result){
-			const { adminBotUsername, userBotUsername, storeHandle } = result || {};
-			const MINI_APP_BASE_URL = "https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html";
-			const miniAppUrl = `${MINI_APP_BASE_URL}?storeHandle=${storeHandle}`;
-			const successCard = document.getElementById('success-card');
-
-			successCard.innerHTML = `
-				<div class="flex items-center justify-end gap-3 text-white mb-6">
-					<i class="fas fa-check-circle text-4xl" style="color:var(--accent1);"></i>
-					<h1 class="text-3xl font-extrabold">🎉 پلتفرم شما آماده است</h1>
-				</div>
-				<p class="font-bold text-xl mb-6 text-white/90 border-b border-white/10 pb-3">گام‌های نهایی برای فعال‌سازی</p>
-				
-				<ol class="space-y-6">
-					<li class="p-4 rounded-xl" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);">
-						<span class="font-bold text-white text-base block mb-2">۱. فعال‌سازی Mini App:</span>
-						<p class="text-sm text-gray-300 mb-2">آدرس زیر را در BotFather (تنظیمات ربات کاربران) به‌عنوان Web App URL ثبت کنید:</p>
-						<div class="relative">
-							<input id="mini-app-url-input" class="glass-input ltr w-full text-base" style="font-family:monospace; padding-left: 3.5rem; background:rgba(0,0,0,0.1); border-color: rgba(255,255,255,0.1);" readonly value="${miniAppUrl}">
-							<button onclick="copyToClipboard('mini-app-url-input')" class="absolute left-2 top-1/2 -translate-y-1/2 btn-copy" title="کپی کردن آدرس">
-								<i class="fas fa-copy"></i>
-							</button>
-						</div>
-					</li>
-					<li class="p-4 rounded-xl" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);">
-						<span class="font-bold text-white text-base block mb-2">۲. فعال‌سازی ربات ادمین:</span>
-						<p class="text-sm text-gray-300">
-							ربات اعلان‌ها (
-							<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-400 font-bold hover:text-blue-300 transition-colors">@${adminBotUsername}</a> 
-							) را باز کرده و دستور <code>/start</code> را بزنید تا اعلانات پشتیبانی برای شما فعال شوند.
-						</p>
-					</li>
-				</ol>
-
-				<div class="mt-10 pt-6 border-t border-white/10 flex flex-col items-center">
-					<button id="finish-setup-btn" class="btn-cta text-lg w-full max-w-xs" onclick="navigateTo('dashboard')">
-						تکمیل و رفتن به داشبورد
-					</button>
-				</div>
-			`;
-			
-			transitionToSuccess();
-		}
-        
-        // --- API & Form Logic ---
-
-		document.getElementById('setup-form').addEventListener('submit', async (e)=>{
-			e.preventDefault(); // تضمین می کند که ارسال سنتی فرم انجام نشود
-			const btn = document.getElementById('create-platform-btn');
-			const storeHandleInput = document.getElementById('store-handle');
-            
-            // Basic validation
-			if(!storeHandleInput.value.trim() || !document.getElementById('admin-chat-id').value.trim() || !document.getElementById('user-bot-token').value.trim() || !document.getElementById('admin-bot-token').value.trim()){
-				Swal.fire({icon:'error', title:'خطا', text:'لطفاً همه فیلدهای الزامی را تکمیل کنید.'});
-				return;
-			}
-            
-            // Check if Telegram user ID is present for security (This check can remain for user experience)
-            if (!window.state.user.tgUserId) {
-                // If the user's ID is missing, we still allow them to proceed since the worker doesn't strictly need it, 
-                // but we warn them about the profile experience.
-                console.warn("Telegram User ID is missing, but proceeding with setup as per request.");
-            }
-
-			toggleLoading(btn, true, 'در حال ساخت پلتفرم...');
-
-			const payload = {
-				storeHandle: storeHandleInput.value.trim().toLowerCase(),
-				adminChatId: document.getElementById('admin-chat-id').value.trim(),
-				userBotToken: document.getElementById('user-bot-token').value.trim(),
-				adminBotToken: document.getElementById('admin-bot-token').value.trim(),
-				miniAppUrl: `https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html?storeHandle=${storeHandleInput.value.trim().toLowerCase()}`
-			};
-
-
-			let isSuccess = false;
-			try{
-				const res = await fetch(`${MANAGEMENT_WORKER_URL}/setup`,{
-					method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
-				});
-				const data = await res.json();
-				
-				if(!res.ok) throw new Error(data.error || 'خطا در برقراری ارتباط با سرور');
-
-				finishSetup(data.data); // Calls finishSetup which saves to local state and then shows success
-				isSuccess = true;
-
-			}catch(err){
-				// خطاهای فچ و ورکر را نمایش می‌دهد
-				Swal.fire({icon:'error', title:'عملیات ناموفق', text: err.message || err.toString()});
-			}finally{
-				// مطمئن می‌شود که دکمه از حالت loading خارج شود
-				if(!isSuccess) { 
-					toggleLoading(btn,false,'ساخت پلتفرم جدید');
-				}
-			}
-		});
-
-		function toggleLoading(button, isLoading, text){
-			if(isLoading){
-				button.disabled=true;
-				button.innerHTML = `<svg class='animate-spin' style='width:18px;height:18px' viewBox='0 0 24 24'><circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4' fill='none'></circle><path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'></path></svg> ${text}`;
-			} else {
-				button.disabled=false;
-				button.innerHTML = `<i class='fas fa-rocket'></i> ${text}`;
-			}
-		}
-
-        // Initialize App View
-        // تغییر در اینجا: اجرای renderApp با تاخیر برای اطمینان از لود شدن SDK تلگرام
-        window.addEventListener('load', () => {
-            setTimeout(renderApp, 50); // 50ms delay to allow SDK initialization
-        });
-
-	</script>
-    <!-- END CORE JAVASCRIPT LOGIC -->
+        // Expose functions globally for use in HTML/scripts
+        window.setupDataListeners = setupDataListeners;
+    </script>
+    <!-- END FIREBASE MODULES -->
 
 	<style>
 		:root{
@@ -583,7 +356,7 @@
 
 		/* small responsive tweaks */
 		@media (max-width:920px){
-			.container{grid-template-columns:1fr;}
+			/* Removed .form-grid-container responsive settings */
 			.brand-card{order:2}
 			.form-card{order:1}
             .stage-container {
@@ -645,31 +418,6 @@
         .nav-item i {
             font-size: 1.2rem;
             margin-bottom: 2px;
-        }
-        
-        /* SweetAlert custom styling for dark mode */
-		.swal2-popup {
-			font-family: 'Vazirmatn', sans-serif !important;
-			background: #f7fafc !important; /* light background for reading */
-			color: var(--text-on-light) !important;
-		}
-		.swal2-title, .swal2-html-container {
-			color: var(--text-on-light) !important;
-		}
-		.swal2-confirm{
-			background:linear-gradient(90deg,var(--accent2),var(--accent1)) !important;
-			box-shadow: 0 4px 10px rgba(0,114,255,0.25) !important;
-			color: #fff !important;
-		}
-		.swal2-input, .swal2-textarea{
-			border: 1px solid #CBD5E0 !important;
-			color: var(--text-on-light) !important;
-			background: #EDF2F7 !important;
-		}
-        .swal2-html-container input[type="text"] {
-            border: 1px solid #CBD5E0 !important;
-            background: #EDF2F7 !important;
-            color: var(--text-on-light) !important;
         }
 	</style>
 </head>
@@ -774,12 +522,7 @@
                         </div>
 
                         <div style="display:flex; gap:0.8rem; align-items:center">
-                            <!--
-                                دکمه اکنون همیشه فعال است و متن نهایی را در HTML دارد
-                            -->
-                            <button id="create-platform-btn" class="btn-cta flex-1" type="submit">
-                                <i class="fas fa-rocket"></i> ساخت پلتفرم جدید
-                            </button>
+                            <button id="create-platform-btn" class="btn-cta flex-1" type="submit" disabled><i class="fas fa-spinner animate-spin"></i> در حال اتصال...</button>
                         </div>
 
                         <div class="hint" style="display:flex; justify-content:space-between;">
@@ -861,37 +604,25 @@
         // Global state object
         window.state = {
             currentView: 'home',
-            user: { username: 'کاربر میهمان', isTelegramAuth: false, tgUserId: null },
+            user: { uid: 'guest', username: 'کاربر مهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null },
             platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null }
         };
 
         const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
+        // NOTE: FIREBASE_DOC_PATH will be dynamically updated after successful auth
+        let FIREBASE_DOC_PATH = null; 
         
-        // --- توابع احراز هویت و فعال سازی ---
+        // --- توابع کمکی ---
         
-        // **تابع enablePlatformCreationButton حذف شد**
-
-        // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
-        function getTelegramUserInfo() {
-            // چک می کند که آیا آبجکت Telegram و داده های کاربر وجود دارند
-            if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-                const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-                return {
-                    username: tgUser.username || tgUser.first_name,
-                    first_name: tgUser.first_name,
-                    isTelegramAuth: true,
-                    tgUserId: tgUser.id.toString()
-                };
+        function enablePlatformCreationButton() {
+            const btn = document.getElementById('create-platform-btn');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
             }
-            return {
-                username: 'کاربر میهمان',
-                isTelegramAuth: false,
-                tgUserId: null
-            };
         }
-        
-        // --- توابع کمکی عمومی ---
 
+		// Utility function to copy text to clipboard
 		function copyToClipboard(elementId) {
 			const copyText = document.getElementById(elementId);
 			if (copyText) {
@@ -966,15 +697,10 @@
         const transitionToSuccess = () => navigateTo('success');
 
 
-        // --- Dynamic Rendering Functions ---
+        // --- Dynamic Rendering Functions (New) ---
 
         function renderApp() {
-            // تنظیم اطلاعات اولیه کاربر
-            const initialTgInfo = getTelegramUserInfo();
-            window.state.user = { ...window.state.user, ...initialTgInfo };
-            
-            // **نیازی به enablePlatformCreationButton نیست. دکمه در HTML فعال است.**
-
+            // Initial render based on user authentication status
             const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
             if (currentStage) {
                 // Ensure only the current view is active on load
@@ -992,7 +718,10 @@
                 adminChatIdInput.value = window.state.user.tgUserId;
             }
             
+            // اگر احراز هویت آماده بود، دکمه را فعال کن -- این بخش حالا در onAuthStateChanged انجام می شود و اینجا حذف می گردد
+            
             // For initial load, we don't need a transition, just ensure correct state
+            // If the user has a platform handle, default to the Dashboard view
             if (window.state.platform.storeHandle && window.state.currentView === 'home') {
                  navigateTo('dashboard');
             } else {
@@ -1003,26 +732,27 @@
         function renderProfile() {
             const profileCard = document.getElementById('profile-card');
             const { user, platform } = window.state;
+            const uid = user.uid || '---';
             
+            // Display Telegram username or first name if available, otherwise fall back
             let displayUsername = user.username;
             if (user.isTelegramAuth) {
-                // نمایش نام کاربری (@username) یا نام کوچک (first_name) اگر @username وجود نداشت
                 displayUsername = user.username ? `@${user.username}` : user.first_name || 'کاربر تلگرام';
+            } else {
+                displayUsername = user.username;
             }
-            
+
             const status = platform.storeHandle ? 'پلتفرم راه‌اندازی شده' : 'نیاز به راه‌اندازی پلتفرم';
             const platformHandleDisplay = platform.storeHandle ? `<span class="ltr font-mono text-lg text-green-400">${platform.storeHandle}</span>` : `<span class="text-red-400">---</span>`;
             
-            const displayUID = user.tgUserId || '---';
-            const displayUIDLabel = user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه کاربری (میهمان)';
-
-            // تعیین حرف اول برای عکس پروفایل
-            const avatarText = (user.first_name || 'U').substring(0,1).toUpperCase();
+            // Determine the UID to display: TG ID if authenticated via TG, otherwise Firebase UID
+            const displayUID = user.tgUserId || uid;
+            const displayUIDLabel = user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه فایربیس (مهمان)';
 
 
             profileCard.innerHTML = `
                 <div class="text-center mb-8">
-                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${avatarText}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
+                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${(user.first_name || 'U').substring(0,1).toUpperCase()}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
                     <h2 class="text-2xl font-extrabold text-white">${displayUsername}</h2>
                     <p class="text-sm text-gray-400">${displayUIDLabel}: ${displayUID}</p>
                 </div>
@@ -1059,7 +789,7 @@
             const handleSpan = document.getElementById('dash-handle');
             const statusDiv = document.getElementById('dashboard-status');
             const { platform } = window.state;
-            
+
             if (platform.storeHandle) {
                  statusDiv.innerHTML = `
                     <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">وضعیت:</span> <span class="text-green-400">✅ فعال</span></div>
@@ -1078,17 +808,35 @@
 
 
 		function finishSetup(result){
-            // Update the local state directly with the successful worker response
-            const dataFromWorker = { 
+            // Ensure Firestore objects are available globally
+            if (!window.db || !window.doc || !window.setDoc || !FIREBASE_DOC_PATH) {
+                console.error("Firebase services or path not ready for saving data.");
+                Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما به دلیل عدم اتصال فایربیس، اطلاعات آن در پروفایل شما ذخیره نشد.'});
+                showSuccess(result); // Show success message without saving
+                return;
+            }
+            
+            // Save platform details to user's private profile document
+            const userDocRef = window.doc(window.db, FIREBASE_DOC_PATH);
+            const dataToSave = { 
                 storeHandle: result.storeHandle,
                 adminBotUsername: result.adminBotUsername,
                 userBotUsername: result.userBotUsername,
+                setupDate: new Date()
             };
             
-            window.state.platform = dataFromWorker; 
-            
-            // Show success message and transition to dashboard (relying only on worker success)
-            showSuccess(result);
+            window.setDoc(userDocRef, { platform: dataToSave }, { merge: true })
+                .then(() => {
+                    console.log("Platform details saved to Firestore profile.");
+                    // Update state to trigger rendering of profile/dashboard
+                    window.state.platform = dataToSave; 
+                    showSuccess(result);
+                })
+                .catch(error => {
+                    console.error("Error saving platform details:", error);
+                    Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اطلاعات آن در پروفایل شما ذخیره نشد. لطفاً با پشتیبانی تماس بگیرید.'});
+                    showSuccess(result); // Show success message anyway
+                });
 		}
 
 
@@ -1136,7 +884,7 @@
 			transitionToSuccess();
 		}
         
-        // --- API & Form Logic ---
+        // --- API & Form Logic (Modified) ---
 
 		document.getElementById('setup-form').addEventListener('submit', async (e)=>{
 			e.preventDefault();
@@ -1149,11 +897,11 @@
 				return;
 			}
             
-            // Check if Telegram user ID is present for security (This check can remain for user experience)
-            if (!window.state.user.tgUserId) {
-                // If the user's ID is missing, we still allow them to proceed since the worker doesn't strictly need it, 
-                // but we warn them about the profile experience.
-                console.warn("Telegram User ID is missing, but proceeding with setup as per request.");
+            // Check if authentication flag is set
+            if (!window.isAuthReady || !window.auth.currentUser || window.auth.currentUser.isAnonymous) {
+                // نمایش خطای مجدد
+                Swal.fire({icon:'error', title:'خطا', text:'احراز هویت کامل نشده است. لطفاً Mini App را یک بار ببندید و دوباره باز کنید.'});
+                return;
             }
 
 			toggleLoading(btn, true, 'در حال ساخت پلتفرم...');
@@ -1176,14 +924,12 @@
 				
 				if(!res.ok) throw new Error(data.error || 'خطا در برقراری ارتباط با سرور');
 
-				finishSetup(data.data); // Calls finishSetup which saves to local state and then shows success
+				finishSetup(data.data); // Calls finishSetup which saves to Firestore and then shows success
 				isSuccess = true;
 
 			}catch(err){
-				// خطاهای فچ و ورکر را نمایش می‌دهد
 				Swal.fire({icon:'error', title:'عملیات ناموفق', text: err.message || err.toString()});
 			}finally{
-				// مطمئن می‌شود که دکمه از حالت loading خارج شود
 				if(!isSuccess) { 
 					toggleLoading(btn,false,'ساخت پلتفرم جدید');
 				}
@@ -1201,10 +947,7 @@
 		}
 
         // Initialize App View
-        // تغییر در اینجا: اجرای renderApp با تاخیر برای اطمینان از لود شدن SDK تلگرام
-        window.addEventListener('load', () => {
-            setTimeout(renderApp, 50); // 50ms delay to allow SDK initialization
-        });
+        window.addEventListener('load', renderApp);
 
 	</script>
 </body>
