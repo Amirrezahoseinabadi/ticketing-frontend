@@ -128,6 +128,7 @@
             });
 
             // 2. Try to sync if the user has an existing platform that wasn't found in their profile
+            // این تابع به محض آماده شدن احراز هویت فایربیس، اجرا می‌شود
             if (window.state.user.isTelegramAuth && !window.state.platform.storeHandle) {
                 trySyncExistingPlatform(uid);
             }
@@ -138,10 +139,18 @@
          */
         async function trySyncExistingPlatform(firebaseUid) {
             const { tgUserId } = window.state.user;
+            // اگر شناسه تلگرام در دسترس نبود یا پلتفرم قبلاً پیدا شده بود، برگرد.
             if (!tgUserId || window.state.platform.storeHandle) return; 
 
             // آدرس Worker اصلی که حالا شامل منطق sync است
+            // (باید Worker management-ticketing.js در این آدرس باشد)
             const SYNC_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
+
+            // یک مکانیزم انتظار ساده برای مطمئن شدن از اینکه UID فایربیس ست شده است.
+            if (!firebaseUid || firebaseUid === 'guest') {
+                setTimeout(() => trySyncExistingPlatform(window.state.user.uid), 500);
+                return;
+            }
 
             try {
                 const payload = {
@@ -164,10 +173,10 @@
                     const userDocRef = doc(window.db, window.FIREBASE_DOC_PATH);
                     
                     // Update the user's Firestore profile with the found platform data
+                    // onSnapshot به صورت خودکار UI را پس از این به‌روزرسانی می‌کند.
                     await setDoc(userDocRef, { platform: platformData }, { merge: true });
                     
                     console.log(`Successfully synced existing platform: ${platformData.storeHandle}`);
-                    // onSnapshot automatically updates the state after this setDoc call
                     
                 } else if (res.status !== 404) {
                     console.warn(`Sync failed for tgUserId ${tgUserId}:`, data.error || data.message || 'Worker error');
@@ -651,10 +660,11 @@
         // Global state object
         window.state = {
             currentView: 'home',
-            user: { uid: 'guest', username: 'کاربر مهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null },
+            user: { uid: 'guest', username: 'کاربر میهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null },
             platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null }
         };
 
+        // آدرس Worker اصلی (واسط) که شامل منطق /setup و /sync است
         const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
         // NOTE: FIREBASE_DOC_PATH will be dynamically updated after successful auth
         let FIREBASE_DOC_PATH = null; 
@@ -785,6 +795,7 @@
             // Display Telegram username or first name if available, otherwise fall back
             let displayUsername = user.username;
             if (user.isTelegramAuth) {
+                // Check if username is present, otherwise use first_name
                 displayUsername = user.username ? `@${user.username}` : user.first_name || 'کاربر تلگرام';
             } else {
                 displayUsername = user.username;
@@ -797,10 +808,13 @@
             const displayUID = user.tgUserId || uid;
             const displayUIDLabel = user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه فایربیس (مهمان)';
 
+            // ایجاد حروف اول برای آواتار
+            const avatarText = (user.username || user.first_name || 'U').substring(0,1).toUpperCase();
+
 
             profileCard.innerHTML = `
                 <div class="text-center mb-8">
-                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${(user.first_name || 'U').substring(0,1).toUpperCase()}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
+                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${avatarText}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
                     <h2 class="text-2xl font-extrabold text-white">${displayUsername}</h2>
                     <p class="text-sm text-gray-400">${displayUIDLabel}: ${displayUID}</p>
                 </div>
