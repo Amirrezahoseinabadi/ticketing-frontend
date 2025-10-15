@@ -249,16 +249,28 @@
 
 <script>
     // YOUR JAVASCRIPT LOGIC
+    // TODO: This URL should point to your deployed management worker
     const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
     
+    // NOTE: This MUST be the base URL of your Mini App deployment
+    const MINI_APP_BASE_URL = "https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html"; 
+
     document.getElementById('setup-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const createBtn = document.getElementById('create-platform-btn');
+        const storeHandle = document.getElementById('store-handle').value.trim().toLowerCase();
+        
         const formData = {
-            storeHandle: document.getElementById('store-handle').value.trim().toLowerCase(),
+            storeHandle: storeHandle,
             adminChatId: document.getElementById('admin-chat-id').value.trim(),
             userBotToken: document.getElementById('user-bot-token').value.trim(),
             adminBotToken: document.getElementById('admin-bot-token').value.trim(),
+            
+            // 1. Construct the miniAppUrl with the storeHandle for the Worker
+            miniAppUrl: `${MINI_APP_BASE_URL}?storeHandle=${storeHandle}`,
+            
+            // 2. adminPanelUrl is not provided in this form, so we use an empty string as defined in Worker
+            adminPanelUrl: "", 
         };
 
         if (!formData.storeHandle || !formData.adminChatId || !formData.userBotToken || !formData.adminBotToken) {
@@ -274,7 +286,12 @@
                 body: JSON.stringify(formData),
             });
             const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'خطا در برقراری ارتباط با سرور.');
+            
+            // Check for success status code (201)
+            if (!response.ok) {
+                // If response.ok is false, throw the server-side error message
+                throw new Error(result.error || 'خطا در برقراری ارتباط با سرور.');
+            }
 
             showSuccessPopup(result.data);
 
@@ -334,6 +351,3 @@
 
 </body>
 </html>
-
-
-
