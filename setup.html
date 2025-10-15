@@ -29,6 +29,7 @@
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
+            // چک می کند که آیا آبجکت Telegram و داده های کاربر وجود دارند
             if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
                 return {
@@ -294,7 +295,7 @@
         // --- API & Form Logic ---
 
 		document.getElementById('setup-form').addEventListener('submit', async (e)=>{
-			e.preventDefault();
+			e.preventDefault(); // تضمین می کند که ارسال سنتی فرم انجام نشود
 			const btn = document.getElementById('create-platform-btn');
 			const storeHandleInput = document.getElementById('store-handle');
             
@@ -335,8 +336,10 @@
 				isSuccess = true;
 
 			}catch(err){
+				// خطاهای فچ و ورکر را نمایش می‌دهد
 				Swal.fire({icon:'error', title:'عملیات ناموفق', text: err.message || err.toString()});
 			}finally{
+				// مطمئن می‌شود که دکمه از حالت loading خارج شود
 				if(!isSuccess) { 
 					toggleLoading(btn,false,'ساخت پلتفرم جدید');
 				}
@@ -1177,8 +1180,10 @@
 				isSuccess = true;
 
 			}catch(err){
+				// خطاهای فچ و ورکر را نمایش می‌دهد
 				Swal.fire({icon:'error', title:'عملیات ناموفق', text: err.message || err.toString()});
 			}finally{
+				// مطمئن می‌شود که دکمه از حالت loading خارج شود
 				if(!isSuccess) { 
 					toggleLoading(btn,false,'ساخت پلتفرم جدید');
 				}
