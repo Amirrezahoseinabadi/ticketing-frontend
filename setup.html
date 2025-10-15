@@ -148,17 +148,30 @@
 
         /**
          * UPDATED FUNCTION: Searches the worker for a store linked to the admin's Firebase UID.
+         * @param {string} firebaseUid - The authenticated Firebase User ID.
+         * @param {boolean} [force=false] - If true, ignores the current storeHandle status and retries sync.
          */
-        async function trySyncExistingPlatform(firebaseUid) {
+        async function trySyncExistingPlatform(firebaseUid, force = false) {
             const { storeHandle } = window.state.platform;
+            const syncButton = document.getElementById('sync-platform-btn');
             
-            // اگر قبلاً Handle را در پروفایل Firestore داشتیم یا UID فایربیس آماده نبود، کاری نمی‌کنیم
-            if (storeHandle || !firebaseUid) return; 
+            // اگر قبلاً Handle را در پروفایل Firestore داشتیم و force نبود، کاری نمی‌کنیم
+            if (storeHandle && !force) return; 
+            
+            if (!firebaseUid) {
+                if (force) {
+                    Swal.fire({ icon: 'warning', title: 'خطا در احراز هویت', text: 'لطفاً صبر کنید تا احراز هویت فایربیس کامل شود یا Mini App را دوباره باز کنید.' });
+                }
+                return;
+            }
 
             // آدرس Worker اصلی
             const SYNC_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
             // NEW ENDPOINT
             const SYNC_ENDPOINT = `${SYNC_WORKER_URL}/get-store-by-admin-id`; 
+            
+            if (syncButton) toggleLoading(syncButton, true, 'در حال همگام‌سازی...');
+
 
             console.log(`Attempting sync using Firebase UID: ${firebaseUid}`);
             
@@ -185,7 +198,9 @@
                     // این متغیرها باید چک شوند چون ممکن است auth و db هنوز لود نشده باشند
                     if (!window.db || !window.doc || !window.FIREBASE_DOC_PATH) {
                         console.warn("Sync successful but Firebase modules not fully ready yet. Data will be saved by onSnapshot.");
-                        // در این حالت onSnapshot مسئول دریافت داده خواهد بود
+                        if (force) {
+                             Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'فروشگاه شما پیدا شد. لطفاً چند لحظه صبر کنید تا در پروفایل ثبت شود.' });
+                        }
                         return;
                     }
 
@@ -196,20 +211,36 @@
                     await setDoc(userDocRef, { platform: platformData }, { merge: true });
                     
                     console.log(`Successfully synced existing platform: ${platformData.storeHandle}`);
+                    if (force) {
+                         Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'اطلاعات فروشگاه با موفقیت در پروفایل شما ثبت شد.' });
+                    }
                     
                 } else if (res.status === 404) {
                     console.log(`No existing platform found for UID ${firebaseUid}.`);
+                    if (force) {
+                        Swal.fire({ icon: 'info', title: 'فروشگاهی یافت نشد', text: 'فروشگاهی با این حساب کاربری در سیستم ما ثبت نشده است.' });
+                    }
                 } else {
                     console.warn(`Sync failed for UID ${firebaseUid}:`, data.error || data.message || 'Worker error');
+                    if (force) {
+                        Swal.fire({ icon: 'error', title: 'خطا در همگام‌سازی', text: data.error || data.message || 'خطای ناشناخته در Worker' });
+                    }
                 }
 
             } catch(error) {
                 console.error("Error during platform sync attempt:", error);
+                if (force) {
+                    Swal.fire({ icon: 'error', title: 'خطای شبکه', text: 'خطا در برقراری ارتباط با سرور همگام‌سازی.' });
+                }
+            } finally {
+                if (syncButton) toggleLoading(syncButton, false, 'همگام‌سازی اطلاعات (Refresh)');
             }
         }
 
         // Expose functions globally for use in HTML/scripts
         window.setupDataListeners = setupDataListeners;
+        // Expose manual sync function
+        window.manualSync = () => trySyncExistingPlatform(window.state.user.uid, true);
     </script>
     <!-- END FIREBASE MODULES -->
 
@@ -652,7 +683,13 @@
                         <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">وضعیت:</span> <span class="text-green-400">✅ فعال</span></div>
                         <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">شناسه پلتفرم:</span> <span id="dash-handle" class="ltr text-blue-400 font-mono">---</span></div>
                     </div>
-                    <button class="btn-cta text-sm mt-6 w-full" onclick="alert('TODO: Implement Admin Panel link/logic')">
+                    
+                    <!-- NEW: Add Sync/Refresh Button -->
+                    <button id="sync-platform-btn" class="btn-cta text-sm w-full mt-6" onclick="window.manualSync()">
+                        <i class="fas fa-sync-alt"></i> همگام‌سازی اطلاعات (Refresh)
+                    </button>
+                    
+                    <button class="btn-cta text-sm w-full mt-3" onclick="alert('TODO: Implement Admin Panel link/logic')">
                         <i class="fas fa-cog"></i> ورود به پنل مدیریت
                     </button>
                 </section>
@@ -873,6 +910,12 @@
             const handleSpan = document.getElementById('dash-handle');
             const statusDiv = document.getElementById('dashboard-status');
             const { platform } = window.state;
+            // Get the sync button if it exists (for manual loading state reset)
+            const syncButton = document.getElementById('sync-platform-btn');
+            if (syncButton) {
+                // Ensure the sync button is restored to its non-loading state on re-render
+                toggleLoading(syncButton, false, 'همگام‌سازی اطلاعات (Refresh)');
+            }
 
             if (platform.storeHandle) {
                  statusDiv.innerHTML = `
