@@ -1,353 +1,377 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تیکت تل | پلتفرم خود را بسازید</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>تیکت تل — راه‌اندازی پلتفرم</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+	<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
-        body {
-            font-family: 'Vazirmatn', sans-serif;
-            background: #F1F3F4; /* Telegram's light theme background */
-            color: #212121; /* Telegram's primary text color */
-            overflow-y: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 1rem;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
+	<style>
+		:root{
+			--bg-dark: #0f1724; /* deep navy */
+			--card: rgba(255,255,255,0.03);
+			--glass: rgba(255,255,255,0.06);
+			--accent1: #00C6FF;
+			--accent2: #0072FF;
+			--muted: #9AA4B2;
+			--text-light: #E6EEF5;
+			--gold: #FFC857;
+			--text-on-light: #1A202C; /* Dark text for popups */
+		}
+
+		html,body{height:100%;}
+		body{
+			font-family: 'Vazirmatn', sans-serif;
+			/* Subtle radial glow in the background */
+			background: radial-gradient(1200px 600px at 10% 20%, rgba(0,114,255,0.07), transparent),
+						radial-gradient(1000px 500px at 90% 80%, rgba(0,198,255,0.03), transparent),
+						var(--bg-dark);
+			color:var(--text-light);
+			-webkit-font-smoothing:antialiased;
+			-moz-osx-font-smoothing:grayscale;
+			padding:2rem;
+			display:flex;
+			align-items:center;
+			justify-content:center;
+		}
+
+		/* container */
+		.container{
+			width:100%;
+			max-width:980px;
+			display:grid;
+			grid-template-columns: 420px 1fr;
+			gap:1.5rem;
+			align-items:stretch;
+			margin:auto;
+		}
+
+		/* left card (visual/brand) */
+		.brand-card{
+			background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+			border-radius:1rem;
+			padding:1.6rem;
+			box-shadow: 0 10px 30px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+			position:relative;
+			overflow:hidden;
+			backdrop-filter: blur(6px) saturate(120%);
+			border: 1px solid rgba(255,255,255,0.04);
+			display:flex;
+			flex-direction:column;
+			gap:1rem;
+		}
+
+		.brand-hero{
+			display:flex;
+			gap:1rem;
+			align-items:center;
+		}
+		.logo-circle{
+			width:72px; height:72px; border-radius:18px;
+			background: linear-gradient(135deg,var(--accent1),var(--accent2));
+			display:flex; align-items:center; justify-content:center;
+			box-shadow: 0 10px 30px rgba(0,114,255,0.18);
+			transform: rotate(-6deg);
+		}
+		.logo-circle svg{width:36px; height:36px; color:white}
+
+		.brand-title{font-weight:800; font-size:1.45rem; letter-spacing:0.2px; color:var(--text-light)}
+		.brand-sub{color:var(--muted); font-weight:500; margin-top:0.1rem}
+
+		.stats{
+			display:flex; gap:0.6rem; margin-top:auto; align-items:center; justify-content:space-between;
+		}
+		.stat-item{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:0.7rem 0.9rem; border-radius:0.8rem; border:1px solid rgba(255,255,255,0.02)}
+		.stat-item .num{font-weight:700; font-size:1.1rem}
+		.stat-item .lbl{font-size:0.8rem; color:var(--muted)}
+
+		/* right card (form) */
+		.form-card{
+			background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+			border-radius:1rem;
+			padding:1.6rem;
+			box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+			border:1px solid rgba(255,255,255,0.04);
+			backdrop-filter: blur(6px);
+		}
+
+		.headline{display:flex; align-items:center; gap:0.8rem}
+		.headline h1{font-size:1.45rem; font-weight:800; color:var(--text-light)}
+		.headline p{color:var(--muted); margin:0}
+
+		.glass-input{
+			background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+			border:1px solid rgba(255,255,255,0.05);
+			padding:0.75rem 1rem; border-radius:0.7rem; font-weight:600; color:var(--text-light);
+			box-shadow: 0 6px 16px rgba(2,6,23,0.5);
+			transition: all 0.18s ease;
+		}
+
+		.form-label{font-weight:700; color:var(--muted); font-size:0.85rem}
+		.hint{font-size:0.83rem; color:var(--muted)}
+
+		.btn-cta{
+			display:inline-flex; align-items:center; gap:0.6rem; justify-content:center;
+			padding:0.85rem 1.1rem; border-radius:0.75rem; font-weight:800; cursor:pointer;
+			background:linear-gradient(90deg,var(--accent2),var(--accent1)); color:#fff; border:none;
+			box-shadow: 0 12px 30px rgba(0,114,255,0.25);
+			transition: transform .18s ease, box-shadow .18s ease;
+		}
+		.btn-cta:hover{transform:translateY(-4px); box-shadow: 0 18px 45px rgba(0,114,255,0.30)}
+		.btn-cta:disabled{
+			opacity: 0.6;
+			pointer-events: none;
+			transform: translateY(0);
+			box-shadow: none;
+			background: linear-gradient(90deg, var(--muted), #64748b);
+		}
+
+		.muted-row{display:flex; gap:0.6rem; align-items:center; color:var(--muted); font-size:0.9rem}
+
+		/* tiny badges */
+		.badge{padding:0.3rem 0.55rem; border-radius:999px; font-size:0.78rem; background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03)}
+
+		/* helper for LTR inputs */
+		.ltr{direction:ltr; text-align:left}
+
+		/* small responsive tweaks */
+		@media (max-width:920px){
+			.container{grid-template-columns:1fr;}
+			.brand-card{order:2}
+			.form-card{order:1}
+		}
+
+		/* subtle entrance animation */
+		.animate-fade-up{opacity:0; transform: translateY(12px); animation:fadeUp .6s ease forwards}
+		.animate-fade-up.delay-1{animation-delay:0.08s}
+		.animate-fade-up.delay-2{animation-delay:0.16s}
+		.animate-fade-up.delay-3{animation-delay:0.24s}
+		@keyframes fadeUp{to{opacity:1; transform:none}}
+
+		/* input focus visual */
+		input:focus, textarea:focus{outline:none; box-shadow:0 6px 20px rgba(0,114,255,0.12); border-color:var(--accent2)}
+
+		/* footer */
+		.small-foot{font-size:0.82rem; color:var(--muted)}
+
+		/* SweetAlert custom styling for dark mode */
+		.swal2-popup {
+			font-family: 'Vazirmatn', sans-serif !important;
+			background: #f7fafc !important; /* light background for reading */
+			color: var(--text-on-light) !important;
+		}
+		.swal2-title, .swal2-html-container {
+			color: var(--text-on-light) !important;
+		}
+		.swal2-confirm{
+			background:linear-gradient(90deg,var(--accent2),var(--accent1)) !important;
+			box-shadow: 0 4px 10px rgba(0,114,255,0.25) !important;
+			color: #fff !important;
+		}
+		.swal2-input, .swal2-textarea{
+			border: 1px solid #CBD5E0 !important;
+			color: var(--text-on-light) !important;
+			background: #EDF2F7 !important;
+		}
+        .swal2-html-container input[type="text"] {
+            border: 1px solid #CBD5E0 !important;
+            background: #EDF2F7 !important;
+            color: var(--text-on-light) !important;
         }
 
-        .main-card {
-            background: #FFFFFF; /* White card like Telegram sections */
-            border-radius: 1.25rem; /* Softer corners */
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); /* Softer shadow */
-            animation: fadeInScale 0.7s ease-out forwards;
-            padding: 2rem 1.5rem;
-            max-width: 600px;
-            width: 100%;
-        }
-        
-        @keyframes fadeInScale {
-            from { opacity: 0; transform: translateY(20px) scale(0.98); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-
-        .header-icon {
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            width: 64px;
-            height: 64px;
-            background: #0088CC; /* Telegram Blue */
-            border-radius: 50%;
-            margin-bottom: 1rem;
-            box-shadow: 0 4px 10px rgba(0, 136, 204, 0.4);
-        }
-        .header-icon svg {
-            width: 36px; /* Adjusted icon size */
-            height: 36px;
-            color: white;
-        }
-
-        .main-title {
-            font-size: 2rem; /* Adjusted for better balance */
-            font-weight: 800;
-            color: #000000;
-            line-height: 1.3;
-        }
-
-        .subtitle {
-            font-size: 1rem;
-            color: #8A8A8E; /* Telegram's secondary text color */
-            font-weight: 400;
-            margin-top: 0.5rem;
-        }
-        
-        .intro-text-wrapper {
-            padding: 1rem 0;
-            margin: 1.5rem 0;
-            border-top: 1px solid #E0E0E0;
-            border-bottom: 1px solid #E0E0E0;
-        }
-        .intro-text-wrapper p {
-            font-size: 1rem;
-            line-height: 1.8;
-            color: #374151;
-            font-weight: 400; /* Softer font weight */
-        }
-        .intro-text-wrapper strong {
-            color: #0088CC; /* Telegram Blue for emphasis */
-            font-weight: 600;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: #6D6D72;
-        }
-
-        .form-input-wrapper { position: relative; }
-
-        .form-input-icon {
-            position: absolute;
-            top: 50%;
-            right: 1rem;
-            transform: translateY(-50%);
-            color: #C7C7CD;
-            font-size: 1rem;
-            pointer-events: none;
-            transition: color 0.3s ease;
-        }
-
-        .form-input {
-            background-color: #F8F8F8; /* Light gray input bg */
-            border: 1px solid #E0E0E0;
-            color: #000000;
-            transition: all 0.3s ease;
-            padding: 0.8rem 1rem;
-            padding-right: 3rem;
-            border-radius: 0.65rem; /* Softer corners for inputs */
-            font-size: 1rem;
-            font-weight: 500;
-        }
-        .form-input::placeholder {
-            color: #B0B0B0;
-        }
-
-        .form-input-ltr {
-            text-align: left;
-            direction: ltr;
-            padding-left: 1rem;
-            padding-right: 3rem;
-        }
-
-        .form-input:focus {
-            background-color: #FFFFFF;
-            border-color: #0088CC;
-            box-shadow: 0 0 0 3px rgba(0, 136, 204, 0.2);
-        }
-        .form-input:focus + .form-input-icon { color: #0088CC; }
-
-        .form-hint {
-            font-size: 0.8rem;
-            color: #8A8A8E;
-            margin-top: 0.5rem;
-            line-height: 1.5;
-        }
-        .form-hint a {
-            color: #0088CC;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s ease;
-        }
-        .form-hint a:hover {
-            text-decoration: underline;
-        }
-        
-        .btn-primary {
-            background-color: #0088CC;
-            border: none;
-            color: #FFFFFF;
-            font-weight: 600;
-            padding: 0.9rem 1.5rem;
-            border-radius: 0.65rem; /* Matching softer corners */
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3);
-        }
-
-        .btn-primary:hover {
-            background-color: #007AB8;
-            box-shadow: 0 6px 20px rgba(0, 136, 204, 0.4);
-            transform: translateY(-2px);
-        }
-        .btn-primary:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 10px rgba(0, 136, 204, 0.3);
-        }
-        
-        .swal2-popup {
-            font-family: 'Vazirmatn', sans-serif !important;
-        }
-    </style>
+	</style>
 </head>
 <body>
+	<main class="container">
+		<!-- Left / Brand card -->
+		<section class="brand-card animate-fade-up delay-1">
+			<div class="brand-hero">
+				<div class="logo-circle" aria-hidden>
+					<!-- stylized ticket/chat glyph -->
+					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12a2 2 0 0 1-2 2h-5l-4 4v-4H6a2 2 0 0 1-2-2V4z"/></svg>
+				</div>
+				<div>
+					<div class="brand-title">تیکت تل</div>
+					<div class="brand-sub">پلتفرم پشتیبانی هوشمند — سریع، امن و قابل توسعه</div>
+				</div>
+			</div>
 
-    <div class="main-card">
-        <div class="text-center">
-            <div class="flex items-center justify-center gap-3 mb-4">
-                <div class="header-icon">
-                    <!-- New icon inspired by user's images -->
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20 2H4C2.9 2 2 2.9 2 4v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM9 11H7V9h2v2zm4 0h-2V9h2v2zm4 0h-2V9h2v2z"/>
-                    </svg>
-                </div>
-                <h1 class="main-title">تیکت تل</h1>
-            </div>
-            <p class="subtitle">پلتفرم پشتیبانی خود را هوشمندانه بسازید.</p>
-        </div>
-        
-        <div class="intro-text-wrapper">
-            <p class="text-center">
-                ارتباط با مشتریان خود را متحول کنید. با یک سیستم پشتیبانی هوشمند و یکپارچه، <strong>رضایت آن‌ها را به اوج برسانید</strong> و شاهد <strong>رشد کسب‌ و کار</strong> خود باشید. این پلتفرم، پل ارتباطی مدرن و قدرتمند شما با کاربران است.
-            </p>
-        </div>
-        
-        <form id="setup-form" class="space-y-6">
-            <div>
-                <label for="store-handle" class="form-label">شناسه پلتفرم (به انگلیسی)</label>
-                <div class="form-input-wrapper">
-                    <i class="fas fa-globe form-input-icon"></i>
-                    <input type="text" id="store-handle" class="form-input form-input-ltr w-full" placeholder="مثال: kafsh-store, my-mobile" required pattern="[a-zA-Z0-9-]+">
-                </div>
-                <p class="form-hint">این شناسه در آدرس URL پلتفرم شما استفاده شده و غیرقابل تغییر است.</p>
-            </div>
-            <!-- Other form fields remain the same -->
-            <div>
-                <label for="admin-chat-id" class="form-label">شناسه عددی تلگرام مدیر</label>
-                <div class="form-input-wrapper">
-                    <i class="fas fa-user-secret form-input-icon"></i>
-                    <input type="text" id="admin-chat-id" class="form-input form-input-ltr w-full" placeholder="شناسه عددی اکانت تلگرام شما" required pattern="[0-9]+">
-                </div>
-                 <p class="form-hint">برای دریافت این شناسه، به ربات <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a> پیام دهید.</p>
-            </div>
+			<p class="hint mt-4">با طراحی واکنش‌گرا و امکانات API-first، تیکت‌تل آماده اتصال به هر سرویس و ابزار مورد نیاز شماست. راه‌اندازی تنها با چند کلیک.</p>
 
-            <div>
-                <label for="user-bot-token" class="form-label">توکن ربات اصلی (برای کاربران)</label>
-                <div class="form-input-wrapper">
-                     <i class="fab fa-telegram-plane form-input-icon"></i>
-                     <input type="text" id="user-bot-token" class="form-input form-input-ltr w-full" placeholder="توکن رباتی که کاربران با آن در ارتباطند" required>
-                </div>
-                <p class="form-hint">این توکن مربوط به رباتی است که به عنوان Mini App شما عمل خواهد کرد.</p>
-            </div>
+			<div style="margin-top:1rem;">
+				<div class="muted-row" style="justify-content:space-between">
+					<div class="badge">Enterprise Ready</div>
+					<div class="badge">GDPR-friendly</div>
+					<div class="badge">Webhooks & API</div>
+				</div>
+			</div>
 
-            <div>
-                <label for="admin-bot-token" class="form-label">توکن ربات ادمین (برای اعلان‌ها)</label>
-                <div class="form-input-wrapper">
-                    <i class="fas fa-bell form-input-icon"></i>
-                    <input type="text" id="admin-bot-token" class="form-input form-input-ltr w-full" placeholder="توکن رباتی که اعلان‌ها را دریافت می‌کند" required>
-                </div>
-                <p class="form-hint">وب‌هوک این ربات به صورت خودکار تنظیم می‌شود.</p>
-            </div>
+			<div class="stats mt-4">
+				<div class="stat-item">
+					<div class="num">120+</div>
+					<div class="lbl">شرکت‌های متصل</div>
+				</div>
+				<div class="stat-item">
+					<div class="num">1M+</div>
+					<div class="lbl">تیکت‌های پردازش‌شده</div>
+				</div>
+				<div class="stat-item">
+					<div class="num">99.9%</div>
+					<div class="lbl">آپتایم</div>
+				</div>
+			</div>
 
-            <div>
-                <button type="submit" id="create-platform-btn" class="w-full mt-6 btn-primary focus:outline-none disabled:opacity-50">
-                    ساخت پلتفرم جدید
-                </button>
-            </div>
-        </form>
-    </div>
+			<div style="margin-top:1.2rem; display:flex; gap:0.8rem; align-items:center;">
+				<button class="btn-cta" onclick="document.getElementById('store-handle').focus();">شروع سریع</button>
+				<div class="small-foot">یا به مستندات مراجعه کنید</div>
+			</div>
 
-<script>
-    // YOUR JAVASCRIPT LOGIC
-    // TODO: This URL should point to your deployed management worker
-    const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
-    
-    // NOTE: This MUST be the base URL of your Mini App deployment
-    const MINI_APP_BASE_URL = "https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html"; 
+			<!-- decorative blurred shapes -->
+			<div style="position:absolute; left:-80px; top:-40px; width:220px; height:220px; background:radial-gradient(circle at 30% 30%, rgba(0,198,255,0.07), transparent); filter:blur(42px); pointer-events:none"></div>
+			<div style="position:absolute; right:-60px; bottom:-50px; width:160px; height:160px; background:radial-gradient(circle at 70% 70%, rgba(255,200,87,0.04), transparent); filter:blur(36px); pointer-events:none"></div>
+		</section>
 
-    document.getElementById('setup-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const createBtn = document.getElementById('create-platform-btn');
-        const storeHandle = document.getElementById('store-handle').value.trim().toLowerCase();
-        
-        const formData = {
-            storeHandle: storeHandle,
-            adminChatId: document.getElementById('admin-chat-id').value.trim(),
-            userBotToken: document.getElementById('user-bot-token').value.trim(),
-            adminBotToken: document.getElementById('admin-bot-token').value.trim(),
-            
-            // 1. Construct the miniAppUrl with the storeHandle for the Worker
-            miniAppUrl: `${MINI_APP_BASE_URL}?storeHandle=${storeHandle}`,
-            
-            // 2. adminPanelUrl is not provided in this form, so we use an empty string as defined in Worker
-            adminPanelUrl: "", 
-        };
+		<!-- Right / Form card -->
+		<section class="form-card animate-fade-up delay-2">
+			<div class="headline">
+				<div>
+					<h1>راه‌اندازی پلتفرم شما</h1>
+					<p class="brand-sub">فیلدها را پر کنید تا پلتفرم شما ظرف چند ثانیه ساخته شود.</p>
+				</div>
+				<div style="margin-left:auto; text-align:left">
+					<div class="badge">Secure</div>
+				</div>
+			</div>
 
-        if (!formData.storeHandle || !formData.adminChatId || !formData.userBotToken || !formData.adminBotToken) {
-            return Swal.fire({ icon: 'error', title: 'خطا', text: 'لطفاً تمام فیلدهای الزامی را پر کنید.', confirmButtonText: 'باشه' });
-        }
+			<form id="setup-form" class="mt-4 space-y-4">
+				<div>
+					<label for="store-handle" class="form-label">شناسه پلتفرم (انگلیسی)</label>
+					<div style="display:flex; gap:0.6rem; align-items:center">
+						<input id="store-handle" class="glass-input ltr w-full" placeholder="مثال: kafsh-store یا my-mobile" pattern="[a-zA-Z0-9-]+" required>
+						<div class="badge">url/your-handle</div>
+					</div>
+					<div class="hint">این شناسه در URL پلتفرم استفاده می‌شود و بعد از ساخت، تغییرپذیر نیست.</div>
+				</div>
 
-        toggleLoading(createBtn, true, 'در حال ساخت پلتفرم...');
+				<div>
+					<label for="admin-chat-id" class="form-label">شناسه عددی تلگرام مدیر</label>
+					<input id="admin-chat-id" class="glass-input ltr w-full" placeholder="مثال: 123456789" pattern="[0-9]+" required>
+					<div class="hint">برای دریافت شناسه به ربات <a href="https://t.me/userinfobot" target="_blank" style="color:var(--accent1);">@userinfobot</a> پیام دهید.</div>
+				</div>
 
-        try {
-            const response = await fetch(`${MANAGEMENT_WORKER_URL}/setup`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+				<div>
+					<label for="user-bot-token" class="form-label">توکن ربات کاربران</label>
+					<input id="user-bot-token" class="glass-input ltr w-full" placeholder="توکن رباتی که کاربران با آن در ارتباطند" required>
+					<div class="hint">این ربات به عنوان Mini App عمل می‌کند.</div>
+				</div>
+
+				<div>
+					<label for="admin-bot-token" class="form-label">توکن ربات ادمین (اعلان‌ها)</label>
+					<input id="admin-bot-token" class="glass-input ltr w-full" placeholder="توکن ربات اعلان‌ها" required>
+				</div>
+
+				<div style="display:flex; gap:0.8rem; align-items:center">
+					<button id="create-platform-btn" class="btn-cta flex-1" type="submit"><i class="fas fa-rocket"></i> ساخت پلتفرم جدید</button>
+					
+				</div>
+
+				<div class="hint" style="display:flex; justify-content:space-between;">
+					<span>وب‌هوک ادمین به صورت خودکار تنظیم می‌شود</span>
+					<span class="muted-row">نسخه <strong style="margin-inline:6px; color:var(--gold)">1.0.0</strong></span>
+				</div>
+			</form>
+
+			<div style="margin-top:1rem; display:flex; gap:0.6rem; align-items:center; justify-content:space-between">
+				<div class="small-foot">نیاز به کمک؟ <a href="https://amirrezahoseinabadi.github.io/support" target="_blank" style="color:var(--accent1);">پشتیبانی</a></div>
+				<div class="small-foot">طراحی شده برای کسب‌وکارهای ایرانی</div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+		const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
+
+		document.getElementById('setup-form').addEventListener('submit', async (e)=>{
+			e.preventDefault();
+			const btn = document.getElementById('create-platform-btn');
+			toggleLoading(btn, true, 'در حال ساخت پلتفرم...');
+
+			const payload = {
+				storeHandle: document.getElementById('store-handle').value.trim().toLowerCase(),
+				adminChatId: document.getElementById('admin-chat-id').value.trim(),
+				userBotToken: document.getElementById('user-bot-token').value.trim(),
+				adminBotToken: document.getElementById('admin-bot-token').value.trim(),
+				// Ensure miniAppUrl is calculated and sent to the worker for saving in config
+				miniAppUrl: `https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html?storeHandle=${document.getElementById('store-handle').value.trim().toLowerCase()}`
+			};
+
+			if(!payload.storeHandle || !payload.adminChatId || !payload.userBotToken || !payload.adminBotToken){
+				Swal.fire({icon:'error', title:'خطا', text:'لطفاً همه فیلدهای الزامی را تکمیل کنید.'});
+				toggleLoading(btn,false,'ساخت پلتفرم جدید');
+				return;
+			}
+
+			try{
+				const res = await fetch(`${MANAGEMENT_WORKER_URL}/setup`,{
+					method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+				});
+				const data = await res.json();
+				if(!res.ok) throw new Error(data.error || 'خطا در برقراری ارتباط با سرور');
+
+				showSuccess(data.data);
+			}catch(err){
+				Swal.fire({icon:'error', title:'عملیات ناموفق', text: err.message || err.toString()});
+			}finally{
+				toggleLoading(btn,false,'ساخت پلتفرم جدید');
+			}
+		});
+
+		function toggleLoading(button, isLoading, text){
+			if(isLoading){
+				button.disabled=true;
+				button.innerHTML = `<svg class='animate-spin' style='width:18px;height:18px' viewBox='0 0 24 24'><circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4' fill='none'></circle><path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'></path></svg> ${text}`;
+			} else {
+				button.disabled=false;
+				button.innerHTML = `<i class='fas fa-rocket'></i> ${text}`;
+			}
+		}
+
+		function showSuccess(result){
+			const { adminBotUsername, userBotUsername, storeHandle } = result || {};
+			const MINI_APP_BASE_URL = "https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html";
+			const miniAppUrl = `${MINI_APP_BASE_URL}?storeHandle=${storeHandle}`;
+
+			Swal.fire({
+				icon:'success',
+				title:'🎉 پلتفرم شما آماده است',
+				html: `
+					<div style="text-align:right">
+						<p style="font-weight:700; margin-bottom:12px; color:var(--text-on-light)">گام‌های بعدی</p>
+						<ol style="list-style-type:none; padding:0; margin:0; color:#334155; line-height:1.6">
+							<li style="margin-bottom:15px; font-size:15px;">
+                                <span style="font-weight:700; color:var(--text-on-light)">۱. فعال‌سازی Mini App:</span> آدرس زیر را در BotFather تنظیم کنید:
+                                <input style="width:100%; padding:10px; border-radius:6px; border:1px solid #E2E8F0; margin-top:6px; background:#EDF2F7; color:var(--text-on-light); direction:ltr; text-align:left; font-family:monospace;" readonly value="${miniAppUrl}" onclick="this.select(); document.execCommand('copy'); Swal.fire({toast:true, position:'top-end', icon:'success', title:'آدرس کپی شد', showConfirmButton:false, timer:1100})">
+                            </li>
+							<li style="margin-bottom:15px; font-size:15px;">
+                                <span style="font-weight:700; color:var(--text-on-light)">۲. فعال‌سازی ربات ادمین:</span> ربات <a href="https://t.me/${adminBotUsername}" target="_blank" style="color:var(--accent2); font-weight:700;">@${adminBotUsername}</a> را باز کرده و <code>/start</code> را بزنید تا اعلان‌ها فعال شود.
+                            </li>
+						</ol>
+                        <p style="margin-top:16px; font-size:15px; color:#4A5568">پس از بستن این پنجره، جهت جلوگیری از تکرار ساخت پلتفرم، صفحه به طور خودکار رفرش خواهد شد.</p>
+					</div>
+				`,
+				width: '90%', 
+				maxWidth: '680px',
+				confirmButtonText:'تکمیل شد (صفحه رفرش می‌شود)',
+                allowOutsideClick: false,
+			}).then(()=>{ 
+                // Delay reload for 60 seconds as requested
+                setTimeout(() => { location.reload(); }, 60000); 
             });
-            const result = await response.json();
-            
-            // Check for success status code (201)
-            if (!response.ok) {
-                // If response.ok is false, throw the server-side error message
-                throw new Error(result.error || 'خطا در برقراری ارتباط با سرور.');
-            }
+		}
 
-            showSuccessPopup(result.data);
-
-        } catch (error) {
-            Swal.fire({ icon: 'error', title: 'عملیات ناموفق', text: error.message, confirmButtonText: 'تلاش مجدد' });
-        } finally {
-            toggleLoading(createBtn, false, 'ساخت پلتفرم جدید');
-        }
-    });
-
-    function showSuccessPopup(data) {
-        const { adminBotUsername, userBotUsername, storeHandle } = data;
-        const miniAppUrl = `https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html?storeHandle=${storeHandle}`;
-        
-        Swal.fire({
-            icon: 'success',
-            title: '🎉 پلتفرم شما آماده بهره‌برداری است!',
-            html: `
-                <div class="text-right space-y-4 p-4 rounded-lg">
-                    <p class="text-lg text-gray-800 font-semibold mb-4">لطفاً گام‌های زیر را برای فعال‌سازی کامل پلتفرم دنبال کنید:</p>
-                    
-                    <div>
-                        <p class="font-bold text-base text-gray-700">۱. فعال‌سازی Mini App:</p>
-                        <p class="text-sm mt-1 text-gray-600">به <a href="https://t.me/BotFather" target="_blank">@BotFather</a> بروید، ربات کاربری خود (<a href="https://t.me/${userBotUsername}" target="_blank">@${userBotUsername}</a>) را انتخاب کرده و از بخش <code>Bot Settings > Menu Button</code>، آدرس زیر را برای Mini App خود تنظیم کنید:</p>
-                        <input type="text" readonly value="${miniAppUrl}" class="w-full mt-2 p-3 border-none rounded-md text-left bg-gray-200 text-gray-800 cursor-pointer" onclick="this.select(); document.execCommand('copy'); Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'آدرس کپی شد!', showConfirmButton: false, timer: 1500});">
-                    </div>
-
-                    <div class="mt-6">
-                        <p class="font-bold text-base text-gray-700">۲. فعال‌سازی ربات ادمین:</p>
-                        <p class="text-sm mt-1 text-gray-600">به ربات ادمین خود (<a href="https://t.me/${adminBotUsername}" target="_blank">@${adminBotUsername}</a>) بروید و دستور <code>/start</code> را بزنید تا اعلان‌های سیستمی را دریافت کنید.</p>
-                    </div>
-                </div>
-            `,
-            confirmButtonText: 'تکمیل شد!',
-            width: '90%',
-            maxWidth: '650px',
-        }).then(() => {
-            window.location.reload();
-        });
-    }
-
-    function toggleLoading(button, isLoading, loadingText) {
-        button.disabled = isLoading;
-        if (isLoading) {
-            button.innerHTML = `
-                <svg class="animate-spin h-5 w-5 inline-block mx-2" style="color: white;" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                ${loadingText}
-            `;
-        } else {
-            button.textContent = loadingText;
-        }
-    }
-</script>
-
+	</script>
 </body>
 </html>
