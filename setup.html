@@ -16,11 +16,11 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // Export doc and setDoc to window for use in non-module scripts
+        // NOTE: Firestore imports are kept but mostly unused now, only for auth listeners which are crucial.
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // Expose necessary Firestore functions globally
+        // Expose necessary Firestore functions globally (kept for backward compatibility but unused in finishSetup)
         window.doc = doc;
         window.setDoc = setDoc;
         
@@ -95,7 +95,6 @@
                     
                     // --- تغییر جدید: تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
                     window.isAuthReady = true;
-                    // چون enablePlatformCreationButton در اسکریپت اصلی است و باید حتما فعال شود، آن را صدا می زنیم
                     if (typeof enablePlatformCreationButton === 'function') {
                         enablePlatformCreationButton();
                     }
@@ -117,6 +116,8 @@
             });
         }
         
+        // NOTE: Data listener is kept to update user profile IF it exists, 
+        // but no new data is written to it by the setup form.
         function setupDataListeners(uid) {
             // 1. Listen to the user's private document (for profile data, e.g., display name)
             const userDocRef = doc(window.db, `artifacts/${appId}/users/${uid}/profile/main`);
@@ -742,6 +743,9 @@
                 displayUsername = user.username;
             }
 
+            // NOTE: Since we are no longer relying on Firestore to save the platform details,
+            // the profile view will likely show 'نیاز به راه‌اندازی پلتفرم' 
+            // unless the user data was manually updated outside of this Mini App.
             const status = platform.storeHandle ? 'پلتفرم راه‌اندازی شده' : 'نیاز به راه‌اندازی پلتفرم';
             const platformHandleDisplay = platform.storeHandle ? `<span class="ltr font-mono text-lg text-green-400">${platform.storeHandle}</span>` : `<span class="text-red-400">---</span>`;
             
@@ -789,6 +793,10 @@
             const handleSpan = document.getElementById('dash-handle');
             const statusDiv = document.getElementById('dashboard-status');
             const { platform } = window.state;
+            
+            // NOTE: Dashboard logic remains the same, relying on platform state.
+            // If the platform state isn't updated by Firestore, this relies on 
+            // the current session/worker success response updating the state.
 
             if (platform.storeHandle) {
                  statusDiv.innerHTML = `
@@ -808,35 +816,21 @@
 
 
 		function finishSetup(result){
-            // Ensure Firestore objects are available globally
-            if (!window.db || !window.doc || !window.setDoc || !FIREBASE_DOC_PATH) {
-                console.error("Firebase services or path not ready for saving data.");
-                Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما به دلیل عدم اتصال فایربیس، اطلاعات آن در پروفایل شما ذخیره نشد.'});
-                showSuccess(result); // Show success message without saving
-                return;
-            }
+            // --- تغییر اصلی: حذف اتصال به Firestore ---
             
-            // Save platform details to user's private profile document
-            const userDocRef = window.doc(window.db, FIREBASE_DOC_PATH);
-            const dataToSave = { 
+            // Update the local state directly with the successful worker response
+            const dataFromWorker = { 
                 storeHandle: result.storeHandle,
                 adminBotUsername: result.adminBotUsername,
                 userBotUsername: result.userBotUsername,
-                setupDate: new Date()
             };
             
-            window.setDoc(userDocRef, { platform: dataToSave }, { merge: true })
-                .then(() => {
-                    console.log("Platform details saved to Firestore profile.");
-                    // Update state to trigger rendering of profile/dashboard
-                    window.state.platform = dataToSave; 
-                    showSuccess(result);
-                })
-                .catch(error => {
-                    console.error("Error saving platform details:", error);
-                    Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اطلاعات آن در پروفایل شما ذخیره نشد. لطفاً با پشتیبانی تماس بگیرید.'});
-                    showSuccess(result); // Show success message anyway
-                });
+            window.state.platform = dataFromWorker; 
+            
+            // Show success message and transition to dashboard (relying only on worker success)
+            showSuccess(result);
+            
+            // --- پایان تغییر اصلی ---
 		}
 
 
@@ -924,7 +918,7 @@
 				
 				if(!res.ok) throw new Error(data.error || 'خطا در برقراری ارتباط با سرور');
 
-				finishSetup(data.data); // Calls finishSetup which saves to Firestore and then shows success
+				finishSetup(data.data); // Calls finishSetup which saves to local state and then shows success
 				isSuccess = true;
 
 			}catch(err){
