@@ -876,19 +876,22 @@
             const { user, platform } = window.state;
             const uid = user.uid || '---';
             
-            // Determine display name
+            // 1. Determine display name (Username with @ if available, otherwise first name)
             let displayUsername = user.first_name || 'کاربر';
             if (user.isTelegramAuth && user.username) {
                 displayUsername = `@${user.username}`;
             } else if (user.isAnonymous) {
                  displayUsername = 'کاربر میهمان';
+            } else {
+                // Use first name as fallback for non-anonymous, non-Telegram user
+                 displayUsername = user.first_name;
             }
             
-            // Determine the UID to display
-            const displayUID = user.uid || user.tgUserId || '---';
-            const displayUIDLabel = user.uid && !user.isAnonymous ? 'شناسه فایربیس (مدیر)' : (user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه فایربیس (مهمان)');
+            // 2. Determine the UID to display (Always show TG ID if available, otherwise Firebase UID)
+            const displayUID = user.tgUserId || user.uid || '---';
+            const displayUIDLabel = user.tgUserId ? 'شناسه عددی تلگرام' : 'شناسه فایربیس (UID)';
 
-            // Determine profile picture HTML
+            // 3. Determine profile picture HTML
             let profilePicHtml;
             const fallbackLetter = (user.first_name || 'U').substring(0, 1).toUpperCase();
             
