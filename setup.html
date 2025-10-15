@@ -41,8 +41,9 @@
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
                 return {
                     uid: tgUser.id ? tgUser.id.toString() : null, // ID تلگرام را به عنوان UID اولیه در نظر میگیریم
-                    username: tgUser.username || tgUser.first_name,
-                    first_name: tgUser.first_name,
+                    username: tgUser.username || null, // نام کاربری @
+                    first_name: tgUser.first_name || 'کاربر تلگرام',
+                    last_name: tgUser.last_name || null,
                     isAnonymous: false,
                     isTelegramAuth: true,
                     tgUserId: tgUser.id.toString()
@@ -51,6 +52,8 @@
             return {
                 uid: null, // Initial UID should be null until Firebase is ready
                 username: 'کاربر میهمان',
+                first_name: 'کاربر',
+                last_name: 'میهمان',
                 isAnonymous: true,
                 isTelegramAuth: false,
                 tgUserId: null
@@ -70,18 +73,10 @@
             window.firebaseApp = initializeApp(firebaseConfig);
             window.db = getFirestore(window.firebaseApp);
             window.auth = getAuth(window.firebaseApp);
-            
-            // --- تغییر جدید: فعال‌سازی دکمه پس از مقداردهی اولیه Firebase ---
-            window.enablePlatformCreationButton();
-            // --- پایان تغییر جدید ---
 
             // Auth listener and custom token sign-in
             onAuthStateChanged(window.auth, (user) => {
                 if (user) {
-                    // --- لاگ وضعیت احراز هویت موفق ---
-                    console.log(`[Firebase Auth] Success. UID: ${user.uid}, Anonymous: ${user.isAnonymous}`);
-                    // --- پایان لاگ ---
-
                     // بروزرسانی UID و نام کاربری با داده‌های فایربیس (معمولاً anonymous یا token-based)
                     window.state.user = { 
                         ...window.state.user, 
@@ -103,30 +98,22 @@
                     
                     // --- تنظیم پرچم آماده بودن احراز هویت و فعال کردن دکمه ---
                     window.isAuthReady = true;
-                    // window.enablePlatformCreationButton(); // حذف شد: در خارج از onAuthStateChanged انجام می شود
-                    // --- پایان تغییر ---
+                    if (typeof enablePlatformCreationButton === 'function') {
+                        enablePlatformCreationButton();
+                    }
+                    // --- پایان تغییر جدید ---
                     
                     // Update UI to show authenticated content
                     renderApp(); 
                 } else {
-                    // --- لاگ وضعیت احراز هویت ناموفق و تلاش مجدد ---
-                    console.warn("[Firebase Auth] No user signed in. Attempting sign-in...");
-                    // --- پایان لاگ ---
-                    
                     // تلاش برای ورود با توکن Canvas یا ورود ناشناس
                     if (initialAuthToken) {
                         signInWithCustomToken(window.auth, initialAuthToken).catch(error => {
-                            console.error("[Firebase Auth] Custom token sign-in failed:", error);
-                            // Fallback to anonymous sign-in
-                            signInAnonymously(window.auth).catch(err => {
-                                console.error("[Firebase Auth] Anonymous sign-in failed:", err);
-                            });
+                            console.error("Custom token sign-in failed:", error);
+                            signInAnonymously(window.auth).catch(console.error);
                         });
                     } else {
-                        // Direct anonymous sign-in
-                        signInAnonymously(window.auth).catch(err => {
-                            console.error("[Firebase Auth] Anonymous sign-in failed:", err);
-                        });
+                        signInAnonymously(window.auth).catch(console.error);
                     }
                 }
             });
@@ -145,33 +132,18 @@
                     }
                 }
                 renderProfile(); // Rerender profile on data change
-            }, (error) => {
-                // --- لاگ خطای دسترسی Firestore ---
-                console.error("[Firestore Error] Access denied/Listener failed:", error.code, error.message);
-                // --- پایان لاگ ---
             });
         }
 
         // Expose functions globally for use in HTML/scripts
         window.setupDataListeners = setupDataListeners;
-
-        /**
-         * FIX: این تابع به این بلوک ماژول منتقل شده تا تضمین شود قبل از فراخوانی آن در onAuthStateChanged
-         * تعریف شده و در دسترس است.
-         */
-        window.enablePlatformCreationButton = function() {
-            const btn = document.getElementById('create-platform-btn');
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
-            }
-        }
     </script>
     <!-- END FIREBASE MODULES -->
 
 	<style>
 		:root{
-			--bg-dark: #0f1724; /* deep navy */
+			/* Fallback values */
+			--bg-dark: #0f1724; 
 			--card: rgba(255,255,255,0.03);
 			--glass: rgba(255,255,255,0.06);
 			--accent1: #00C6FF;
@@ -179,9 +151,16 @@
 			--muted: #9AA4B2;
 			--text-light: #E6EEF5;
 			--gold: #FFC857;
-			--text-on-light: #1A202C; /* Dark text for popups */
-            --stage-width: 420px; /* Width of the single-column view */
-            --nav-height: 70px; /* Height of the navigation bar */
+			--text-on-light: #1A202C; 
+            --stage-width: 420px; 
+            --nav-height: 70px; 
+
+            /* Telegram Color Variables Fallback (will be overridden by JS) */
+            --tg-bg: var(--bg-dark);
+            --tg-text: var(--text-light);
+            --tg-hint: var(--muted);
+            --tg-accent: var(--accent1);
+            --tg-button-text-color: #fff;
 		}
 
 		html,body{height:100%;}
@@ -190,8 +169,8 @@
 			/* Subtle radial glow in the background */
 			background: radial-gradient(1200px 600px at 10% 20%, rgba(0,114,255,0.07), transparent),
 						radial-gradient(1000px 500px at 90% 80%, rgba(0,198,255,0.03), transparent),
-						var(--bg-dark);
-			color:var(--text-light);
+						var(--tg-bg); /* استفاده از متغیر تم تلگرام */
+			color:var(--tg-text); /* استفاده از متغیر تم تلگرام */
 			-webkit-font-smoothing:antialiased;
 			-moz-osx-font-smoothing:grayscale;
 			padding-bottom: var(--nav-height); /* Space for the fixed bottom nav */
@@ -233,6 +212,9 @@
 			will-change: opacity, transform;
             /* Ensures scrollable content inside if necessary */
             overflow-y: auto; 
+            /* New: Limit height to account for fixed bottom nav */
+            max-height: calc(100vh - var(--nav-height) - 2rem); 
+            box-sizing: border-box;
 		}
 
 		/* Stage States for Transition */
@@ -268,8 +250,6 @@
             min-height: 500px;
         }
         
-        /* NOTE: .form-grid-container removed as per user request */
-
 		/* left card (visual/brand) */
 		.brand-card{
 			background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
@@ -299,15 +279,15 @@
 		}
 		.logo-circle svg{width:36px; height:36px; color:white}
 
-		.brand-title{font-weight:800; font-size:1.45rem; letter-spacing:0.2px; color:var(--text-light)}
-		.brand-sub{color:var(--muted); font-weight:500; margin-top:0.1rem}
+		.brand-title{font-weight:800; font-size:1.45rem; letter-spacing:0.2px; color:var(--tg-text)}
+		.brand-sub{color:var(--tg-hint); font-weight:500; margin-top:0.1rem}
 
 		.stats{
 			display:flex; gap:0.6rem; margin-top:auto; align-items:center; justify-content:space-between;
 		}
 		.stat-item{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:0.7rem 0.9rem; border-radius:0.8rem; border:1px solid rgba(255,255,255,0.02)}
 		.stat-item .num{font-weight:700; font-size:1.1rem}
-		.stat-item .lbl{font-size:0.8rem; color:var(--muted)}
+		.stat-item .lbl{font-size:0.8rem; color:var(--tg-hint)}
 
 		/* right card (form) */
 		.form-card{
@@ -330,27 +310,37 @@
             border:1px solid rgba(255,255,255,0.06);
             backdrop-filter: blur(8px);
             text-align: right;
+		}
+		
+		/* New: Style for inner scrollable content in stage containers */
+        .stage-container > section {
+             overflow-y: auto; /* Allow card content to scroll if stage height is constrained */
         }
 
+
 		.headline{display:flex; align-items:center; gap:0.8rem}
-		.headline h1{font-size:1.45rem; font-weight:800; color:var(--text-light)}
-		.headline p{color:var(--muted); margin:0}
+		.headline h1{font-size:1.45rem; font-weight:800; color:var(--tg-text)}
+		.headline p{color:var(--tg-hint); margin:0}
 
 		.glass-input{
 			background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
 			border:1px solid rgba(255,255,255,0.05);
-			padding:0.75rem 1rem; border-radius:0.7rem; font-weight:600; color:var(--text-light);
+			padding:0.75rem 1rem; border-radius:0.7rem; font-weight:600; color:var(--tg-text);
 			box-shadow: 0 6px 16px rgba(2,6,23,0.5);
 			transition: all 0.18s ease;
 		}
 
-		.form-label{font-weight:700; color:var(--muted); font-size:0.85rem}
-		.hint{font-size:0.83rem; color:var(--muted)}
+		.form-label{font-weight:700; color:var(--tg-hint); font-size:0.85rem}
+		.hint{font-size:0.83rem; color:var(--tg-hint)}
 
 		.btn-cta{
 			display:inline-flex; align-items:center; gap:0.6rem; justify-content:center;
 			padding:0.85rem 1.1rem; border-radius:0.75rem; font-weight:800; cursor:pointer;
+			/* استفاده از متغیرهای آکسنت خودمان یا تم تلگرام */
 			background:linear-gradient(90deg,var(--accent2),var(--accent1)); color:#fff; border:none;
+			/* اگر بخواهید از تم تلگرام استفاده کنید: */
+			/* background:var(--tg-accent); color:var(--tg-button-text-color); border:none; */
+			
 			box-shadow: 0 12px 30px rgba(0,114,255,0.25);
 			transition: transform .18s ease, box-shadow .18s ease;
 		}
@@ -367,17 +357,17 @@
         .btn-copy {
             background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
             border: 1px solid rgba(255,255,255,0.1);
-            color: var(--accent1);
+            color: var(--tg-accent); /* استفاده از متغیر تم تلگرام */
             padding: 0.5rem 0.8rem;
             border-radius: 0.5rem;
             transition: all 0.2s;
         }
         .btn-copy:hover {
             background: rgba(255,255,255,0.1);
-            color: var(--text-light);
+            color: var(--tg-text);
         }
 
-		.muted-row{display:flex; gap:0.6rem; align-items:center; color:var(--muted); font-size:0.9rem}
+		.muted-row{display:flex; gap:0.6rem; align-items:center; color:var(--tg-hint); font-size:0.9rem}
 
 		/* tiny badges */
 		.badge{padding:0.3rem 0.55rem; border-radius:999px; font-size:0.78rem; background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03)}
@@ -387,7 +377,6 @@
 
 		/* small responsive tweaks */
 		@media (max-width:920px){
-			/* Removed .form-grid-container responsive settings */
 			.brand-card{order:2}
 			.form-card{order:1}
             .stage-container {
@@ -409,16 +398,16 @@
 		input:focus, textarea:focus{outline:none; box-shadow:0 6px 20px rgba(0,114,255,0.12); border-color:var(--accent2)}
 
 		/* footer */
-		.small-foot{font-size:0.82rem; color:var(--muted)}
+		.small-foot{font-size:0.82rem; color:var(--tg-hint)}
 
-        /* --- Navigation Bar Styling (New) --- */
+        /* --- Navigation Bar Styling --- */
         #nav-bar {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
             height: var(--nav-height);
-            background: rgba(15, 23, 36, 0.9); /* Dark semi-transparent */
+            background: var(--card); /* استفاده از متغیر card */
             backdrop-filter: blur(12px);
             border-top: 1px solid rgba(255, 255, 255, 0.08);
             display: flex;
@@ -435,7 +424,7 @@
             justify-content: center;
             width: 25%;
             height: 100%;
-            color: var(--muted);
+            color: var(--tg-hint); /* استفاده از متغیر تم تلگرام */
             font-size: 0.7rem;
             font-weight: 700;
             cursor: pointer;
@@ -443,7 +432,7 @@
         }
 
         .nav-item.active {
-            color: var(--accent1);
+            color: var(--tg-accent); /* استفاده از متغیر تم تلگرام */
         }
 
         .nav-item i {
@@ -528,10 +517,11 @@
                         <div>
                             <label for="store-handle" class="form-label">شناسه پلتفرم (انگلیسی)</label>
                             <div style="display:flex; gap:0.6rem; align-items:center">
-                                <input id="store-handle" class="glass-input ltr w-full" placeholder="مثال: kafsh-store یا my-mobile" pattern="[a-zA-Z0-9-]+" required>
+                                <!-- pattern حذف شد تا اعتبارسنجی دقیق‌تر در JS انجام شود -->
+                                <input id="store-handle" class="glass-input ltr w-full" placeholder="مثال: kafsh-store یا my-mobile" required>
                                 <div class="badge">url/your-handle</div>
                             </div>
-                            <div class="hint">این شناسه در URL پلتفرم استفاده می‌شود و بعد از ساخت، تغییرپذیر نیست.</div>
+                            <div class="hint">این شناسه در URL پلتفرم استفاده می‌شود و بعد از ساخت، تغییرپذیر نیست. (فقط حروف کوچک انگلیسی، اعداد و خط فاصله)</div>
                         </div>
 
                         <div>
@@ -645,6 +635,14 @@
         
         // --- توابع کمکی ---
         
+        function enablePlatformCreationButton() {
+            const btn = document.getElementById('create-platform-btn');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
+            }
+        }
+
 		// Utility function to copy text to clipboard
 		function copyToClipboard(elementId) {
 			const copyText = document.getElementById(elementId);
@@ -737,7 +735,7 @@
             
             // Prefill admin-chat-id if we have the Telegram ID
             const adminChatIdInput = document.getElementById('admin-chat-id');
-            if (adminChatIdInput && window.state.user.tgUserId) {
+            if (adminChatIdInput && window.state.user.tgUserId && !adminChatIdInput.value) {
                 adminChatIdInput.value = window.state.user.tgUserId;
             }
             
@@ -755,10 +753,16 @@
             const { user, platform } = window.state;
             const uid = user.uid || '---';
             
-            // Display Telegram username or first name if available, otherwise fall back
+            // Display Telegram username or full name if available, otherwise fall back
             let displayUsername = user.username;
             if (user.isTelegramAuth) {
-                displayUsername = user.username ? `@${user.username}` : user.first_name || 'کاربر تلگرام';
+                if (user.username) {
+                    displayUsername = `@${user.username}`;
+                } else if (user.first_name || user.last_name) {
+                    displayUsername = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+                } else {
+                    displayUsername = 'کاربر تلگرام';
+                }
             } else {
                 displayUsername = user.username;
             }
@@ -769,11 +773,14 @@
             // Determine the UID to display: TG ID if authenticated via TG, otherwise Firebase UID
             const displayUID = user.tgUserId || uid;
             const displayUIDLabel = user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه فایربیس (مهمان)';
+            
+            // Get initial letter for placeholder image
+            const initialLetter = (user.first_name || user.username || 'U').substring(0,1).toUpperCase();
 
 
             profileCard.innerHTML = `
                 <div class="text-center mb-8">
-                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${(user.first_name || 'U').substring(0,1).toUpperCase()}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
+                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${initialLetter}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
                     <h2 class="text-2xl font-extrabold text-white">${displayUsername}</h2>
                     <p class="text-sm text-gray-400">${displayUIDLabel}: ${displayUID}</p>
                 </div>
@@ -807,7 +814,6 @@
 
         function renderDashboard() {
             const dashboardCard = document.getElementById('dashboard-card');
-            const handleSpan = document.getElementById('dash-handle');
             const statusDiv = document.getElementById('dashboard-status');
             const { platform } = window.state;
 
@@ -830,27 +836,15 @@
 
 		function finishSetup(result){
             // Ensure Firestore objects are available globally
-            if (!window.db || !window.doc || !window.setDoc || !FIREBASE_DOC_PATH) {
-                
-                // --- تغییرات اصلی برای نمایش خطای دقیق‌تر ---
-                const detailedError = `اطلاعات پلتفرم ذخیره نشد. دلیل احتمالی: 
-                1. احراز هویت Firebase ناموفق است. 
-                2. قوانین امنیتی Firestore دسترسی به مسیر مالکیت را مسدود کرده است.
-                3. لطفاً در کنسول مرورگر به دنبال پیام‌های [Firestore Error] بگردید.
-                `;
-                console.error("Firebase services or path not ready for saving data.", detailedError);
-                Swal.fire({
-                    icon:'warning', 
-                    title:'پلتفرم ساخته شد (Worker)', 
-                    text:'اما به دلیل عدم دسترسی به دیتابیس یا خطای احراز هویت، اطلاعات پلتفرم در پروفایل شما ثبت نشد. برای رفع مشکل با پشتیبانی تماس بگیرید.', 
-                    footer: '<a href="#" onclick="console.log(\'Current UID:\', window.auth.currentUser?.uid, \'Auth Ready:\', window.isAuthReady); Swal.close(); return false;">مشاهده جزئیات عیب‌یابی در کنسول</a>'
-                });
+            if (!window.db || !window.doc || !window.setDoc || !window.FIREBASE_DOC_PATH) {
+                console.error("Firebase services or path not ready for saving data. Path:", window.FIREBASE_DOC_PATH);
+                Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما به دلیل عدم اتصال فایربیس، اطلاعات آن در پروفایل شما ذخیره نشد.'});
                 showSuccess(result); // Show success message without saving
                 return;
             }
             
             // Save platform details to user's private profile document
-            const userDocRef = window.doc(window.db, FIREBASE_DOC_PATH);
+            const userDocRef = window.doc(window.db, window.FIREBASE_DOC_PATH);
             const dataToSave = { 
                 storeHandle: result.storeHandle,
                 adminBotUsername: result.adminBotUsername,
@@ -866,21 +860,8 @@
                     showSuccess(result);
                 })
                 .catch(error => {
-                    console.error("Error saving platform details (Permission/Network issue):", error);
-                    // این خطا مستقیماً از Firestore است و معمولاً به دلیل `Permission Denied` رخ می‌دهد
-                    let swalTitle = 'خطا در ذخیره پروفایل';
-                    let swalText = 'پلتفرم ساخته شد، اما ذخیره‌سازی اطلاعات آن در پروفایل شما با شکست مواجه شد (احتمالاً به دلیل قوانین امنیتی).';
-
-                    if (error.code === 'permission-denied') {
-                         swalText = '❌ **خطای دسترسی (Permission Denied):** پلتفرم ساخته شد، اما به دلیل قوانین امنیتی Firestore، امکان ثبت آن در پروفایل شما وجود ندارد. لطفاً قوانین امنیتی Firestore را بررسی کنید تا کاربران احراز هویت شده بتوانند در مسیر `artifacts/{appId}/users/{userId}/profile/main` بنویسند.';
-                    }
-
-                    Swal.fire({
-                        icon:'error', 
-                        title:swalTitle, 
-                        html: swalText,
-                        confirmButtonText: 'متوجه شدم'
-                    });
+                    console.error("Error saving platform details:", error);
+                    Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اطلاعات آن در پروفایل شما ذخیره نشد. لطفاً با پشتیبانی تماس بگیرید.'});
                     showSuccess(result); // Show success message anyway
                 });
 		}
@@ -894,7 +875,7 @@
 
 			successCard.innerHTML = `
 				<div class="flex items-center justify-end gap-3 text-white mb-6">
-					<i class="fas fa-check-circle text-4xl" style="color:var(--accent1);"></i>
+					<i class="fas fa-check-circle text-4xl" style="color:var(--tg-accent);"></i>
 					<h1 class="text-3xl font-extrabold">🎉 پلتفرم شما آماده است</h1>
 				</div>
 				<p class="font-bold text-xl mb-6 text-white/90 border-b border-white/10 pb-3">گام‌های نهایی برای فعال‌سازی</p>
@@ -931,24 +912,42 @@
 		}
         
         // --- API & Form Logic (Modified) ---
+        
+        // New: Detailed handle validation function
+        function validateStoreHandle(handle) {
+            if (!handle || handle.length < 3 || handle.length > 30) {
+                return 'شناسه باید بین ۳ تا ۳۰ کاراکتر باشد.';
+            }
+            if (!/^[a-z0-9-]+$/.test(handle)) {
+                return 'شناسه فقط می‌تواند شامل حروف کوچک انگلیسی، اعداد و خط فاصله (-) باشد.';
+            }
+            if (handle.startsWith('-') || handle.endsWith('-')) {
+                return 'شناسه نمی‌تواند با خط فاصله شروع یا تمام شود.';
+            }
+            return null; // Valid
+        }
 
 		document.getElementById('setup-form').addEventListener('submit', async (e)=>{
 			e.preventDefault();
 			const btn = document.getElementById('create-platform-btn');
 			const storeHandleInput = document.getElementById('store-handle');
+            const storeHandleValue = storeHandleInput.value.trim().toLowerCase();
             
             // Basic validation
-			if(!storeHandleInput.value.trim() || !document.getElementById('admin-chat-id').value.trim() || !document.getElementById('user-bot-token').value.trim() || !document.getElementById('admin-bot-token').value.trim()){
+			if(!storeHandleValue || !document.getElementById('admin-chat-id').value.trim() || !document.getElementById('user-bot-token').value.trim() || !document.getElementById('admin-bot-token').value.trim()){
 				Swal.fire({icon:'error', title:'خطا', text:'لطفاً همه فیلدهای الزامی را تکمیل کنید.'});
 				return;
 			}
             
+            // New: Detailed handle validation
+            const handleError = validateStoreHandle(storeHandleValue);
+            if (handleError) {
+                Swal.fire({icon:'error', title:'شناسه نامعتبر', text: handleError});
+                return;
+            }
+            
             // Check if authentication flag is set
             if (!window.isAuthReady || !window.auth.currentUser || window.auth.currentUser.isAnonymous) {
-                // --- لاگ وضعیت احراز هویت در زمان کلیک ---
-                console.error(`[Auth Check] isAuthReady: ${window.isAuthReady}, Current User: ${!!window.auth.currentUser}, Is Anonymous: ${window.auth.currentUser?.isAnonymous}`);
-                // --- پایان لاگ ---
-
                 // نمایش خطای مجدد
                 Swal.fire({icon:'error', title:'خطا', text:'احراز هویت کامل نشده است. لطفاً Mini App را یک بار ببندید و دوباره باز کنید.'});
                 return;
@@ -957,11 +956,11 @@
 			toggleLoading(btn, true, 'در حال ساخت پلتفرم...');
 
 			const payload = {
-				storeHandle: storeHandleInput.value.trim().toLowerCase(),
+				storeHandle: storeHandleValue,
 				adminChatId: document.getElementById('admin-chat-id').value.trim(),
 				userBotToken: document.getElementById('user-bot-token').value.trim(),
 				adminBotToken: document.getElementById('admin-bot-token').value.trim(),
-				miniAppUrl: `https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html?storeHandle=${storeHandleInput.value.trim().toLowerCase()}`
+				miniAppUrl: `https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html?storeHandle=${storeHandleValue}`
 			};
 
 
@@ -996,6 +995,37 @@
 			}
 		}
 
+        // --- مدیریت تم تلگرام ---
+        function applyTelegramTheme() {
+            if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.themeParams) {
+                const theme = window.Telegram.WebApp.themeParams;
+                
+                // Set CSS variables based on Telegram theme
+                document.documentElement.style.setProperty('--tg-bg', theme.bg_color || '#0f1724');
+                document.documentElement.style.setProperty('--tg-text', theme.text_color || '#E6EEF5');
+                document.documentElement.style.setProperty('--tg-hint', theme.hint_color || '#9AA4B2');
+                document.documentElement.style.setProperty('--tg-accent', theme.button_color || '#00C6FF');
+                document.documentElement.style.setProperty('--tg-button-text-color', theme.button_text_color || '#fff');
+                
+                // Background color for cards/forms (using secondary background from Telegram)
+                const cardBg = theme.secondary_bg_color || 'rgba(255,255,255,0.03)';
+                document.documentElement.style.setProperty('--card', cardBg);
+                document.documentElement.style.setProperty('--glass', cardBg);
+
+                // Update Telegram Main Button (optional but good practice)
+                if (window.Telegram.WebApp.MainButton) {
+                    window.Telegram.WebApp.MainButton.setText('بازگشت به خانه').onClick(() => navigateTo('home'));
+                    window.Telegram.WebApp.MainButton.show();
+                }
+            }
+        }
+
+        // Apply theme on load and on theme changes
+        applyTelegramTheme();
+        if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.onEvent) {
+            window.Telegram.WebApp.onEvent('themeChanged', applyTelegramTheme);
+        }
+        
         // Initialize App View
         window.addEventListener('load', renderApp);
 
