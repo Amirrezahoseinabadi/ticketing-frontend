@@ -45,9 +45,14 @@
             // Get user info from Telegram WebApp SDK
             if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+                // Last name might be undefined, so check for it
+                const fullName = tgUser.last_name ? `${tgUser.first_name} ${tgUser.last_name}` : tgUser.first_name;
+                
                 return {
                     // ID تلگرام را به عنوان tgUserId ذخیره می‌کنیم
                     tgUserId: tgUser.id ? tgUser.id.toString() : null, 
+                    // NEW: Store full name for display (or fallback to username/first_name)
+                    fullName: fullName, 
                     username: tgUser.username || tgUser.first_name,
                     first_name: tgUser.first_name,
                     isAnonymous: false,
@@ -58,6 +63,7 @@
             }
             return {
                 tgUserId: null, 
+                fullName: 'کاربر میهمان',
                 username: 'کاربر میهمان',
                 first_name: 'کاربر',
                 isAnonymous: true,
@@ -93,6 +99,7 @@
                     // اگر احراز هویت Mini App نبود، نام کاربری را از ایمیل یا حالت پیش‌فرض می‌گیرد.
                     if (!window.state.user.isTelegramAuth) {
                         window.state.user.username = user.email ? user.email.split('@')[0] : 'کاربر مهمان';
+                        window.state.user.fullName = window.state.user.username;
                     }
                     
                     // تنظیم مسیر Firestore بر اساس UID واقعی Firebase
@@ -745,7 +752,7 @@
         window.state = {
             currentView: 'home',
             // uid will be the Firebase UID after successful sign-in
-            user: { uid: 'guest', username: 'کاربر مهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null, photo_url: null }, 
+            user: { uid: 'guest', fullName: 'کاربر میهمان', username: 'کاربر میهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null, photo_url: null }, 
             platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null }
         };
 
@@ -876,15 +883,11 @@
             const { user, platform } = window.state;
             const uid = user.uid || '---';
             
-            // 1. Determine display name (Username with @ if available, otherwise first name)
-            let displayUsername = user.first_name || 'کاربر';
-            if (user.isTelegramAuth && user.username) {
-                displayUsername = `@${user.username}`;
-            } else if (user.isAnonymous) {
+            // 1. Determine display name
+            // NEW LOGIC: Always prioritize fullName (First Name + Last Name)
+            let displayUsername = user.fullName;
+            if (user.isAnonymous) {
                  displayUsername = 'کاربر میهمان';
-            } else {
-                // Use first name as fallback for non-anonymous, non-Telegram user
-                 displayUsername = user.first_name;
             }
             
             // 2. Determine the UID to display (Always show TG ID if available, otherwise Firebase UID)
