@@ -25,8 +25,7 @@
         
         // --- توابع احراز هویت و فعال سازی ---
         
-        // **این تابع حذف شد تا دکمه بلافاصله فعال باشد**
-        // function enablePlatformCreationButton() { ... }
+        // **تابع enablePlatformCreationButton حذف شد**
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
@@ -129,8 +128,7 @@
             const initialTgInfo = getTelegramUserInfo();
             window.state.user = { ...window.state.user, ...initialTgInfo };
             
-            // **دکمه دیگر نیازی به فعال سازی ندارد و همیشه فعال است**
-            // enablePlatformCreationButton(); 
+            // **نیازی به enablePlatformCreationButton نیست. دکمه در HTML فعال است.**
 
             const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
             if (currentStage) {
@@ -163,6 +161,7 @@
             
             let displayUsername = user.username;
             if (user.isTelegramAuth) {
+                // نمایش نام کاربری (@username) یا نام کوچک (first_name) اگر @username وجود نداشت
                 displayUsername = user.username ? `@${user.username}` : user.first_name || 'کاربر تلگرام';
             }
             
@@ -172,10 +171,13 @@
             const displayUID = user.tgUserId || '---';
             const displayUIDLabel = user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه کاربری (میهمان)';
 
+            // تعیین حرف اول برای عکس پروفایل
+            const avatarText = (user.first_name || 'U').substring(0,1).toUpperCase();
+
 
             profileCard.innerHTML = `
                 <div class="text-center mb-8">
-                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${(user.first_name || 'U').substring(0,1).toUpperCase()}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
+                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${avatarText}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
                     <h2 class="text-2xl font-extrabold text-white">${displayUsername}</h2>
                     <p class="text-sm text-gray-400">${displayUIDLabel}: ${displayUID}</p>
                 </div>
@@ -352,7 +354,10 @@
 		}
 
         // Initialize App View
-        window.addEventListener('load', renderApp);
+        // تغییر در اینجا: اجرای renderApp با تاخیر برای اطمینان از لود شدن SDK تلگرام
+        window.addEventListener('load', () => {
+            setTimeout(renderApp, 50); // 50ms delay to allow SDK initialization
+        });
 
 	</script>
     <!-- END CORE JAVASCRIPT LOGIC -->
@@ -865,6 +870,7 @@
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
+            // چک می کند که آیا آبجکت Telegram و داده های کاربر وجود دارند
             if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
                 return {
@@ -997,6 +1003,7 @@
             
             let displayUsername = user.username;
             if (user.isTelegramAuth) {
+                // نمایش نام کاربری (@username) یا نام کوچک (first_name) اگر @username وجود نداشت
                 displayUsername = user.username ? `@${user.username}` : user.first_name || 'کاربر تلگرام';
             }
             
@@ -1006,10 +1013,13 @@
             const displayUID = user.tgUserId || '---';
             const displayUIDLabel = user.tgUserId ? 'شناسه تلگرام (مدیر)' : 'شناسه کاربری (میهمان)';
 
+            // تعیین حرف اول برای عکس پروفایل
+            const avatarText = (user.first_name || 'U').substring(0,1).toUpperCase();
+
 
             profileCard.innerHTML = `
                 <div class="text-center mb-8">
-                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${(user.first_name || 'U').substring(0,1).toUpperCase()}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
+                    <img src="https://placehold.co/120x120/0072FF/ffffff?text=${avatarText}" alt="Profile Avatar" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white/10" onerror="this.onerror=null;this.src='https://placehold.co/120x120/0072FF/ffffff?text=U'">
                     <h2 class="text-2xl font-extrabold text-white">${displayUsername}</h2>
                     <p class="text-sm text-gray-400">${displayUIDLabel}: ${displayUID}</p>
                 </div>
@@ -1136,11 +1146,12 @@
 				return;
 			}
             
-            // **هشدار در مورد شناسه تلگرام را حذف کردم تا هیچ محدودیتی برای احراز هویت ایجاد نشود.**
-            // if (!window.state.user.tgUserId) {
-            //     Swal.fire({icon:'error', title:'خطا', text:'لطفاً Mini App را از داخل یک چت با ربات باز کنید تا بتوانیم هویت شما را تأیید کنیم.'});
-            //     return;
-            // }
+            // Check if Telegram user ID is present for security (This check can remain for user experience)
+            if (!window.state.user.tgUserId) {
+                // If the user's ID is missing, we still allow them to proceed since the worker doesn't strictly need it, 
+                // but we warn them about the profile experience.
+                console.warn("Telegram User ID is missing, but proceeding with setup as per request.");
+            }
 
 			toggleLoading(btn, true, 'در حال ساخت پلتفرم...');
 
@@ -1185,7 +1196,10 @@
 		}
 
         // Initialize App View
-        window.addEventListener('load', renderApp);
+        // تغییر در اینجا: اجرای renderApp با تاخیر برای اطمینان از لود شدن SDK تلگرام
+        window.addEventListener('load', () => {
+            setTimeout(renderApp, 50); // 50ms delay to allow SDK initialization
+        });
 
 	</script>
 </body>
