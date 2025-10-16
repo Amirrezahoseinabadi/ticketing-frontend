@@ -12,16 +12,110 @@
     <!-- تلگرام Mini App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
-    <!-- FIREBASE MODULES -->
+    <!-- FIREBASE MODULES (Only Auth is kept client-side) -->
     <script type="module">
-        // Import necessary Firebase modules (Auth and basic Firestore references only)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // Auth functions MUST remain client-side
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // ONLY import the necessary Firestore functions for onSnapshot and references
-        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // setLogLevel is kept for optional debugging
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; 
         
+        // --- PROXY WORKER CONFIG & LOGIC ---
+        // این URL باید به Worker شما اشاره کند که واسط دیتابیس است.
+        const FIREBASE_PROXY_URL = 'https://management-ticketing.amiruserbot7.workers.dev/firebase-proxy'; 
+        
+        /**
+         * واسط اصلی برای ارسال درخواست‌های Firestore به Worker.
+         * @param {string} action - نوع عملیات (مثال: 'get', 'set').
+         * @param {string} path - مسیر سند در Firestore (مثال: 'artifacts/.../profile/main').
+         * @param {object} [payload={}] - داده‌هایی که باید ذخیره شوند (برای عملیات 'set').
+         */
+        async function proxyFirestore(action, path, payload = {}) {
+            try {
+                const firebaseUid = window.state?.user?.uid;
+                if (!firebaseUid || firebaseUid === 'guest') {
+                    throw new Error('خطا در احراز هویت: Firebase UID در دسترس نیست.');
+                }
+
+                const res = await fetch(FIREBASE_PROXY_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, path, payload, firebaseUid }),
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `Worker با وضعیت ${res.status} پاسخ داد.`);
+                return data;
+            } catch (err) {
+                console.error(`Proxy Firestore ${action} failed:`, err);
+                Swal.fire({ icon: 'error', title: 'خطا در ارتباط', text: 'عدم ارتباط با پایگاه داده از طریق Worker.' });
+                throw err;
+            }
+        }
+        
+        /** Helper to set/update a document via Worker. */
+        async function saveDocToProxy(docPath, data) {
+            return proxyFirestore('set', docPath, data); 
+        }
+
+        /** Helper to get a document via Worker. */
+        async function getDocFromProxy(docPath) {
+            const result = await proxyFirestore('get', docPath);
+            // انتظار می‌رود Worker در صورت یافت نشدن سند، {data: null} برگرداند
+            return result.data || null;
+        }
+        
+        /** * شبیه‌سازی onSnapshot با استفاده از Polling (بررسی دوره‌ای) برای Mini App.
+         * @param {string} docPath - مسیر سندی که باید مانیتور شود.
+         * @param {function} callback - تابعی که در صورت تغییر داده‌ها فراخوانی می‌شود.
+         */
+        function onSnapshotProxy(docPath, callback) {
+            const POLLING_INTERVAL = 5000; // بررسی هر 5 ثانیه (قابل تنظیم)
+            let lastData = null;
+
+            const poll = async () => {
+                try {
+                    const data = await getDocFromProxy(docPath);
+                    const currentData = data || {};
+                    
+                    // مقایسه عمیق (Deep Comparison) با JSON
+                    const currentJson = JSON.stringify(currentData);
+                    const lastJson = JSON.stringify(lastData);
+
+                    if (currentJson !== lastJson) {
+                        // فراخوانی callback با ساختاری شبیه به docSnap Firestore
+                        callback({
+                            exists: () => !!data,
+                            data: () => data,
+                        });
+                        lastData = currentData;
+                    }
+                } catch (error) {
+                    console.error("Polling error for onSnapshotProxy:", error);
+                    // خطا نادیده گرفته می‌شود تا حلقه Polling متوقف نشود.
+                }
+            };
+
+            // شروع Polling و تنظیم Interval
+            poll(); 
+            const intervalId = setInterval(poll, POLLING_INTERVAL);
+
+            // بازگرداندن تابع Unsubscribe برای توقف Polling
+            return () => clearInterval(intervalId);
+        }
+        // --- END PROXY WORKER LOGIC ---
+        
+        // Expose helpers globally (Set to window for non-module scripts if needed, though all logic is here)
+        window.saveDocToProxy = saveDocToProxy;
+        window.getDocFromProxy = getDocFromProxy;
+        window.onSnapshotProxy = onSnapshotProxy;
+
+
         // Flag to track authentication readiness status
         window.isAuthReady = false; 
+
+        // Log setup
+        // setLogLevel('debug'); // Uncomment for debugging Firestore logs
 
         // Global variables injected by Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -29,13 +123,13 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         // Global variable for Firebase instances
-        window.db = null;
+        window.db = {}; // Placeholder, as Firestore is not used directly
         window.auth = null;
-        // NOTE: FIREBASE_DOC_PATH will be used for onSnapshot, but proxy will handle read/write
-        window.FIREBASE_DOC_PATH = null; 
+        window.FIREBASE_DOC_PATH = null;
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
+            // Get user info from Telegram WebApp SDK
             if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
                 const fullName = tgUser.last_name ? `${tgUser.first_name} ${tgUser.last_name}` : tgUser.first_name;
@@ -72,7 +166,6 @@
 
         if (firebaseConfig) {
             window.firebaseApp = initializeApp(firebaseConfig);
-            window.db = getFirestore(window.firebaseApp);
             window.auth = getAuth(window.firebaseApp);
 
             // Auth listener and custom token sign-in
@@ -85,13 +178,13 @@
                         isAnonymous: user.isAnonymous
                     };
                     
+                    // اگر احراز هویت Mini App نبود، نام کاربری را از ایمیل یا حالت پیش‌فرض می‌گیرد.
                     if (!window.state.user.isTelegramAuth) {
                         window.state.user.username = user.email ? user.email.split('@')[0] : 'کاربر مهمان';
                         window.state.user.fullName = window.state.user.username;
                     }
                     
                     // تنظیم مسیر Firestore بر اساس UID واقعی Firebase
-                    // این مسیر فقط برای onSnapshot استفاده می‌شود
                     window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${user.uid}/profile/main`;
                     
                     // Fetch user-specific and public platform data
@@ -117,13 +210,13 @@
         }
         
         function setupDataListeners(uid) {
-            // 1. Listen to the user's private document (for profile data)
-            // onSnapshot still works, but writes/reads use the proxy
-            const userDocRef = doc(window.db, `artifacts/${appId}/users/${uid}/profile/main`);
-            onSnapshot(userDocRef, (docSnap) => {
+            // 1. Listen to the user's private document (for profile data, e.g., display name)
+            // *** استفاده از onSnapshotProxy به جای onSnapshot Firestore ***
+            window.onSnapshotProxy(window.FIREBASE_DOC_PATH, (docSnap) => {
                 const oldHandle = window.state.platform.storeHandle;
                 
                 if (docSnap.exists()) {
+                    // Update state with platform data if available
                     const data = docSnap.data();
                     window.state.user = { ...window.state.user, ...data };
                     if (data.platform) {
@@ -133,18 +226,20 @@
                 
                 // اگر دیتای جدیدی از پلتفرم (مثلاً پس از ساخت) لود شده باشد
                 if (window.state.platform.storeHandle && window.state.platform.storeHandle !== oldHandle) {
+                    // اگر در نمای Success بودیم، به داشبورد هدایت کن
                     if (window.state.currentView === 'success') {
                         navigateTo('dashboard');
                     }
                 }
                 
-                renderProfile(); 
+                renderProfile(); // Rerender profile on data change
+                // NEW: Explicitly check and render dashboard on data change if needed
                 if (window.state.currentView === 'dashboard') {
                     renderDashboard();
                 }
             });
 
-            // 2. Try to sync if the user has an existing platform
+            // 2. Try to sync if the user has an existing platform that wasn't found in their profile
             trySyncExistingPlatform(uid);
         }
 
@@ -153,30 +248,21 @@
          * @param {string} firebaseUid - The authenticated Firebase User ID.
          * @param {boolean} [force=false] - If true, ignores the current storeHandle status and retries sync.
          */
-        async function trySyncExistingPlatform(firebaseUid, force = false, retries = 0) {
+        async function trySyncExistingPlatform(firebaseUid, force = false) {
             const { storeHandle } = window.state.platform;
             const syncButton = document.getElementById('sync-platform-btn');
-            const MAX_RETRIES = 10;
             
+            // اگر قبلاً Handle را در پروفایل Firestore داشتیم و force نبود، کاری نمی‌کنیم
             if (storeHandle && !force) return; 
-
-            // --- گام جدید: بررسی UID و انتظار در صورت نیاز ---
-            if (!window.state.user.uid || window.state.user.uid === 'guest') {
-                if (retries < MAX_RETRIES) {
-                    console.warn(`Firebase UID not yet ready for sync (Retry ${retries}). Waiting...`);
-                    setTimeout(() => trySyncExistingPlatform(firebaseUid, force, retries + 1), 500);
-                    return;
-                }
-                // اگر حداکثر تلاش انجام شد و UID همچنان در دسترس نبود:
+            
+            if (!firebaseUid) {
                 if (force) {
                     Swal.fire({ icon: 'warning', title: 'خطا در احراز هویت', text: 'لطفاً صبر کنید تا احراز هویت فایربیس کامل شود یا Mini App را دوباره باز کنید.' });
                 }
                 return;
             }
-            
-            // --- ادامه منطق اصلی همگام‌سازی ---
 
-            // آدرس Worker اصلی (همگام‌سازی)
+            // آدرس Worker اصلی (همانند قبل، چون این endpoint خودش یک Worker call است)
             const SYNC_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
             const SYNC_ENDPOINT = `${SYNC_WORKER_URL}/get-store-by-admin-id`; 
             
@@ -187,8 +273,7 @@
             
             try {
                 const payload = {
-                    // حالا مطمئنیم که firebaseUid معتبر است
-                    firebaseUid: window.state.user.uid, 
+                    firebaseUid: firebaseUid,
                     adminChatId: window.state.user.tgUserId || null, 
                 };
 
@@ -201,14 +286,21 @@
                 const data = await res.json();
 
                 if (res.status === 200 && data.success && data.data) {
+                    // Store found! Save it to the current user's Firestore profile
                     const platformData = data.data;
                     
-                    // **** تغییر کلیدی: ذخیره در پروفایل از طریق PROXY ****
-                    // این تابع داخلی هم دارای چک UID است، اما ما قبلا در این تابع مطمئن شدیم.
-                    await window.savePlatformToProxy(platformData); 
-                    // **** End Change ****
-
-                    // Update state to trigger rendering of profile/dashboard
+                    if (!window.FIREBASE_DOC_PATH) { 
+                        console.warn("Sync successful but Firebase auth not fully ready yet. Data will be saved by onSnapshot.");
+                        if (force) {
+                             Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'فروشگاه شما پیدا شد. لطفاً چند لحظه صبر کنید تا در پروفایل ثبت شود.' });
+                        }
+                        return;
+                    }
+                    
+                    // *** استفاده از saveDocToProxy به جای setDoc Firestore ***
+                    await saveDocToProxy(window.FIREBASE_DOC_PATH, { platform: platformData });
+                    
+                    // بلافاصله پس از ذخیره موفق در Firestore، وضعیت را به‌روز و داشبورد را رندر کن (onSnapshotProxy هم این کار را می‌کند، اما این برای فورس رفرش است)
                     window.state.platform = platformData; 
                     renderDashboard(); 
                     
@@ -747,56 +839,8 @@
         };
 
         const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
-        const FIREBASE_PROXY_URL = "https://management-ticketing.amiruserbot7.workers.dev/firebase-proxy";
-        
-        // --- توابع پروکسی Firestore (از کد شما) ---
-        
-        /**
-         * Wrapper function for all Firestore reads/writes routed through the Worker.
-         */
-        async function proxyFirestore(action, path, payload = {}) {
-            try {
-                // Ensure Firebase UID is attached for authorization on the worker side
-                const firebaseUid = window.state?.user?.uid;
-                if (!firebaseUid || firebaseUid === 'guest') {
-                    throw new Error("Authentication error: Firebase UID is not available.");
-                }
-                
-                const res = await fetch(FIREBASE_PROXY_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action, path, payload, firebaseUid }),
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || `Worker responded with status ${res.status}`);
-                return data;
-            } catch (err) {
-                console.error(`Proxy Firestore ${action} failed:`, err);
-                throw err;
-            }
-        }
-
-        /**
-         * Saves platform data to the user's profile document via proxy (setDoc).
-         */
-        window.savePlatformToProxy = async (platformData) => {
-            // NOTE: appId is defined in the module script block
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const docPath = `artifacts/${appId}/users/${window.state.user.uid}/profile/main`;
-            // The payload for 'set' action should contain the data to be merged/set
-            return proxyFirestore('set', docPath, { platform: platformData });
-        };
-
-        /**
-         * Reads platform data from the user's profile document via proxy (getDoc). (Currently unused, but kept for completeness)
-         */
-        window.getPlatformFromProxy = async () => {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const docPath = `artifacts/${appId}/users/${window.state.user.uid}/profile/main`;
-            const res = await proxyFirestore('get', docPath);
-            return res.data || null;
-        };
+        // NOTE: FIREBASE_DOC_PATH will be dynamically updated after successful auth
+        let FIREBASE_DOC_PATH = null; 
         
         // --- توابع کمکی ---
         
@@ -922,6 +966,7 @@
             const uid = user.uid || '---';
             
             // 1. Determine display name
+            // NEW LOGIC: Always prioritize fullName (First Name + Last Name)
             let displayUsername = user.fullName;
             if (user.isAnonymous) {
                  displayUsername = 'کاربر میهمان';
@@ -1013,50 +1058,52 @@
             }
         }
 
-		// *** تابع اصلاح‌شده برای استفاده از PROXY: حذف وابستگی مستقیم به setDoc ***
+		// *** تابع اصلاح‌شده: افزودن مکانیزم انتظار (Polling) برای آماده بودن Firebase و استفاده از Proxy ***
 		function finishSetup(result, retries = 0){
             // اگر بیش از حد تلاش کرد و هنوز Firebase آماده نبود، متوقف کن
             if (retries > 10) { 
                  console.error("Firebase readiness timeout reached.");
-                 Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اتصال برای ذخیره پروفایل زمان‌بندی نشد. لطفاً Mini App را دوباره باز کنید.'});
+                 Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اتصال فایربیس برای ذخیره پروفایل زمان‌بندی نشد. لطفاً Mini App را دوباره باز کنید.'});
                  showSuccess(result);
                  return;
             }
 
-            // بررسی شرط اصلی: آیا UID و توابع پروکسی آماده‌اند؟
-            if (!window.state.user.uid || window.state.user.uid === 'guest' || !window.savePlatformToProxy) { 
+            // بررسی شرط اصلی: آیا همه متغیرهای Auth و مسیر سند آماده‌اند؟
+            if (!window.auth || !window.FIREBASE_DOC_PATH || !window.auth.currentUser) { 
                  // اگر آماده نبود، 200 میلی‌ثانیه صبر کن و دوباره تلاش کن (Polling)
-                 console.warn(`User UID or Proxy functions not yet available (Retry ${retries}). Waiting...`);
+                 console.warn(`Firebase services not yet available (Retry ${retries}). Waiting...`);
                  setTimeout(() => finishSetup(result, retries + 1), 200);
                  return;
             }
             
-            // --- اگر همه چیز آماده بود، ذخیره‌سازی را از طریق پروکسی انجام بده ---
-            console.log("Proxy services are ready. Proceeding to save platform data via proxy.");
+            // --- اگر همه چیز آماده بود، ذخیره‌سازی را انجام بده ---
+            console.log("Firebase services are ready. Proceeding to save platform data via Proxy.");
 
+            // Save platform details to user's private profile document
             const dataToSave = { 
-                storeHandle: result.storeHandle,
-                adminBotUsername: result.adminBotUsername,
-                userBotUsername: result.userBotUsername,
-                setupDate: new Date()
+                platform: {
+                    storeHandle: result.storeHandle,
+                    adminBotUsername: result.adminBotUsername,
+                    userBotUsername: result.userBotUsername,
+                    setupDate: new Date().toISOString()
+                }
             };
             
-            // **** تغییر کلیدی: استفاده از تابع پروکسی برای ذخیره ****
-            window.savePlatformToProxy(dataToSave)
+            // *** استفاده از saveDocToProxy به جای setDoc Firestore ***
+            window.saveDocToProxy(window.FIREBASE_DOC_PATH, dataToSave)
                 .then(() => {
-                    console.log("Platform details saved to Firestore profile via proxy.");
+                    console.log("Platform details saved to Proxy profile.");
                     // Update state to trigger rendering of profile/dashboard
-                    window.state.platform = dataToSave; 
+                    window.state.platform = dataToSave.platform; 
                     showSuccess(result);
                     renderDashboard(); // Explicit render after successful setup save
                 })
                 .catch(error => {
-                    console.error("Error saving platform details via proxy:", error);
+                    console.error("Error saving platform details via Proxy:", error);
                     // نمایش خطای ذخیره‌سازی حتی اگر پلتفرم ساخته شده باشد
                     Swal.fire({icon:'error', title:'خطا در ذخیره', text:`پلتفرم ساخته شد، اما در ذخیره اطلاعات آن در پروفایل شما خطایی رخ داد: ${error.message}`});
                     showSuccess(result); 
                 });
-            // **** End Change ****
 		}
 
 
@@ -1118,7 +1165,7 @@
 			}
             
             // NEW: Ensure Firebase UID is available for the Worker
-            if (!window.state.user.uid) {
+            if (!window.state.user.uid || window.state.user.uid === 'guest') {
                 Swal.fire({icon:'error', title:'خطا', text:'لطفاً منتظر بمانید تا اتصال امن (احراز هویت فایربیس) برقرار شود.'});
                 return;
             }
@@ -1139,6 +1186,7 @@
 
 			let isSuccess = false;
 			try{
+				// این فراخوانی از Worker است که دیتابیس (Realtime DB) را آپدیت می‌کند
 				const res = await fetch(`${MANAGEMENT_WORKER_URL}/setup`,{
 					method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
 				});
@@ -1167,7 +1215,8 @@
                     throw new Error(errorMessage);
                 }
 
-				finishSetup(data.data); // Calls finishSetup which saves to Firestore (via proxy) and then shows success
+				// finishSetup: پلتفرم را در سند Profile کاربر در Firestore (از طریق Proxy) ذخیره می‌کند
+				finishSetup(data.data); 
 				isSuccess = true;
 
 			}catch(err){
