@@ -162,16 +162,28 @@
             if (storeHandle && !force) return; 
 
             // --- گام جدید: بررسی UID و انتظار در صورت نیاز ---
+            // مکانیزم انتظار برای Firebase UID
             if (!window.state.user.uid || window.state.user.uid === 'guest') {
                 if (retries < MAX_RETRIES) {
                     console.warn(`Firebase UID not yet ready for sync (Retry ${retries}). Waiting...`);
-                    // ** هیچ Swal.fire در اینجا فراخوانی نمی‌شود **
+                    // ** اضافه کردن Polling برای حالت دستی (force=true) **
+                    if (force && retries === 0) {
+                         // فقط در اولین تلاش دستی، یک پیام لودینگ موقت نمایش بده
+                         Swal.fire({ 
+                            icon: 'info', 
+                            title: 'لطفاً صبر کنید', 
+                            text: 'در حال احراز هویت و برقراری ارتباط امن...',
+                            showConfirmButton: false,
+                            timer: 5000
+                        });
+                    }
                     setTimeout(() => trySyncExistingPlatform(firebaseUid, force, retries + 1), 500);
                     return;
                 }
                 // اگر حداکثر تلاش انجام شد و UID همچنان در دسترس نبود:
+                // ** تصحیح پیام خطا برای کاربر **
                 if (force) {
-                    Swal.fire({ icon: 'warning', title: 'خطا در احراز هویت', text: 'لطفاً Mini App را دوباره باز کنید.' });
+                    Swal.fire({ icon: 'error', title: 'خطا در احراز هویت', text: 'اتصال امن برقرار نشد. لطفاً Mini App را دوباره باز کنید.' });
                 }
                 return;
             }
@@ -184,8 +196,10 @@
             
             if (syncButton) toggleLoading(syncButton, true, 'در حال همگام‌سازی...');
 
+            // بستن پیام لودینگ اگر باز باشد
+            Swal.close(); 
 
-            console.log(`Attempting sync using Firebase UID: ${firebaseUid}`);
+            console.log(`Attempting sync using Firebase UID: ${window.state.user.uid}`);
             
             try {
                 const payload = {
@@ -214,6 +228,7 @@
                     renderDashboard(); 
 
                     // 3. همگام‌سازی دائمی را از طریق PROXY زمان‌بندی کن (که اگر فایربیس کند باشد، UI را بلاک نمی‌کند)
+                    // ** استفاده از savePlatformToProxy به جای saveDocToProxy که در اینجا تعریف شده است.
                     await window.savePlatformToProxy(platformData); 
                     // --- پایان تغییر کلیدی ---
                     
@@ -248,6 +263,7 @@
         // Expose functions globally for use in HTML/scripts
         window.setupDataListeners = setupDataListeners;
         // Expose manual sync function
+        // ** ارسال UID از اینجا هم ایمن‌تر است **
         window.manualSync = () => trySyncExistingPlatform(window.state.user.uid, true);
     </script>
     <!-- END FIREBASE MODULES -->
