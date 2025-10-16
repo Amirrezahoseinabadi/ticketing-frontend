@@ -12,13 +12,11 @@
     <!-- تلگرام Mini App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
-    <!-- FIREBASE MODULES -->
+    <!-- FIREBASE AUTH MODULES (Auth MUST remain client-side) -->
     <script type="module">
-        // Import necessary Firebase modules (Auth and basic Firestore references only)
+        // --- فقط ماژول‌های مورد نیاز برای Firebase Auth را ایمپورت می‌کنیم ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // ONLY import the necessary Firestore functions for onSnapshot and references
-        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // Flag to track authentication readiness status
         window.isAuthReady = false; 
@@ -29,9 +27,10 @@
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         // Global variable for Firebase instances
-        window.db = null;
+        // Firestore is proxied, so we keep window.db as null/placeholder
+        window.db = {}; // Placeholder
         window.auth = null;
-        // NOTE: FIREBASE_DOC_PATH will be used for onSnapshot, but proxy will handle read/write
+        // NOTE: FIREBASE_DOC_PATH will be used for onSnapshotProxy and Worker calls
         window.FIREBASE_DOC_PATH = null; 
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
@@ -72,7 +71,6 @@
 
         if (firebaseConfig) {
             window.firebaseApp = initializeApp(firebaseConfig);
-            window.db = getFirestore(window.firebaseApp);
             window.auth = getAuth(window.firebaseApp);
 
             // Auth listener and custom token sign-in
@@ -91,7 +89,6 @@
                     }
                     
                     // تنظیم مسیر Firestore بر اساس UID واقعی Firebase
-                    // این مسیر فقط برای onSnapshot استفاده می‌شود
                     window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${user.uid}/profile/main`;
                     
                     // Fetch user-specific and public platform data
@@ -118,13 +115,13 @@
         
         function setupDataListeners(uid) {
             // 1. Listen to the user's private document (for profile data)
-            // onSnapshot still works, but writes/reads use the proxy
-            const userDocRef = doc(window.db, `artifacts/${appId}/users/${uid}/profile/main`);
-            onSnapshot(userDocRef, (docSnap) => {
+            // *** تغییر کلیدی: استفاده از onSnapshotProxy برای جایگزینی onSnapshot Firestore ***
+            // این گوش‌دهنده از Worker برای Polling داده‌ها استفاده می‌کند.
+            window.onSnapshotProxy(window.FIREBASE_DOC_PATH, (docSnap) => {
                 const oldHandle = window.state.platform.storeHandle;
                 
                 if (docSnap.exists()) {
-                    const data = docSnap.data();
+                    const data = docSnap.data(); // docSnap.data() in proxy returns the raw object
                     window.state.user = { ...window.state.user, ...data };
                     if (data.platform) {
                         window.state.platform = data.platform;
@@ -147,124 +144,9 @@
             // 2. Try to sync if the user has an existing platform
             trySyncExistingPlatform(uid);
         }
-
-        /**
-         * UPDATED FUNCTION: Searches the worker for a store linked to the admin's Firebase UID.
-         * @param {string} firebaseUid - The authenticated Firebase User ID.
-         * @param {boolean} [force=false] - If true, ignores the current storeHandle status and retries sync.
-         */
-        async function trySyncExistingPlatform(firebaseUid, force = false, retries = 0) {
-            const { storeHandle } = window.state.platform;
-            const syncButton = document.getElementById('sync-platform-btn');
-            const MAX_RETRIES = 10;
-            
-            // اگر قبلاً فروشگاهی ثبت شده و همگام‌سازی اجباری نیست، متوقف شود.
-            if (storeHandle && !force) return; 
-
-            // --- گام جدید: بررسی UID و انتظار در صورت نیاز ---
-            // مکانیزم انتظار برای Firebase UID
-            if (!window.state.user.uid || window.state.user.uid === 'guest') {
-                if (retries < MAX_RETRIES) {
-                    console.warn(`Firebase UID not yet ready for sync (Retry ${retries}). Waiting...`);
-                    // ** اضافه کردن Polling برای حالت دستی (force=true) **
-                    if (force && retries === 0) {
-                         // فقط در اولین تلاش دستی، یک پیام لودینگ موقت نمایش بده
-                         Swal.fire({ 
-                            icon: 'info', 
-                            title: 'لطفاً صبر کنید', 
-                            text: 'در حال احراز هویت و برقراری ارتباط امن...',
-                            showConfirmButton: false,
-                            timer: 5000
-                        });
-                    }
-                    setTimeout(() => trySyncExistingPlatform(firebaseUid, force, retries + 1), 500);
-                    return;
-                }
-                // اگر حداکثر تلاش انجام شد و UID همچنان در دسترس نبود:
-                // ** تصحیح پیام خطا برای کاربر **
-                if (force) {
-                    Swal.fire({ icon: 'error', title: 'خطا در احراز هویت', text: 'اتصال امن برقرار نشد. لطفاً Mini App را دوباره باز کنید.' });
-                }
-                return;
-            }
-            
-            // --- ادامه منطق اصلی همگام‌سازی ---
-
-            // آدرس Worker اصلی (همگام‌سازی)
-            const SYNC_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
-            const SYNC_ENDPOINT = `${SYNC_WORKER_URL}/get-store-by-admin-id`; 
-            
-            if (syncButton) toggleLoading(syncButton, true, 'در حال همگام‌سازی...');
-
-            // بستن پیام لودینگ اگر باز باشد
-            Swal.close(); 
-
-            console.log(`Attempting sync using Firebase UID: ${window.state.user.uid}`);
-            
-            try {
-                const payload = {
-                    // حالا مطمئنیم که firebaseUid معتبر است
-                    firebaseUid: window.state.user.uid, 
-                    adminChatId: window.state.user.tgUserId || null, 
-                };
-
-                const res = await fetch(SYNC_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const data = await res.json();
-
-                if (res.status === 200 && data.success && data.data) {
-                    const platformData = data.data;
-                    
-                    // --- تغییر کلیدی: رندرینگ فوری UI ---
-                    // 1. وضعیت محلی را فوراً بروزرسانی کن
-                    window.state.platform = platformData; 
-                    
-                    // 2. توابع رندر را برای بروزرسانی فوری UI فراخوانی کن
-                    renderProfile(); 
-                    renderDashboard(); 
-
-                    // 3. همگام‌سازی دائمی را از طریق PROXY زمان‌بندی کن (که اگر فایربیس کند باشد، UI را بلاک نمی‌کند)
-                    // ** استفاده از savePlatformToProxy به جای saveDocToProxy که در اینجا تعریف شده است.
-                    await window.savePlatformToProxy(platformData); 
-                    // --- پایان تغییر کلیدی ---
-                    
-                    console.log(`Successfully synced existing platform: ${platformData.storeHandle}`);
-                    if (force) {
-                         // پیام موفقیت به‌روز شده
-                         Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'اطلاعات فروشگاه با موفقیت به‌روزرسانی شد.' });
-                    }
-                    
-                } else if (res.status === 404) {
-                    console.log(`No existing platform found for UID ${firebaseUid}.`);
-                    if (force) {
-                        Swal.fire({ icon: 'info', title: 'فروشگاهی یافت نشد', text: 'فروشگاهی با این حساب کاربری در سیستم ما ثبت نشده است.' });
-                    }
-                } else {
-                    console.warn(`Sync failed for UID ${firebaseUid}:`, data.error || data.message || 'Worker error');
-                    if (force) {
-                        Swal.fire({ icon: 'error', title: 'خطا در همگام‌سازی', text: data.error || data.message || `خطای ناشناخته در Worker (Status: ${res.status})` });
-                    }
-                }
-
-            } catch(error) {
-                console.error("Error during platform sync attempt:", error);
-                if (force) {
-                    Swal.fire({ icon: 'error', title: 'خطای شبکه', text: 'خطا در برقراری ارتباط با سرور همگام‌سازی.' });
-                }
-            } finally {
-                if (syncButton) toggleLoading(syncButton, false, 'همگام‌سازی اطلاعات (Refresh)');
-            }
-        }
-
+        
         // Expose functions globally for use in HTML/scripts
         window.setupDataListeners = setupDataListeners;
-        // Expose manual sync function
-        // ** ارسال UID از اینجا هم ایمن‌تر است **
-        window.manualSync = () => trySyncExistingPlatform(window.state.user.uid, true);
     </script>
     <!-- END FIREBASE MODULES -->
 
@@ -800,6 +682,58 @@
         }
 
         /**
+         * Reads a document via Worker.
+         */
+        async function getDocFromProxy(docPath) {
+            const res = await proxyFirestore('get', docPath);
+            return res.data || null;
+        }
+        
+        /**
+         * Simulates onSnapshot using Polling (periodic check) for the Mini App.
+         */
+        function onSnapshotProxy(docPath, callback) {
+            const POLLING_INTERVAL = 5000; // Check every 5 seconds
+            let lastData = null;
+
+            const poll = async () => {
+                try {
+                    // Check if Firebase Auth is ready before polling (to ensure valid UID is sent)
+                    if (!window.state.user.uid || window.state.user.uid === 'guest') {
+                        // console.warn("Skipping proxy poll: UID not ready.");
+                        return; 
+                    }
+                    
+                    const data = await getDocFromProxy(docPath);
+                    const currentData = data || {};
+                    
+                    // Deep comparison using JSON serialization
+                    const currentJson = JSON.stringify(currentData);
+                    const lastJson = JSON.stringify(lastData);
+
+                    if (currentJson !== lastJson) {
+                        // Call callback with a structure similar to Firestore docSnap
+                        callback({
+                            exists: () => !!data,
+                            data: () => data,
+                        });
+                        lastData = currentData;
+                    }
+                } catch (error) {
+                    // console.error("Polling error for onSnapshotProxy:", error);
+                    // Ignore error to prevent stopping the polling loop
+                }
+            };
+
+            // Start initial poll and set interval
+            poll();  
+            const intervalId = setInterval(poll, POLLING_INTERVAL);
+
+            // Return Unsubscribe function to stop polling
+            return () => clearInterval(intervalId);
+        }
+
+        /**
          * Saves platform data to the user's profile document via proxy (setDoc).
          */
         window.savePlatformToProxy = async (platformData) => {
@@ -810,16 +744,122 @@
             return proxyFirestore('set', docPath, { platform: platformData });
         };
 
-        /**
-         * Reads platform data from the user's profile document via proxy (getDoc). (Currently unused, but kept for completeness)
-         */
-        window.getPlatformFromProxy = async () => {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const docPath = `artifacts/${appId}/users/${window.state.user.uid}/profile/main`;
-            const res = await proxyFirestore('get', docPath);
-            return res.data || null;
-        };
+        // Expose manual sync function
+        window.manualSync = () => trySyncExistingPlatform(window.state.user.uid, true);
         
+        // --- End Proxy Functions ---
+
+        /**
+         * UPDATED FUNCTION: Searches the worker for a store linked to the admin's Firebase UID.
+         * @param {string} firebaseUid - The authenticated Firebase User ID.
+         * @param {boolean} [force=false] - If true, ignores the current storeHandle status and retries sync.
+         */
+        async function trySyncExistingPlatform(firebaseUid, force = false, retries = 0) {
+            const { storeHandle } = window.state.platform;
+            const syncButton = document.getElementById('sync-platform-btn');
+            const MAX_RETRIES = 10;
+            
+            // اگر قبلاً فروشگاهی ثبت شده و همگام‌سازی اجباری نیست، متوقف شود.
+            if (storeHandle && !force) return; 
+
+            // --- گام جدید: بررسی UID و انتظار در صورت نیاز ---
+            // مکانیزم انتظار برای Firebase UID
+            if (!window.state.user.uid || window.state.user.uid === 'guest') {
+                if (retries < MAX_RETRIES) {
+                    console.warn(`Firebase UID not yet ready for sync (Retry ${retries}). Waiting...`);
+                    // ** اضافه کردن Polling برای حالت دستی (force=true) **
+                    if (force && retries === 0) {
+                         // فقط در اولین تلاش دستی، یک پیام لودینگ موقت نمایش بده
+                         Swal.fire({ 
+                            icon: 'info', 
+                            title: 'لطفاً صبر کنید', 
+                            text: 'در حال احراز هویت و برقراری ارتباط امن...',
+                            showConfirmButton: false,
+                            timer: 5000
+                        });
+                    }
+                    setTimeout(() => trySyncExistingPlatform(firebaseUid, force, retries + 1), 500);
+                    return;
+                }
+                // اگر حداکثر تلاش انجام شد و UID همچنان در دسترس نبود:
+                // ** تصحیح پیام خطا برای کاربر **
+                if (force) {
+                    Swal.fire({ icon: 'error', title: 'خطا در احراز هویت', text: 'اتصال امن برقرار نشد. لطفاً Mini App را دوباره باز کنید.' });
+                }
+                return;
+            }
+            
+            // --- ادامه منطق اصلی همگام‌سازی ---
+
+            // آدرس Worker اصلی (همگام‌سازی)
+            const SYNC_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
+            const SYNC_ENDPOINT = `${SYNC_WORKER_URL}/get-store-by-admin-id`; 
+            
+            if (syncButton) toggleLoading(syncButton, true, 'در حال همگام‌سازی...');
+
+            // بستن پیام لودینگ اگر باز باشد
+            Swal.close(); 
+
+            console.log(`Attempting sync using Firebase UID: ${window.state.user.uid}`);
+            
+            try {
+                const payload = {
+                    // حالا مطمئنیم که firebaseUid معتبر است
+                    firebaseUid: window.state.user.uid, 
+                    adminChatId: window.state.user.tgUserId || null, 
+                };
+
+                const res = await fetch(SYNC_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+
+                if (res.status === 200 && data.success && data.data) {
+                    const platformData = data.data;
+                    
+                    // --- تغییر کلیدی: رندرینگ فوری UI ---
+                    // 1. وضعیت محلی را فوراً بروزرسانی کن
+                    window.state.platform = platformData; 
+                    
+                    // 2. توابع رندر را برای بروزرسانی فوری UI فراخوانی کن
+                    renderProfile(); 
+                    renderDashboard(); 
+
+                    // 3. همگام‌سازی دائمی را از طریق PROXY زمان‌بندی کن (که اگر فایربیس کند باشد، UI را بلاک نمی‌کند)
+                    await window.savePlatformToProxy(platformData); 
+                    // --- پایان تغییر کلیدی ---
+                    
+                    console.log(`Successfully synced existing platform: ${platformData.storeHandle}`);
+                    if (force) {
+                         // پیام موفقیت به‌روز شده
+                         Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'اطلاعات فروشگاه با موفقیت به‌روزرسانی شد.' });
+                    }
+                    
+                } else if (res.status === 404) {
+                    console.log(`No existing platform found for UID ${firebaseUid}.`);
+                    if (force) {
+                        Swal.fire({ icon: 'info', title: 'فروشگاهی یافت نشد', text: 'فروشگاهی با این حساب کاربری در سیستم ما ثبت نشده است.' });
+                    }
+                } else {
+                    console.warn(`Sync failed for UID ${firebaseUid}:`, data.error || data.message || 'Worker error');
+                    if (force) {
+                        Swal.fire({ icon: 'error', title: 'خطا در همگام‌سازی', text: data.error || data.message || `خطای ناشناخته در Worker (Status: ${res.status})` });
+                    }
+                }
+
+            } catch(error) {
+                console.error("Error during platform sync attempt:", error);
+                if (force) {
+                    Swal.fire({ icon: 'error', title: 'خطای شبکه', text: 'خطا در برقراری ارتباط با سرور همگام‌سازی.' });
+                }
+            } finally {
+                if (syncButton) toggleLoading(syncButton, false, 'همگام‌سازی اطلاعات (Refresh)');
+            }
+        }
+
         // --- توابع کمکی ---
         
         function enablePlatformCreationButton() {
