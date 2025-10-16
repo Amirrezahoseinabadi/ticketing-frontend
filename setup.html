@@ -209,7 +209,10 @@
             const syncButton = document.getElementById('sync-platform-btn');
             
             // اگر قبلاً Handle را در پروفایل Firestore داشتیم و force نبود، کاری نمی‌کنیم
-            if (storeHandle && !force) return; 
+            if (storeHandle && !force) {
+                console.log("Sync skipped: Store handle already present in Firestore profile.");
+                return; 
+            }
             
             // FIX: اگر کاربر ناشناس بود و حالت اجباری (force) فعال نبود، خارج می‌شویم.
             if (!firebaseUid || window.state.user.isAnonymous) {
@@ -227,8 +230,8 @@
             
             if (syncButton) toggleLoading(syncButton, true, 'در حال همگام‌سازی...');
 
-
-            console.log(`Attempting sync using Firebase UID: ${firebaseUid}`);
+            // NEW LOG: نمایش جزئیات تلاش برای همگام‌سازی
+            console.log(`[SYNC START] Attempting sync using Firebase UID: ${firebaseUid} via endpoint: ${SYNC_ENDPOINT}`);
             
             try {
                 // --- FIX: انتظار برای آماده بودن Firebase قبل از ادامه ---
@@ -248,7 +251,21 @@
                     body: JSON.stringify(payload)
                 });
                 
-                const data = await res.json();
+                // NEW LOG: نمایش وضعیت پاسخ Worker
+                console.log(`[SYNC RESPONSE] Worker Status: ${res.status}`);
+                
+                const resText = await res.text();
+                let data = {};
+                try {
+                    data = JSON.parse(resText);
+                } catch(e) {
+                    console.error("[SYNC ERROR] Failed to parse JSON response:", resText);
+                    throw new Error(`خطا در پردازش پاسخ سرور. Status: ${res.status}`);
+                }
+                
+                // NEW LOG: نمایش داده‌های دریافتی
+                console.log("[SYNC DATA]", data);
+
 
                 if (res.status === 200 && data.success && data.data) {
                     // Store found! Save it to the current user's Firestore profile
@@ -266,25 +283,25 @@
                     // onSnapshot listener handles the final state update and rendering if needed, but we already updated state.
                     await setDoc(userDocRef, { platform: platformData }, { merge: true });
                     
-                    console.log(`Successfully synced existing platform: ${platformData.storeHandle}`);
+                    console.log(`[SYNC SUCCESS] Successfully synced existing platform: ${platformData.storeHandle}`);
                     if (force) {
                          Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'اطلاعات فروشگاه با موفقیت در پروفایل شما ثبت شد.' });
                     }
                     
                 } else if (res.status === 404) {
-                    console.log(`No existing platform found for UID ${firebaseUid}.`);
+                    console.log(`[SYNC RESULT] No existing platform found for UID ${firebaseUid}. (404)`);
                     if (force) {
                         Swal.fire({ icon: 'info', title: 'فروشگاهی یافت نشد', text: 'فروشگاهی با این حساب کاربری در سیستم ما ثبت نشده است.' });
                     }
                 } else {
-                    console.warn(`Sync failed for UID ${firebaseUid}:`, data.error || data.message || 'Worker error');
+                    console.warn(`[SYNC FAILED] Sync failed for UID ${firebaseUid}:`, data.error || data.message || 'Worker error');
                     if (force) {
                         Swal.fire({ icon: 'error', title: 'خطا در همگام‌سازی', text: data.error || data.message || `خطای ناشناخته در Worker (Status: ${res.status})` });
                     }
                 }
 
             } catch(error) {
-                console.error("Error during platform sync attempt:", error);
+                console.error("[SYNC FATAL ERROR] Error during platform sync attempt:", error);
                 if (error.message.includes("Firebase readiness timeout")) {
                      // در این مرحله اگر تایم اوت داد، یعنی مشکل احراز هویت است
                      Swal.fire({ icon: 'error', title: 'خطای احراز هویت', text: 'اتصال امن فایربیس برقرار نشد. Mini App را دوباره باز کنید.' });
@@ -939,8 +956,12 @@
             
             // 2. Determine the UID to display (Always show TG ID if available, otherwise Firebase UID)
             const displayUID = user.tgUserId || user.uid || '---';
-            const displayUIDLabel = user.tgUserId ? 'شناسه عددی تلگرام' : 'شناسه فایربیس (UID)';
-
+            
+            // Tweak the label for clarity
+            const displayUIDLabel = user.tgUserId 
+                ? 'شناسه عددی تلگرام' 
+                : (user.uid === 'guest' ? 'شناسه موقت (Guest)' : 'شناسه فایربیس (UID)');
+            
             // 3. Determine profile picture HTML
             let profilePicHtml;
             const fallbackLetter = (user.first_name || 'U').substring(0, 1).toUpperCase();
@@ -962,7 +983,8 @@
                 <div class="text-center mb-6">
                     ${profilePicHtml}
                     <h2 class="text-xl font-extrabold text-white mt-2">${displayUsername}</h2>
-                    <p class="text-xs text-gray-400 mt-1">${displayUIDLabel}: ${displayUID}</p>
+                    <p class="text-xs text-gray-400 mt-1">${displayUIDLabel}: <span class="ltr font-mono text-xs text-gray-300">${displayUID}</span></p>
+                    <p class="text-xs text-gray-500 mt-0.5">Firebase UID: <span class="ltr font-mono text-xs text-yellow-400 font-bold">${uid}</span></p>
                 </div>
                 
                 <div class="space-y-3 pt-4 border-t border-white/10">
@@ -1129,8 +1151,9 @@
 			}
             
             // NEW: Ensure Firebase UID is available for the Worker
-            if (!window.state.user.uid) {
+            if (!window.state.user.uid || window.state.user.uid === 'guest') {
                 Swal.fire({icon:'error', title:'خطا', text:'لطفاً منتظر بمانید تا اتصال امن (احراز هویت فایربیس) برقرار شود.'});
+                console.error("Firebase UID is not yet available or is 'guest'. Current UID:", window.state.user.uid);
                 return;
             }
 
@@ -1150,6 +1173,7 @@
 
 			let isSuccess = false;
 			try{
+                console.log("[SETUP START] Sending setup request to worker...");
 				const res = await fetch(`${MANAGEMENT_WORKER_URL}/setup`,{
 					method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
 				});
