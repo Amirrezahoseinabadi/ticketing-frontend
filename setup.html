@@ -222,15 +222,15 @@
 
                     const userDocRef = doc(window.db, window.FIREBASE_DOC_PATH);
                     
-                    // Update the user's Firestore profile with the found platform data
-                    // onSnapshot listener handles the final state update and rendering
-                    await setDoc(userDocRef, { platform: platformData }, { merge: true });
-                    
-                    // --- تغییر کلیدی برای حل مشکل رندر ---
-                    // بلافاصله پس از ذخیره موفق در Firestore، وضعیت را به‌روز و داشبورد را رندر کن
+                    // --- FIX: تغییر کلیدی برای حل مشکل تأخیر رندر ---
+                    // بلافاصله پس از پیدا شدن پلتفرم، وضعیت را به‌روز و داشبورد را رندر کن
                     window.state.platform = platformData; 
                     renderDashboard(); 
                     // ------------------------------------
+
+                    // Update the user's Firestore profile with the found platform data
+                    // onSnapshot listener handles the final state update and rendering if needed, but we already updated state.
+                    await setDoc(userDocRef, { platform: platformData }, { merge: true });
                     
                     console.log(`Successfully synced existing platform: ${platformData.storeHandle}`);
                     if (force) {
@@ -986,7 +986,8 @@
             }
         }
 
-		// *** تابع اصلاح‌شده: افزودن مکانیزم انتظار (Polling) برای آماده بودن Firebase ***
+		/** * FIX: تابع اصلاح‌شده برای به‌روزرسانی اجباری UI بعد از setDoc 
+         */
 		function finishSetup(result, retries = 0){
             // اگر بیش از حد تلاش کرد و هنوز Firebase آماده نبود، متوقف کن
             if (retries > 10) { 
@@ -1019,10 +1020,12 @@
             window.setDoc(userDocRef, { platform: dataToSave }, { merge: true })
                 .then(() => {
                     console.log("Platform details saved to Firestore profile.");
-                    // Update state to trigger rendering of profile/dashboard
+                    
+                    // --- FIX: به‌روزرسانی اجباری وضعیت و رندر فوری داشبورد ---
                     window.state.platform = dataToSave; 
                     showSuccess(result);
                     renderDashboard(); // Explicit render after successful setup save
+                    // --------------------------------------------------------
                 })
                 .catch(error => {
                     console.error("Error saving platform details:", error);
