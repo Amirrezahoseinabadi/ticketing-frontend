@@ -153,18 +153,28 @@
          * @param {string} firebaseUid - The authenticated Firebase User ID.
          * @param {boolean} [force=false] - If true, ignores the current storeHandle status and retries sync.
          */
-        async function trySyncExistingPlatform(firebaseUid, force = false) {
+        async function trySyncExistingPlatform(firebaseUid, force = false, retries = 0) {
             const { storeHandle } = window.state.platform;
             const syncButton = document.getElementById('sync-platform-btn');
+            const MAX_RETRIES = 10;
             
             if (storeHandle && !force) return; 
-            
-            if (!firebaseUid) {
+
+            // --- گام جدید: بررسی UID و انتظار در صورت نیاز ---
+            if (!window.state.user.uid || window.state.user.uid === 'guest') {
+                if (retries < MAX_RETRIES) {
+                    console.warn(`Firebase UID not yet ready for sync (Retry ${retries}). Waiting...`);
+                    setTimeout(() => trySyncExistingPlatform(firebaseUid, force, retries + 1), 500);
+                    return;
+                }
+                // اگر حداکثر تلاش انجام شد و UID همچنان در دسترس نبود:
                 if (force) {
                     Swal.fire({ icon: 'warning', title: 'خطا در احراز هویت', text: 'لطفاً صبر کنید تا احراز هویت فایربیس کامل شود یا Mini App را دوباره باز کنید.' });
                 }
                 return;
             }
+            
+            // --- ادامه منطق اصلی همگام‌سازی ---
 
             // آدرس Worker اصلی (همگام‌سازی)
             const SYNC_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
@@ -177,7 +187,8 @@
             
             try {
                 const payload = {
-                    firebaseUid: firebaseUid,
+                    // حالا مطمئنیم که firebaseUid معتبر است
+                    firebaseUid: window.state.user.uid, 
                     adminChatId: window.state.user.tgUserId || null, 
                 };
 
@@ -193,6 +204,7 @@
                     const platformData = data.data;
                     
                     // **** تغییر کلیدی: ذخیره در پروفایل از طریق PROXY ****
+                    // این تابع داخلی هم دارای چک UID است، اما ما قبلا در این تابع مطمئن شدیم.
                     await window.savePlatformToProxy(platformData); 
                     // **** End Change ****
 
