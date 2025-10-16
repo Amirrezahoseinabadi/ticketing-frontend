@@ -39,6 +39,8 @@
         window.db = null;
         window.auth = null;
         window.FIREBASE_DOC_PATH = null;
+        // Global variable to hold platform data if setup finishes before Firebase is fully ready
+        window.pendingPlatformData = null; 
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
@@ -110,6 +112,13 @@
                     
                     // --- تنظیم پرچم آماده بودن احراز هویت ---
                     window.isAuthReady = true;
+
+                    // *** NEW LOGIC: Check for pending data to save after auth is ready ***
+                    if (window.pendingPlatformData) {
+                        savePendingPlatformData(window.pendingPlatformData);
+                        window.pendingPlatformData = null; // Clear pending state
+                    }
+                    // *******************************************************************
                     
                     // Update UI to show authenticated content
                     renderApp(); 
@@ -126,6 +135,32 @@
                 }
             });
         }
+        
+        // *** NEW FUNCTION: Saves platform data once Firebase auth is ready ***
+        async function savePendingPlatformData(result) {
+            console.log("Saving pending platform data after Auth State Change.");
+            
+            const userDocRef = window.doc(window.db, window.FIREBASE_DOC_PATH);
+            const dataToSave = { 
+                storeHandle: result.storeHandle,
+                adminBotUsername: result.adminBotUsername,
+                userBotUsername: result.userBotUsername,
+                setupDate: new Date()
+            };
+            
+            try {
+                await window.setDoc(userDocRef, { platform: dataToSave }, { merge: true });
+                console.log("Pending Platform details saved to Firestore profile successfully.");
+                // Update state immediately to trigger UI render
+                window.state.platform = dataToSave; 
+                showSuccess(result);
+            } catch(error) {
+                console.error("Error saving pending platform details:", error);
+                Swal.fire({icon:'error', title:'خطا در ذخیره', text:`پلتفرم ساخته شد، اما در ذخیره اطلاعات آن در پروفایل شما خطایی رخ داد: ${error.message}`});
+                showSuccess(result);
+            }
+        }
+        // *******************************************************************
         
         function setupDataListeners(uid) {
             // 1. Listen to the user's private document (for profile data, e.g., display name)
@@ -976,49 +1011,24 @@
             }
         }
 
-		// *** تابع اصلاح‌شده: افزودن مکانیزم انتظار (Polling) برای آماده بودن Firebase ***
-		function finishSetup(result, retries = 0){
-            // اگر بیش از حد تلاش کرد و هنوز Firebase آماده نبود، متوقف کن
-            if (retries > 10) { 
-                 console.error("Firebase readiness timeout reached.");
-                 Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اتصال فایربیس برای ذخیره پروفایل زمان‌بندی نشد. لطفاً Mini App را دوباره باز کنید.'});
-                 showSuccess(result);
-                 return;
-            }
-
-            // بررسی شرط اصلی: آیا همه متغیرهای Firebase و احراز هویت آماده‌اند؟
-            if (!window.db || !window.doc || !window.setDoc || !window.FIREBASE_DOC_PATH) {
-                 // اگر آماده نبود، 200 میلی‌ثانیه صبر کن و دوباره تلاش کن (Polling)
-                 console.warn(`Firebase services not yet available (Retry ${retries}). Waiting...`);
-                 setTimeout(() => finishSetup(result, retries + 1), 200);
-                 return;
-            }
+		/**
+         * UPDATED FUNCTION: Now saves to global pendingPlatformData and relies on 
+         * onAuthStateChanged to finalize the Firestore save, ensuring Auth is ready.
+         */
+		function finishSetup(result){
+            // Store data globally and let the onAuthStateChanged listener handle the save
+            window.pendingPlatformData = result;
             
-            // --- اگر همه چیز آماده بود، ذخیره‌سازی را انجام بده ---
-            console.log("Firebase services are ready. Proceeding to save platform data.");
-
-            // Save platform details to user's private profile document
-            const userDocRef = window.doc(window.db, window.FIREBASE_DOC_PATH);
-            const dataToSave = { 
-                storeHandle: result.storeHandle,
-                adminBotUsername: result.adminBotUsername,
-                userBotUsername: result.userBotUsername,
-                setupDate: new Date()
-            };
-            
-            window.setDoc(userDocRef, { platform: dataToSave }, { merge: true })
-                .then(() => {
-                    console.log("Platform details saved to Firestore profile.");
-                    // Update state to trigger rendering of profile/dashboard
-                    window.state.platform = dataToSave; 
-                    showSuccess(result);
-                })
-                .catch(error => {
-                    console.error("Error saving platform details:", error);
-                    // نمایش خطای ذخیره‌سازی حتی اگر پلتفرم ساخته شده باشد
-                    Swal.fire({icon:'error', title:'خطا در ذخیره', text:`پلتفرم ساخته شد، اما در ذخیره اطلاعات آن در پروفایل شما خطایی رخ داد: ${error.message}`});
-                    showSuccess(result); 
-                });
+            // If Auth is already ready (should be the case after initial load) save immediately
+            if (window.isAuthReady && window.db && window.FIREBASE_DOC_PATH) {
+                savePendingPlatformData(result);
+                window.pendingPlatformData = null; // Clear immediately after calling
+            } else {
+                // If not ready, the data remains in pendingPlatformData and will be saved 
+                // when onAuthStateChanged fires and sees window.isAuthReady = true.
+                console.warn("Auth not fully ready. Deferred saving to onAuthStateChanged listener.");
+                showSuccess(result); // Still transition to success view
+            }
 		}
 
 
