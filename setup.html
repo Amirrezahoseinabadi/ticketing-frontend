@@ -14,24 +14,14 @@
     
     <!-- FIREBASE MODULES -->
     <script type="module">
+        // Import necessary Firebase modules (Auth and basic Firestore references only)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // FIX: import addDoc and collection explicitly
-        import { getFirestore, doc, setDoc, addDoc, collection, onSnapshot, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        // Expose necessary Firestore functions globally
-        window.doc = doc;
-        window.setDoc = setDoc;
-        // FIX: Expose addDoc and collection for logging
-        window.addDoc = addDoc;
-        window.collection = collection;
-
+        // ONLY import the necessary Firestore functions for onSnapshot and references
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // Flag to track authentication readiness status
         window.isAuthReady = false; 
-
-        // Log setup
-        // setLogLevel('debug'); // Uncomment for debugging Firestore logs
 
         // Global variables injected by Canvas environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -41,26 +31,22 @@
         // Global variable for Firebase instances
         window.db = null;
         window.auth = null;
-        window.FIREBASE_DOC_PATH = null;
+        // NOTE: FIREBASE_DOC_PATH will be used for onSnapshot, but proxy will handle read/write
+        window.FIREBASE_DOC_PATH = null; 
 
         // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
         function getTelegramUserInfo() {
-            // Get user info from Telegram WebApp SDK
             if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
                 const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-                // Last name might be undefined, so check for it
                 const fullName = tgUser.last_name ? `${tgUser.first_name} ${tgUser.last_name}` : tgUser.first_name;
                 
                 return {
-                    // ID تلگرام را به عنوان tgUserId ذخیره می‌کنیم
                     tgUserId: tgUser.id ? tgUser.id.toString() : null, 
-                    // NEW: Store full name for display (or fallback to username/first_name)
                     fullName: fullName, 
                     username: tgUser.username || tgUser.first_name,
                     first_name: tgUser.first_name,
                     isAnonymous: false,
                     isTelegramAuth: true,
-                    // NEW: Add photo_url for profile picture
                     photo_url: tgUser.photo_url || null, 
                 };
             }
@@ -83,38 +69,6 @@
             ...initialTgInfo, 
         };
         
-        /**
-         * NEW: تابع گزارش‌دهی خطا به Firestore.
-         * گزارش‌های خطا را در کالکشن artifacts/{appId}/app_logs ذخیره می‌کند.
-         * @param {string} source - نام تابعی که خطا از آن نشأت گرفته است (مثلا: 'AuthCheck' یا 'Sync').
-         * @param {string} message - پیام اصلی خطا.
-         * @param {object} details - جزئیات اضافی مانند UID و وضعیت احراز هویت.
-         */
-        async function logErrorToFirestore(source, message, details = {}) {
-            if (!window.db || !window.addDoc || !window.collection) {
-                console.error("Logger failed: Firestore DB or required functions not initialized.");
-                return;
-            }
-
-            const logCollectionRef = window.collection(window.db, `artifacts/${appId}/app_logs`);
-            
-            try {
-                await window.addDoc(logCollectionRef, {
-                    timestamp: new Date().toISOString(),
-                    source: source,
-                    message: message,
-                    user_id: window.state.user.uid,
-                    tg_id: window.state.user.tgUserId,
-                    is_anonymous: window.state.user.isAnonymous,
-                    is_telegram_auth: window.state.user.isTelegramAuth,
-                    details: details,
-                });
-                console.log(`[LOGGER] Successfully logged error from ${source}.`);
-            } catch (error) {
-                console.error("[LOGGER] Failed to save log to Firestore:", error);
-            }
-        }
-        window.logErrorToFirestore = logErrorToFirestore; // Expose globally
 
         if (firebaseConfig) {
             window.firebaseApp = initializeApp(firebaseConfig);
@@ -128,17 +82,16 @@
                     window.state.user = { 
                         ...window.state.user, 
                         uid: user.uid, // This is the actual Firebase UID
-                        // FIX: Ensure isAnonymous is always set correctly from Firebase user object
-                        isAnonymous: user.isAnonymous 
+                        isAnonymous: user.isAnonymous
                     };
                     
-                    // اگر احراز هویت Mini App نبود، نام کاربری را از ایمیل یا حالت پیش‌فرض می‌گیرد.
                     if (!window.state.user.isTelegramAuth) {
                         window.state.user.username = user.email ? user.email.split('@')[0] : 'کاربر مهمان';
                         window.state.user.fullName = window.state.user.username;
                     }
                     
                     // تنظیم مسیر Firestore بر اساس UID واقعی Firebase
+                    // این مسیر فقط برای onSnapshot استفاده می‌شود
                     window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${user.uid}/profile/main`;
                     
                     // Fetch user-specific and public platform data
@@ -146,42 +99,31 @@
                     
                     // --- تنظیم پرچم آماده بودن احراز هویت ---
                     window.isAuthReady = true;
-                    console.log(`[AUTH] User authenticated successfully. UID: ${user.uid}`);
                     
                     // Update UI to show authenticated content
                     renderApp(); 
                 } else {
-                    // تلاش برای ورود با توکن Canvas
+                    // تلاش برای ورود با توکن Canvas یا ورود ناشناس
                     if (initialAuthToken) {
-                        signInWithCustomToken(window.auth, initialAuthToken)
-                        .then(() => {
-                             console.log("[AUTH] Signed in with Custom Token.");
-                        })
-                        .catch(error => {
-                            console.error("[AUTH] Custom token sign-in failed:", error);
-                            // Log the auth failure
-                            logErrorToFirestore('AuthCheck', 'Custom token sign-in failed', { error: error.message, token_present: true });
-                            // FIX: حذف Anonymous Sign-in و اجازه دادن به خطای تایم اوت برای گزارش بهتر
-                            // signInAnonymously(window.auth).catch(console.error); 
+                        signInWithCustomToken(window.auth, initialAuthToken).catch(error => {
+                            console.error("Custom token sign-in failed:", error);
+                            signInAnonymously(window.auth).catch(console.error);
                         });
                     } else {
-                        // Log the auth failure
-                        logErrorToFirestore('AuthCheck', 'Initial token missing, Auth state remains unauthenticated.', { token_present: false });
-                        // FIX: حذف Anonymous Sign-in و اجازه دادن به خطای تایم اوت برای گزارش بهتر
-                        // signInAnonymously(window.auth).catch(error => { ... });
+                        signInAnonymously(window.auth).catch(console.error);
                     }
                 }
             });
         }
         
         function setupDataListeners(uid) {
-            // 1. Listen to the user's private document (for profile data, e.g., display name)
+            // 1. Listen to the user's private document (for profile data)
+            // onSnapshot still works, but writes/reads use the proxy
             const userDocRef = doc(window.db, `artifacts/${appId}/users/${uid}/profile/main`);
             onSnapshot(userDocRef, (docSnap) => {
                 const oldHandle = window.state.platform.storeHandle;
                 
                 if (docSnap.exists()) {
-                    // Update state with platform data if available
                     const data = docSnap.data();
                     window.state.user = { ...window.state.user, ...data };
                     if (data.platform) {
@@ -191,66 +133,19 @@
                 
                 // اگر دیتای جدیدی از پلتفرم (مثلاً پس از ساخت) لود شده باشد
                 if (window.state.platform.storeHandle && window.state.platform.storeHandle !== oldHandle) {
-                    // اگر در نمای Success بودیم، به داشبورد هدایت کن
                     if (window.state.currentView === 'success') {
                         navigateTo('dashboard');
                     }
                 }
                 
-                renderProfile(); // Rerender profile on data change
-                // NEW: Explicitly check and render dashboard on data change if needed
+                renderProfile(); 
                 if (window.state.currentView === 'dashboard') {
                     renderDashboard();
                 }
             });
 
-            // 2. Try to sync if the user has an existing platform that wasn't found in their profile
-            // FIX: فقط اگر کاربر ناشناس نبود، همگام‌سازی اولیه را انجام بده.
-            if (!window.state.user.isAnonymous) {
-                trySyncExistingPlatform(uid);
-            }
-        }
-        
-        /**
-         * NEW FIX: انتظار برای آماده شدن کامل Firebase و احراز هویت.
-         * @returns {Promise<void>}
-         */
-        function waitForFirebaseReady(maxRetries = 150, delay = 100) { // Increased maxRetries to 150 (15 seconds)
-            return new Promise((resolve, reject) => {
-                let retries = 0;
-                const check = () => {
-                    // بررسی همه وابستگی‌های حیاتی
-                    if (window.db && window.doc && window.setDoc && window.FIREBASE_DOC_PATH && window.isAuthReady && !window.state.user.isAnonymous) {
-                        console.log("[WAIT] Firebase is ready and user is authenticated.");
-                        resolve();
-                        return;
-                    }
-
-                    if (retries >= maxRetries) {
-                        console.error("[WAIT] Error: Firebase readiness timeout reached after 15 seconds.");
-                        // اگر تایم اوت داد، لاگ خطا را ثبت کن
-                        const errorMsg = "Firebase readiness timeout reached.";
-                        logErrorToFirestore('WaitForFirebase', errorMsg, { 
-                            isReady: window.isAuthReady, 
-                            isAnonymous: window.state.user.isAnonymous,
-                            path_set: !!window.FIREBASE_DOC_PATH
-                        });
-                        
-                        // reject only if we expected a non-anonymous user, but couldn't get one
-                        if (window.state.user.isTelegramAuth && !window.state.user.isAnonymous) {
-                            reject(new Error("Firebase readiness timeout. Please reopen the Mini App."));
-                        } else {
-                            // resolve silently if we are an anonymous user and just waiting for optional platform data
-                            resolve(); 
-                        }
-                        return;
-                    }
-
-                    retries++;
-                    setTimeout(check, delay);
-                };
-                check();
-            });
+            // 2. Try to sync if the user has an existing platform
+            trySyncExistingPlatform(uid);
         }
 
         /**
@@ -262,37 +157,25 @@
             const { storeHandle } = window.state.platform;
             const syncButton = document.getElementById('sync-platform-btn');
             
-            // اگر قبلاً Handle را در پروفایل Firestore داشتیم و force نبود، کاری نمی‌کنیم
-            if (storeHandle && !force) {
-                console.log("Sync skipped: Store handle already present in Firestore profile.");
-                return; 
-            }
+            if (storeHandle && !force) return; 
             
-            // FIX: اگر کاربر ناشناس بود و حالت اجباری (force) فعال نبود، خارج می‌شویم.
-            if (!firebaseUid || window.state.user.isAnonymous || firebaseUid === 'guest') {
+            if (!firebaseUid) {
                 if (force) {
                     Swal.fire({ icon: 'warning', title: 'خطا در احراز هویت', text: 'لطفاً صبر کنید تا احراز هویت فایربیس کامل شود یا Mini App را دوباره باز کنید.' });
-                    logErrorToFirestore('SyncCheck', 'Sync attempt failed: User is anonymous/guest or UID missing.', { firebaseUid, isAnonymous: window.state.user.isAnonymous });
                 }
-                console.log("Sync skipped: User is anonymous or Firebase UID is missing/guest.");
                 return;
             }
 
-            // آدرس Worker اصلی
+            // آدرس Worker اصلی (همگام‌سازی)
             const SYNC_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
-            // NEW ENDPOINT
             const SYNC_ENDPOINT = `${SYNC_WORKER_URL}/get-store-by-admin-id`; 
             
             if (syncButton) toggleLoading(syncButton, true, 'در حال همگام‌سازی...');
 
-            // NEW LOG: نمایش جزئیات تلاش برای همگام‌سازی
-            console.log(`[SYNC START] Attempting sync using Firebase UID: ${firebaseUid} via endpoint: ${SYNC_ENDPOINT}`);
+
+            console.log(`Attempting sync using Firebase UID: ${firebaseUid}`);
             
             try {
-                // --- FIX: انتظار برای آماده بودن Firebase قبل از ادامه ---
-                await waitForFirebaseReady();
-                // --------------------------------------------------------
-                
                 const payload = {
                     firebaseUid: firebaseUid,
                     adminChatId: window.state.user.tgUserId || null, 
@@ -304,59 +187,39 @@
                     body: JSON.stringify(payload)
                 });
                 
-                console.log(`[SYNC RESPONSE] Worker Status: ${res.status}`);
-                
-                const resText = await res.text();
-                let data = {};
-                try {
-                    data = JSON.parse(resText);
-                } catch(e) {
-                    console.error("[SYNC ERROR] Failed to parse JSON response:", resText);
-                    logErrorToFirestore('SyncWorker', 'Failed to parse JSON response from Worker.', { status: res.status, responseText: resText.substring(0, 100) });
-                    throw new Error(`خطا در پردازش پاسخ سرور. Status: ${res.status}`);
-                }
-                
-                console.log("[SYNC DATA]", data);
+                const data = await res.json();
 
                 if (res.status === 200 && data.success && data.data) {
                     const platformData = data.data;
-                    const userDocRef = doc(window.db, window.FIREBASE_DOC_PATH);
                     
+                    // **** تغییر کلیدی: ذخیره در پروفایل از طریق PROXY ****
+                    await window.savePlatformToProxy(platformData); 
+                    // **** End Change ****
+
+                    // Update state to trigger rendering of profile/dashboard
                     window.state.platform = platformData; 
                     renderDashboard(); 
-
-                    await setDoc(userDocRef, { platform: platformData }, { merge: true });
                     
-                    console.log(`[SYNC SUCCESS] Successfully synced existing platform: ${platformData.storeHandle}`);
+                    console.log(`Successfully synced existing platform: ${platformData.storeHandle}`);
                     if (force) {
                          Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'اطلاعات فروشگاه با موفقیت در پروفایل شما ثبت شد.' });
                     }
                     
                 } else if (res.status === 404) {
-                    console.log(`[SYNC RESULT] No existing platform found for UID ${firebaseUid}. (404)`);
-                    logErrorToFirestore('SyncWorker', 'No store found (404). Check Realtime DB Index.', { firebaseUid });
+                    console.log(`No existing platform found for UID ${firebaseUid}.`);
                     if (force) {
                         Swal.fire({ icon: 'info', title: 'فروشگاهی یافت نشد', text: 'فروشگاهی با این حساب کاربری در سیستم ما ثبت نشده است.' });
                     }
                 } else {
-                    console.warn(`[SYNC FAILED] Sync failed for UID ${firebaseUid}:`, data.error || data.message || 'Worker error');
-                    logErrorToFirestore('SyncWorker', 'Sync failed with Worker error.', { firebaseUid, status: res.status, workerError: data.error || data.message });
+                    console.warn(`Sync failed for UID ${firebaseUid}:`, data.error || data.message || 'Worker error');
                     if (force) {
                         Swal.fire({ icon: 'error', title: 'خطا در همگام‌سازی', text: data.error || data.message || `خطای ناشناخته در Worker (Status: ${res.status})` });
                     }
                 }
 
             } catch(error) {
-                console.error("[SYNC FATAL ERROR] Error during platform sync attempt:", error);
-                
-                const isAuthTimeout = error.message.includes("Firebase readiness timeout");
-                
-                if (isAuthTimeout) {
-                     // در این مرحله اگر تایم اوت داد، یعنی مشکل احراز هویت است
-                     logErrorToFirestore('SyncFatal', 'Firebase readiness timeout detected.', { firebaseUid, error: error.message });
-                     Swal.fire({ icon: 'error', title: 'خطای احراز هویت', text: 'اتصال امن فایربیس برقرار نشد. Mini App را دوباره باز کنید.' });
-                } else if (force) {
-                    logErrorToFirestore('SyncFatal', 'Fatal error during sync (Network/Other).', { firebaseUid, error: error.message });
+                console.error("Error during platform sync attempt:", error);
+                if (force) {
                     Swal.fire({ icon: 'error', title: 'خطای شبکه', text: 'خطا در برقراری ارتباط با سرور همگام‌سازی.' });
                 }
             } finally {
@@ -872,8 +735,56 @@
         };
 
         const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
-        // NOTE: FIREBASE_DOC_PATH will be dynamically updated after successful auth
-        let FIREBASE_DOC_PATH = null; 
+        const FIREBASE_PROXY_URL = "https://management-ticketing.amiruserbot7.workers.dev/firebase-proxy";
+        
+        // --- توابع پروکسی Firestore (از کد شما) ---
+        
+        /**
+         * Wrapper function for all Firestore reads/writes routed through the Worker.
+         */
+        async function proxyFirestore(action, path, payload = {}) {
+            try {
+                // Ensure Firebase UID is attached for authorization on the worker side
+                const firebaseUid = window.state?.user?.uid;
+                if (!firebaseUid || firebaseUid === 'guest') {
+                    throw new Error("Authentication error: Firebase UID is not available.");
+                }
+                
+                const res = await fetch(FIREBASE_PROXY_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, path, payload, firebaseUid }),
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `Worker responded with status ${res.status}`);
+                return data;
+            } catch (err) {
+                console.error(`Proxy Firestore ${action} failed:`, err);
+                throw err;
+            }
+        }
+
+        /**
+         * Saves platform data to the user's profile document via proxy (setDoc).
+         */
+        window.savePlatformToProxy = async (platformData) => {
+            // NOTE: appId is defined in the module script block
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const docPath = `artifacts/${appId}/users/${window.state.user.uid}/profile/main`;
+            // The payload for 'set' action should contain the data to be merged/set
+            return proxyFirestore('set', docPath, { platform: platformData });
+        };
+
+        /**
+         * Reads platform data from the user's profile document via proxy (getDoc). (Currently unused, but kept for completeness)
+         */
+        window.getPlatformFromProxy = async () => {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const docPath = `artifacts/${appId}/users/${window.state.user.uid}/profile/main`;
+            const res = await proxyFirestore('get', docPath);
+            return res.data || null;
+        };
         
         // --- توابع کمکی ---
         
@@ -999,7 +910,6 @@
             const uid = user.uid || '---';
             
             // 1. Determine display name
-            // NEW LOGIC: Always prioritize fullName (First Name + Last Name)
             let displayUsername = user.fullName;
             if (user.isAnonymous) {
                  displayUsername = 'کاربر میهمان';
@@ -1007,12 +917,8 @@
             
             // 2. Determine the UID to display (Always show TG ID if available, otherwise Firebase UID)
             const displayUID = user.tgUserId || user.uid || '---';
-            
-            // Tweak the label for clarity
-            const displayUIDLabel = user.tgUserId 
-                ? 'شناسه عددی تلگرام' 
-                : (user.uid === 'guest' ? 'شناسه موقت (Guest)' : 'شناسه فایربیس (UID)');
-            
+            const displayUIDLabel = user.tgUserId ? 'شناسه عددی تلگرام' : 'شناسه فایربیس (UID)';
+
             // 3. Determine profile picture HTML
             let profilePicHtml;
             const fallbackLetter = (user.first_name || 'U').substring(0, 1).toUpperCase();
@@ -1034,8 +940,7 @@
                 <div class="text-center mb-6">
                     ${profilePicHtml}
                     <h2 class="text-xl font-extrabold text-white mt-2">${displayUsername}</h2>
-                    <p class="text-xs text-gray-400 mt-1">${displayUIDLabel}: <span class="ltr font-mono text-xs text-gray-300">${displayUID}</span></p>
-                    <p class="text-xs text-gray-500 mt-0.5">Firebase UID: <span class="ltr font-mono text-xs text-yellow-400 font-bold">${uid}</span></p>
+                    <p class="text-xs text-gray-400 mt-1">${displayUIDLabel}: ${displayUID}</p>
                 </div>
                 
                 <div class="space-y-3 pt-4 border-t border-white/10">
@@ -1096,53 +1001,50 @@
             }
         }
 
-		/** * FIX: تابع اصلاح‌شده برای به‌روزرسانی اجباری UI بعد از setDoc 
-         * با افزودن waitForFirebaseReady
-         */
-		async function finishSetup(result){
-            try {
-                // --- FIX: انتظار برای آماده بودن Firebase قبل از ادامه ---
-                await waitForFirebaseReady();
-                // --------------------------------------------------------
-            } catch (error) {
-                 console.error("Firebase readiness timeout during setup:", error);
-                 logErrorToFirestore('SetupFinish', 'Firebase readiness timeout while saving profile.', { error: error.message });
-                 Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اتصال فایربیس برای ذخیره پروفایل زمان‌بندی نشد. لطفاً Mini App را دوباره باز کنید.'});
+		// *** تابع اصلاح‌شده برای استفاده از PROXY: حذف وابستگی مستقیم به setDoc ***
+		function finishSetup(result, retries = 0){
+            // اگر بیش از حد تلاش کرد و هنوز Firebase آماده نبود، متوقف کن
+            if (retries > 10) { 
+                 console.error("Firebase readiness timeout reached.");
+                 Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اتصال برای ذخیره پروفایل زمان‌بندی نشد. لطفاً Mini App را دوباره باز کنید.'});
                  showSuccess(result);
                  return;
             }
-            
-            // --- اگر همه چیز آماده بود، ذخیره‌سازی را انجام بده ---
-            console.log("Firebase services are ready. Proceeding to save platform data.");
 
-            // Save platform details to user's private profile document
-            const userDocRef = window.doc(window.db, window.FIREBASE_DOC_PATH);
+            // بررسی شرط اصلی: آیا UID و توابع پروکسی آماده‌اند؟
+            if (!window.state.user.uid || window.state.user.uid === 'guest' || !window.savePlatformToProxy) { 
+                 // اگر آماده نبود، 200 میلی‌ثانیه صبر کن و دوباره تلاش کن (Polling)
+                 console.warn(`User UID or Proxy functions not yet available (Retry ${retries}). Waiting...`);
+                 setTimeout(() => finishSetup(result, retries + 1), 200);
+                 return;
+            }
+            
+            // --- اگر همه چیز آماده بود، ذخیره‌سازی را از طریق پروکسی انجام بده ---
+            console.log("Proxy services are ready. Proceeding to save platform data via proxy.");
+
             const dataToSave = { 
-                platform: { // اطلاعات پلتفرم باید درون فیلد platform ذخیره شود
-                    storeHandle: result.storeHandle,
-                    adminBotUsername: result.adminBotUsername,
-                    userBotUsername: result.userBotUsername,
-                    setupDate: new Date()
-                }
+                storeHandle: result.storeHandle,
+                adminBotUsername: result.adminBotUsername,
+                userBotUsername: result.userBotUsername,
+                setupDate: new Date()
             };
             
-            window.setDoc(userDocRef, dataToSave, { merge: true })
+            // **** تغییر کلیدی: استفاده از تابع پروکسی برای ذخیره ****
+            window.savePlatformToProxy(dataToSave)
                 .then(() => {
-                    console.log("Platform details saved to Firestore profile.");
-                    
-                    // --- FIX: به‌روزرسانی اجباری وضعیت و رندر فوری داشبورد ---
-                    window.state.platform = dataToSave.platform; 
+                    console.log("Platform details saved to Firestore profile via proxy.");
+                    // Update state to trigger rendering of profile/dashboard
+                    window.state.platform = dataToSave; 
                     showSuccess(result);
                     renderDashboard(); // Explicit render after successful setup save
-                    // --------------------------------------------------------
                 })
                 .catch(error => {
-                    console.error("Error saving platform details:", error);
-                    logErrorToFirestore('SetupFinish', 'Error saving platform details to Firestore.', { error: error.message });
+                    console.error("Error saving platform details via proxy:", error);
                     // نمایش خطای ذخیره‌سازی حتی اگر پلتفرم ساخته شده باشد
                     Swal.fire({icon:'error', title:'خطا در ذخیره', text:`پلتفرم ساخته شد، اما در ذخیره اطلاعات آن در پروفایل شما خطایی رخ داد: ${error.message}`});
                     showSuccess(result); 
                 });
+            // **** End Change ****
 		}
 
 
@@ -1204,10 +1106,8 @@
 			}
             
             // NEW: Ensure Firebase UID is available for the Worker
-            if (!window.state.user.uid || window.state.user.uid === 'guest') {
+            if (!window.state.user.uid) {
                 Swal.fire({icon:'error', title:'خطا', text:'لطفاً منتظر بمانید تا اتصال امن (احراز هویت فایربیس) برقرار شود.'});
-                console.error("Firebase UID is not yet available or is 'guest'. Current UID:", window.state.user.uid);
-                logErrorToFirestore('SetupStart', 'Setup failed: Firebase UID not available or is guest.', { currentUID: window.state.user.uid });
                 return;
             }
 
@@ -1227,7 +1127,6 @@
 
 			let isSuccess = false;
 			try{
-                console.log("[SETUP START] Sending setup request to worker...");
 				const res = await fetch(`${MANAGEMENT_WORKER_URL}/setup`,{
 					method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
 				});
@@ -1240,7 +1139,6 @@
                 } catch (jsonError) {
                     // اگر Worker پاسخ غیر JSON داد (مثلاً خطای 500 بدون بدنه مناسب)
                     if (!res.ok) {
-                        logErrorToFirestore('SetupWorker', 'Worker returned non-JSON/unhandled 500.', { status: res.status, responseText: resText.substring(0, 100) });
                         throw new Error(`خطای سرور: ${res.status}. پاسخ نامفهوم. کنسول را بررسی کنید.`);
                     }
                 }
@@ -1250,16 +1148,14 @@
 				if(!res.ok) {
                     // اگر خطا 409 (Conflict) بود، یعنی شناسه تکراری است.
                     if (res.status === 409) {
-                        logErrorToFirestore('SetupWorker', 'Store handle conflict (409).', { handle: payload.storeHandle });
                         throw new Error(`شناسه پلتفرم (${payload.storeHandle}) قبلاً استفاده شده است. لطفاً یک شناسه دیگر انتخاب کنید.`);
                     }
                     // برای سایر خطاها
                     const errorMessage = data.error || `خطا در Worker (${res.status}). کنسول را بررسی کنید.`;
-                    logErrorToFirestore('SetupWorker', 'Setup failed with Worker error.', { status: res.status, workerError: data.error || data.message });
                     throw new Error(errorMessage);
                 }
 
-				finishSetup(data.data); // Calls finishSetup which saves to Firestore and then shows success
+				finishSetup(data.data); // Calls finishSetup which saves to Firestore (via proxy) and then shows success
 				isSuccess = true;
 
 			}catch(err){
