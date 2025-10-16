@@ -161,6 +161,34 @@
             // این تابع حتی اگر user.isTelegramAuth هم نباشد، اجرا می‌شود اما با Firebase UID
             trySyncExistingPlatform(uid);
         }
+        
+        /**
+         * NEW FIX: انتظار برای آماده شدن کامل Firebase و احراز هویت.
+         * از این تابع در شروع عملیاتی که به Firestore نیاز دارند (مثل Sync یا Setup) استفاده می‌کنیم.
+         */
+        function waitForFirebaseReady(maxRetries = 50, delay = 100) {
+            return new Promise((resolve, reject) => {
+                let retries = 0;
+                const check = () => {
+                    // بررسی همه وابستگی‌های حیاتی
+                    if (window.db && window.doc && window.setDoc && window.FIREBASE_DOC_PATH && window.isAuthReady) {
+                        console.log("Firebase is ready.");
+                        resolve();
+                        return;
+                    }
+
+                    if (retries >= maxRetries) {
+                        console.error("Error: Firebase readiness timeout reached after 5 seconds.");
+                        reject(new Error("Firebase readiness timeout. Please reopen the Mini App."));
+                        return;
+                    }
+
+                    retries++;
+                    setTimeout(check, delay);
+                };
+                check();
+            });
+        }
 
         /**
          * UPDATED FUNCTION: Searches the worker for a store linked to the admin's Firebase UID.
@@ -192,6 +220,10 @@
             console.log(`Attempting sync using Firebase UID: ${firebaseUid}`);
             
             try {
+                // --- FIX: انتظار برای آماده بودن Firebase قبل از ادامه ---
+                await waitForFirebaseReady();
+                // --------------------------------------------------------
+                
                 const payload = {
                     // بجای tgUserId، از firebaseUid استفاده می‌کنیم که قطعی است
                     firebaseUid: firebaseUid,
@@ -211,15 +243,6 @@
                     // Store found! Save it to the current user's Firestore profile
                     const platformData = data.data;
                     
-                    // این متغیرها باید چک شوند چون ممکن است auth و db هنوز لود نشده باشند
-                    if (!window.db || !window.doc || !window.setDoc || !window.FIREBASE_DOC_PATH) { // setDoc added here
-                        console.warn("Sync successful but Firebase modules not fully ready yet. Data will be saved by onSnapshot.");
-                        if (force) {
-                             Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'فروشگاه شما پیدا شد. لطفاً چند لحظه صبر کنید تا در پروفایل ثبت شود.' });
-                        }
-                        return;
-                    }
-
                     const userDocRef = doc(window.db, window.FIREBASE_DOC_PATH);
                     
                     // --- FIX: تغییر کلیدی برای حل مشکل تأخیر رندر ---
@@ -251,7 +274,9 @@
 
             } catch(error) {
                 console.error("Error during platform sync attempt:", error);
-                if (force) {
+                if (error.message.includes("Firebase readiness timeout")) {
+                     Swal.fire({ icon: 'error', title: 'خطای احراز هویت', text: 'اتصال امن فایربیس برقرار نشد. Mini App را دوباره باز کنید.' });
+                } else if (force) {
                     Swal.fire({ icon: 'error', title: 'خطای شبکه', text: 'خطا در برقراری ارتباط با سرور همگام‌سازی.' });
                 }
             } finally {
@@ -987,21 +1012,17 @@
         }
 
 		/** * FIX: تابع اصلاح‌شده برای به‌روزرسانی اجباری UI بعد از setDoc 
+         * با افزودن waitForFirebaseReady
          */
-		function finishSetup(result, retries = 0){
-            // اگر بیش از حد تلاش کرد و هنوز Firebase آماده نبود، متوقف کن
-            if (retries > 10) { 
-                 console.error("Firebase readiness timeout reached.");
+		async function finishSetup(result){
+            try {
+                // --- FIX: انتظار برای آماده بودن Firebase قبل از ادامه ---
+                await waitForFirebaseReady();
+                // --------------------------------------------------------
+            } catch (error) {
+                 console.error("Firebase readiness timeout during setup:", error);
                  Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اتصال فایربیس برای ذخیره پروفایل زمان‌بندی نشد. لطفاً Mini App را دوباره باز کنید.'});
                  showSuccess(result);
-                 return;
-            }
-
-            // بررسی شرط اصلی: آیا همه متغیرهای Firebase و احراز هویت آماده‌اند؟
-            if (!window.db || !window.doc || !window.setDoc || !window.FIREBASE_DOC_PATH) { 
-                 // اگر آماده نبود، 200 میلی‌ثانیه صبر کن و دوباره تلاش کن (Polling)
-                 console.warn(`Firebase services not yet available (Retry ${retries}). Waiting...`);
-                 setTimeout(() => finishSetup(result, retries + 1), 200);
                  return;
             }
             
@@ -1011,18 +1032,20 @@
             // Save platform details to user's private profile document
             const userDocRef = window.doc(window.db, window.FIREBASE_DOC_PATH);
             const dataToSave = { 
-                storeHandle: result.storeHandle,
-                adminBotUsername: result.adminBotUsername,
-                userBotUsername: result.userBotUsername,
-                setupDate: new Date()
+                platform: { // اطلاعات پلتفرم باید درون فیلد platform ذخیره شود
+                    storeHandle: result.storeHandle,
+                    adminBotUsername: result.adminBotUsername,
+                    userBotUsername: result.userBotUsername,
+                    setupDate: new Date()
+                }
             };
             
-            window.setDoc(userDocRef, { platform: dataToSave }, { merge: true })
+            window.setDoc(userDocRef, dataToSave, { merge: true })
                 .then(() => {
                     console.log("Platform details saved to Firestore profile.");
                     
                     // --- FIX: به‌روزرسانی اجباری وضعیت و رندر فوری داشبورد ---
-                    window.state.platform = dataToSave; 
+                    window.state.platform = dataToSave.platform; 
                     showSuccess(result);
                     renderDashboard(); // Explicit render after successful setup save
                     // --------------------------------------------------------
