@@ -16,14 +16,13 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // Export doc and setDoc, addDoc, collection to window for use in non-module scripts
-        import { getFirestore, doc, setDoc, addDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // FIX: import addDoc and collection explicitly
+        import { getFirestore, doc, setDoc, addDoc, collection, onSnapshot, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // Expose necessary Firestore functions globally
         window.doc = doc;
         window.setDoc = setDoc;
-        // NEW: Expose addDoc and collection for logging
+        // FIX: Expose addDoc and collection for logging
         window.addDoc = addDoc;
         window.collection = collection;
 
@@ -92,8 +91,8 @@
          * @param {object} details - جزئیات اضافی مانند UID و وضعیت احراز هویت.
          */
         async function logErrorToFirestore(source, message, details = {}) {
-            if (!window.db) {
-                console.error("Logger failed: Firestore DB not initialized.");
+            if (!window.db || !window.addDoc || !window.collection) {
+                console.error("Logger failed: Firestore DB or required functions not initialized.");
                 return;
             }
 
@@ -160,10 +159,15 @@
                         })
                         .catch(error => {
                             console.error("[AUTH] Custom token sign-in failed:", error);
+                            // Log the auth failure
                             logErrorToFirestore('AuthCheck', 'Custom token sign-in failed', { error: error.message, token_present: true });
+                            // Fallback to anonymous sign-in (as per original logic)
                             signInAnonymously(window.auth).catch(console.error);
                         });
                     } else {
+                        // Log the auth failure
+                        logErrorToFirestore('AuthCheck', 'Initial token missing, attempting anonymous sign-in.', { token_present: false });
+                        // Anonymous sign-in
                         signInAnonymously(window.auth).catch(error => {
                             console.error("[AUTH] Anonymous sign-in failed:", error);
                             logErrorToFirestore('AuthCheck', 'Anonymous sign-in failed', { error: error.message, token_present: false });
