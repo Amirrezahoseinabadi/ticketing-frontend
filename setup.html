@@ -151,7 +151,7 @@
                     // Update UI to show authenticated content
                     renderApp(); 
                 } else {
-                    // تلاش برای ورود با توکن Canvas یا ورود ناشناس
+                    // تلاش برای ورود با توکن Canvas
                     if (initialAuthToken) {
                         signInWithCustomToken(window.auth, initialAuthToken)
                         .then(() => {
@@ -161,17 +161,14 @@
                             console.error("[AUTH] Custom token sign-in failed:", error);
                             // Log the auth failure
                             logErrorToFirestore('AuthCheck', 'Custom token sign-in failed', { error: error.message, token_present: true });
-                            // Fallback to anonymous sign-in (as per original logic)
-                            signInAnonymously(window.auth).catch(console.error);
+                            // FIX: حذف Anonymous Sign-in و اجازه دادن به خطای تایم اوت برای گزارش بهتر
+                            // signInAnonymously(window.auth).catch(console.error); 
                         });
                     } else {
                         // Log the auth failure
-                        logErrorToFirestore('AuthCheck', 'Initial token missing, attempting anonymous sign-in.', { token_present: false });
-                        // Anonymous sign-in
-                        signInAnonymously(window.auth).catch(error => {
-                            console.error("[AUTH] Anonymous sign-in failed:", error);
-                            logErrorToFirestore('AuthCheck', 'Anonymous sign-in failed', { error: error.message, token_present: false });
-                        });
+                        logErrorToFirestore('AuthCheck', 'Initial token missing, Auth state remains unauthenticated.', { token_present: false });
+                        // FIX: حذف Anonymous Sign-in و اجازه دادن به خطای تایم اوت برای گزارش بهتر
+                        // signInAnonymously(window.auth).catch(error => { ... });
                     }
                 }
             });
