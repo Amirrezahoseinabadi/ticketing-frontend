@@ -5,338 +5,341 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 	<title>تیکت تل — راه‌اندازی و پروفایل</title>
 	<script src="https://cdn.tailwindcss.com"></script>
-	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> 
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> 
 	<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    
-    <!-- تلگرام Mini App SDK -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
-    <!-- FIREBASE MODULES (Only Auth is kept client-side) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        // Auth functions MUST remain client-side
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // setLogLevel is kept for optional debugging
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; 
-        
-        // --- PROXY WORKER CONFIG & LOGIC ---
-        // این URL باید به Worker شما اشاره کند که واسط دیتابیس است.
-        const FIREBASE_PROXY_URL = 'https://management-ticketing.amiruserbot7.workers.dev/firebase-proxy'; 
-        
-        /**
-         * واسط اصلی برای ارسال درخواست‌های Firestore به Worker.
-         * @param {string} action - نوع عملیات (مثال: 'get', 'set').
-         * @param {string} path - مسیر سند در Firestore (مثال: 'artifacts/.../profile/main').
-         * @param {object} [payload={}] - داده‌هایی که باید ذخیره شوند (برای عملیات 'set').
-         */
-        async function proxyFirestore(action, path, payload = {}) {
-            try {
-                const firebaseUid = window.state?.user?.uid;
-                if (!firebaseUid || firebaseUid === 'guest') {
-                    throw new Error('خطا در احراز هویت: Firebase UID در دسترس نیست.');
-                }
+    
+    <!-- تلگرام Mini App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- FIREBASE MODULES (Only Auth is kept client-side) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // Auth functions MUST remain client-side
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // setLogLevel is kept for optional debugging
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"; 
+        
+        // --- PROXY WORKER CONFIG & LOGIC ---
+        // این URL باید به Worker شما اشاره کند که واسط دیتابیس است.
+        const FIREBASE_PROXY_URL = 'https://management-ticketing.amiruserbot7.workers.dev/firebase-proxy'; 
+        
+        /**
+         * واسط اصلی برای ارسال درخواست‌های Firestore به Worker.
+         * @param {string} action - نوع عملیات (مثال: 'get', 'set').
+         * @param {string} path - مسیر سند در Firestore (مثال: 'artifacts/.../profile/main').
+         * @param {object} [payload={}] - داده‌هایی که باید ذخیره شوند (برای عملیات 'set').
+         */
+        async function proxyFirestore(action, path, payload = {}) {
+            try {
+                const firebaseUid = window.state?.user?.uid;
+                if (!firebaseUid || firebaseUid === 'guest') {
+                    throw new Error('خطا در احراز هویت: Firebase UID در دسترس نیست.');
+                }
 
-                const res = await fetch(FIREBASE_PROXY_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action, path, payload, firebaseUid }),
-                });
+                const res = await fetch(FIREBASE_PROXY_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, path, payload, firebaseUid }),
+                });
 
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || `Worker با وضعیت ${res.status} پاسخ داد.`);
-                return data;
-            } catch (err) {
-                console.error(`Proxy Firestore ${action} failed:`, err);
-                Swal.fire({ icon: 'error', title: 'خطا در ارتباط', text: 'عدم ارتباط با پایگاه داده از طریق Worker.' });
-                throw err;
-            }
-        }
-        
-        /** Helper to set/update a document via Worker. */
-        async function saveDocToProxy(docPath, data) {
-            return proxyFirestore('set', docPath, data); 
-        }
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || `Worker با وضعیت ${res.status} پاسخ داد.`);
+                return data;
+            } catch (err) {
+                console.error(`Proxy Firestore ${action} failed:`, err);
+                Swal.fire({ icon: 'error', title: 'خطا در ارتباط', text: 'عدم ارتباط با پایگاه داده از طریق Worker.' });
+                throw err;
+            }
+        }
+        
+        /** Helper to set/update a document via Worker. */
+        async function saveDocToProxy(docPath, data) {
+            return proxyFirestore('set', docPath, data); 
+        }
 
-        /** Helper to get a document via Worker. */
-        async function getDocFromProxy(docPath) {
-            const result = await proxyFirestore('get', docPath);
-            // انتظار می‌رود Worker در صورت یافت نشدن سند، {data: null} برگرداند
-            return result.data || null;
-        }
-        
-        /** * شبیه‌سازی onSnapshot با استفاده از Polling (بررسی دوره‌ای) برای Mini App.
-         * @param {string} docPath - مسیر سندی که باید مانیتور شود.
-         * @param {function} callback - تابعی که در صورت تغییر داده‌ها فراخوانی می‌شود.
-         */
-        function onSnapshotProxy(docPath, callback) {
-            const POLLING_INTERVAL = 5000; // بررسی هر 5 ثانیه (قابل تنظیم)
-            let lastData = null;
+        /** Helper to get a document via Worker. */
+        async function getDocFromProxy(docPath) {
+            const result = await proxyFirestore('get', docPath);
+            // انتظار می‌رود Worker در صورت یافت نشدن سند، {data: null} برگرداند
+            return result.data || null;
+        }
+        
+        /** * شبیه‌سازی onSnapshot با استفاده از Polling (بررسی دوره‌ای) برای Mini App.
+         * @param {string} docPath - مسیر سندی که باید مانیتور شود.
+         * @param {function} callback - تابعی که در صورت تغییر داده‌ها فراخوانی می‌شود.
+         */
+        function onSnapshotProxy(docPath, callback) {
+            const POLLING_INTERVAL = 5000; // بررسی هر 5 ثانیه (قابل تنظیم)
+            let lastData = null;
 
-            const poll = async () => {
-                try {
-                    const data = await getDocFromProxy(docPath);
-                    const currentData = data || {};
-                    
-                    // مقایسه عمیق (Deep Comparison) با JSON
-                    const currentJson = JSON.stringify(currentData);
-                    const lastJson = JSON.stringify(lastData);
+            const poll = async () => {
+                try {
+                    const data = await getDocFromProxy(docPath);
+                    const currentData = data || {};
+                    
+                    // مقایسه عمیق (Deep Comparison) با JSON
+                    const currentJson = JSON.stringify(currentData);
+                    const lastJson = JSON.stringify(lastData);
 
-                    if (currentJson !== lastJson) {
-                        // فراخوانی callback با ساختاری شبیه به docSnap Firestore
-                        callback({
-                            exists: () => !!data,
-                            data: () => data,
-                        });
-                        lastData = currentData;
-                    }
-                } catch (error) {
-                    console.error("Polling error for onSnapshotProxy:", error);
-                    // خطا نادیده گرفته می‌شود تا حلقه Polling متوقف نشود.
-                }
-            };
+                    if (currentJson !== lastJson) {
+                        // فراخوانی callback با ساختاری شبیه به docSnap Firestore
+                        callback({
+                            exists: () => !!data,
+                            data: () => data,
+                        });
+                        lastData = currentData;
+                    }
+                } catch (error) {
+                    console.error("Polling error for onSnapshotProxy:", error);
+                    // خطا نادیده گرفته می‌شود تا حلقه Polling متوقف نشود.
+                }
+            };
 
-            // شروع Polling و تنظیم Interval
-            poll(); 
-            const intervalId = setInterval(poll, POLLING_INTERVAL);
+            // شروع Polling و تنظیم Interval
+            poll(); 
+            const intervalId = setInterval(poll, POLLING_INTERVAL);
 
-            // بازگرداندن تابع Unsubscribe برای توقف Polling
-            return () => clearInterval(intervalId);
-        }
-        // --- END PROXY WORKER LOGIC ---
-        
-        // Expose helpers globally (Set to window for non-module scripts if needed, though all logic is here)
-        window.saveDocToProxy = saveDocToProxy;
-        window.getDocFromProxy = getDocFromProxy;
-        window.onSnapshotProxy = onSnapshotProxy;
-
-
-        // Flag to track authentication readiness status
-        window.isAuthReady = false; 
-
-        // Log setup
-        // setLogLevel('debug'); // Uncomment for debugging Firestore logs
-
-        // Global variables injected by Canvas environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // Global variable for Firebase instances
-        window.db = {}; // Placeholder, as Firestore is not used directly
-        window.auth = null;
-        window.FIREBASE_DOC_PATH = null;
-
-        // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
-        function getTelegramUserInfo() {
-            // Get user info from Telegram WebApp SDK
-            if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
-                const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-                const fullName = tgUser.last_name ? `${tgUser.first_name} ${tgUser.last_name}` : tgUser.first_name;
-                
-                return {
-                    tgUserId: tgUser.id ? tgUser.id.toString() : null, 
-                    fullName: fullName, 
-                    username: tgUser.username || tgUser.first_name,
-                    first_name: tgUser.first_name,
-                    isAnonymous: false,
-                    isTelegramAuth: true,
-                    photo_url: tgUser.photo_url || null, 
-                };
-            }
-            return {
-                tgUserId: null, 
-                fullName: 'کاربر میهمان',
-                username: 'کاربر میهمان',
-                first_name: 'کاربر',
-                isAnonymous: true,
-                isTelegramAuth: false,
-                photo_url: null,
-            };
-        }
-        
-        // تنظیم اطلاعات اولیه کاربر
-        const initialTgInfo = getTelegramUserInfo();
-        window.state.user = { 
-            uid: 'guest', // Initial Firebase UID placeholder
-            platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null },
-            ...initialTgInfo, 
-        };
-        
-
-        if (firebaseConfig) {
-            window.firebaseApp = initializeApp(firebaseConfig);
-            window.auth = getAuth(window.firebaseApp);
-
-            // Auth listener and custom token sign-in
-            onAuthStateChanged(window.auth, (user) => {
-                if (user) {
-                    // بروزرسانی UID فایربیس
-                    window.state.user = { 
-                        ...window.state.user, 
-                        uid: user.uid, // This is the actual Firebase UID
-                        isAnonymous: user.isAnonymous
-                    };
-                    
-                    // اگر احراز هویت Mini App نبود، نام کاربری را از ایمیل یا حالت پیش‌فرض می‌گیرد.
-                    if (!window.state.user.isTelegramAuth) {
-                        window.state.user.username = user.email ? user.email.split('@')[0] : 'کاربر مهمان';
-                        window.state.user.fullName = window.state.user.username;
-                    }
-                    
-                    // تنظیم مسیر Firestore بر اساس UID واقعی Firebase
-                    window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${user.uid}/profile/main`;
-                    
-                    // Fetch user-specific and public platform data
-                    setupDataListeners(user.uid);
-                    
-                    // --- تنظیم پرچم آماده بودن احراز هویت ---
-                    window.isAuthReady = true;
-                    
-                    // Update UI to show authenticated content
-                    renderApp(); 
-                } else {
-                    // تلاش برای ورود با توکن Canvas یا ورود ناشناس
-                    if (initialAuthToken) {
-                        signInWithCustomToken(window.auth, initialAuthToken).catch(error => {
-                            console.error("Custom token sign-in failed:", error);
-                            signInAnonymously(window.auth).catch(console.error);
-                        });
-                    } else {
-                        signInAnonymously(window.auth).catch(console.error);
-                    }
-                }
-            });
-        }
-        
-        function setupDataListeners(uid) {
-            // 1. Listen to the user's private document (for profile data, e.g., display name)
-            // *** استفاده از onSnapshotProxy به جای onSnapshot Firestore ***
-            window.onSnapshotProxy(window.FIREBASE_DOC_PATH, (docSnap) => {
-                const oldHandle = window.state.platform.storeHandle;
-                
-                if (docSnap.exists()) {
-                    // Update state with platform data if available
-                    const data = docSnap.data();
-                    window.state.user = { ...window.state.user, ...data };
-                    if (data.platform) {
-                        window.state.platform = data.platform;
-                    }
-                }
-                
-                // اگر دیتای جدیدی از پلتفرم (مثلاً پس از ساخت) لود شده باشد
-                if (window.state.platform.storeHandle && window.state.platform.storeHandle !== oldHandle) {
-                    // اگر در نمای Success بودیم، به داشبورد هدایت کن
-                    if (window.state.currentView === 'success') {
-                        navigateTo('dashboard');
-                    }
-                }
-                
-                renderProfile(); // Rerender profile on data change
-                // NEW: Explicitly check and render dashboard on data change if needed
-                if (window.state.currentView === 'dashboard') {
-                    renderDashboard();
-                }
-            });
-
-            // 2. Try to sync if the user has an existing platform that wasn't found in their profile
-            trySyncExistingPlatform(uid);
-        }
-
-        /**
-         * UPDATED FUNCTION: Searches the worker for a store linked to the admin's Firebase UID.
-         * @param {string} firebaseUid - The authenticated Firebase User ID.
-         * @param {boolean} [force=false] - If true, ignores the current storeHandle status and retries sync.
-         */
-        async function trySyncExistingPlatform(firebaseUid, force = false) {
-            const { storeHandle } = window.state.platform;
-            const syncButton = document.getElementById('sync-platform-btn');
-            
-            // اگر قبلاً Handle را در پروفایل Firestore داشتیم و force نبود، کاری نمی‌کنیم
-            if (storeHandle && !force) return; 
-            
-            if (!firebaseUid) {
-                if (force) {
-                    Swal.fire({ icon: 'warning', title: 'خطا در احراز هویت', text: 'لطفاً صبر کنید تا احراز هویت فایربیس کامل شود یا Mini App را دوباره باز کنید.' });
-                }
-                return;
-            }
-
-            // آدرس Worker اصلی (همانند قبل، چون این endpoint خودش یک Worker call است)
-            const SYNC_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
-            const SYNC_ENDPOINT = `${SYNC_WORKER_URL}/get-store-by-admin-id`; 
-            
-            if (syncButton) toggleLoading(syncButton, true, 'در حال همگام‌سازی...');
+            // بازگرداندن تابع Unsubscribe برای توقف Polling
+            return () => clearInterval(intervalId);
+        }
+        // --- END PROXY WORKER LOGIC ---
+        
+        // Expose helpers globally (Set to window for non-module scripts if needed, though all logic is here)
+        window.saveDocToProxy = saveDocToProxy;
+        window.getDocFromProxy = getDocFromProxy;
+        window.onSnapshotProxy = onSnapshotProxy;
 
 
-            console.log(`Attempting sync using Firebase UID: ${firebaseUid}`);
-            
-            try {
-                const payload = {
-                    firebaseUid: firebaseUid,
-                    adminChatId: window.state.user.tgUserId || null, 
-                };
+        // Flag to track authentication readiness status
+        window.isAuthReady = false; 
 
-                const res = await fetch(SYNC_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const data = await res.json();
+        // Log setup
+        // setLogLevel('debug'); // Uncomment for debugging Firestore logs
 
-                if (res.status === 200 && data.success && data.data) {
-                    // Store found! Save it to the current user's Firestore profile
-                    const platformData = data.data;
-                    
-                    if (!window.FIREBASE_DOC_PATH) { 
-                        console.warn("Sync successful but Firebase auth not fully ready yet. Data will be saved by onSnapshot.");
-                        if (force) {
-                             Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'فروشگاه شما پیدا شد. لطفاً چند لحظه صبر کنید تا در پروفایل ثبت شود.' });
-                        }
-                        return;
-                    }
-                    
-                    // *** استفاده از saveDocToProxy به جای setDoc Firestore ***
-                    await saveDocToProxy(window.FIREBASE_DOC_PATH, { platform: platformData });
-                    
-                    // بلافاصله پس از ذخیره موفق در Firestore، وضعیت را به‌روز و داشبورد را رندر کن (onSnapshotProxy هم این کار را می‌کند، اما این برای فورس رفرش است)
-                    window.state.platform = platformData; 
-                    renderDashboard(); 
-                    
-                    console.log(`Successfully synced existing platform: ${platformData.storeHandle}`);
-                    if (force) {
-                         Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'اطلاعات فروشگاه با موفقیت در پروفایل شما ثبت شد.' });
-                    }
-                    
-                } else if (res.status === 404) {
-                    console.log(`No existing platform found for UID ${firebaseUid}.`);
-                    if (force) {
-                        Swal.fire({ icon: 'info', title: 'فروشگاهی یافت نشد', text: 'فروشگاهی با این حساب کاربری در سیستم ما ثبت نشده است.' });
-                    }
-                } else {
-                    console.warn(`Sync failed for UID ${firebaseUid}:`, data.error || data.message || 'Worker error');
-                    if (force) {
-                        Swal.fire({ icon: 'error', title: 'خطا در همگام‌سازی', text: data.error || data.message || `خطای ناشناخته در Worker (Status: ${res.status})` });
-                    }
-                }
+        // Global variables injected by Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // Global variable for Firebase instances
+        window.db = {}; // Placeholder, as Firestore is not used directly
+        window.auth = null;
+        window.FIREBASE_DOC_PATH = null;
 
-            } catch(error) {
-                console.error("Error during platform sync attempt:", error);
-                if (force) {
-                    Swal.fire({ icon: 'error', title: 'خطای شبکه', text: 'خطا در برقراری ارتباط با سرور همگام‌سازی.' });
-                }
-            } finally {
-                if (syncButton) toggleLoading(syncButton, false, 'همگام‌سازی اطلاعات (Refresh)');
-            }
-        }
+        // تعیین اطلاعات اولیه کاربر از تلگرام (اگر Mini App باشد)
+        function getTelegramUserInfo() {
+            // Get user info from Telegram WebApp SDK
+            if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+                const fullName = tgUser.last_name ? `${tgUser.first_name} ${tgUser.last_name}` : tgUser.first_name;
+                
+                return {
+                    tgUserId: tgUser.id ? tgUser.id.toString() : null, 
+                    fullName: fullName, 
+                    username: tgUser.username || tgUser.first_name,
+                    first_name: tgUser.first_name,
+                    isAnonymous: false,
+                    isTelegramAuth: true,
+                    photo_url: tgUser.photo_url || null, 
+                };
+            }
+            return {
+                tgUserId: null, 
+                fullName: 'کاربر میهمان',
+                username: 'کاربر میهمان',
+                first_name: 'کاربر',
+                isAnonymous: true,
+                isTelegramAuth: false,
+                photo_url: null,
+            };
+        }
+        
+        // تنظیم اطلاعات اولیه کاربر
+        const initialTgInfo = getTelegramUserInfo();
+        window.state.user = { 
+            uid: 'guest', // Initial Firebase UID placeholder
+            platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null },
+            ...initialTgInfo, 
+        };
+        
 
-        // Expose functions globally for use in HTML/scripts
-        window.setupDataListeners = setupDataListeners;
-        // Expose manual sync function
-        window.manualSync = () => trySyncExistingPlatform(window.state.user.uid, true);
-    </script>
-    <!-- END FIREBASE MODULES -->
+        if (firebaseConfig) {
+            window.firebaseApp = initializeApp(firebaseConfig);
+            window.auth = getAuth(window.firebaseApp);
+
+            // Auth listener and custom token sign-in
+            onAuthStateChanged(window.auth, (user) => {
+                if (user) {
+                    // بروزرسانی UID فایربیس
+                    window.state.user = { 
+                        ...window.state.user, 
+                        uid: user.uid, // This is the actual Firebase UID
+                        isAnonymous: user.isAnonymous
+                    };
+                    
+                    // اگر احراز هویت Mini App نبود، نام کاربری را از ایمیل یا حالت پیش‌فرض می‌گیرد.
+                    if (!window.state.user.isTelegramAuth) {
+                        window.state.user.username = user.email ? user.email.split('@')[0] : 'کاربر مهمان';
+                        window.state.user.fullName = window.state.user.username;
+                    }
+                    
+                    // تنظیم مسیر Firestore بر اساس UID واقعی Firebase
+                    window.FIREBASE_DOC_PATH = `artifacts/${appId}/users/${user.uid}/profile/main`;
+                    
+                    // Fetch user-specific and public platform data
+                    setupDataListeners(user.uid);
+                    
+                    // --- تنظیم پرچم آماده بودن احراز هویت ---
+                    window.isAuthReady = true;
+                    
+                    // Update UI to show authenticated content
+                    renderApp(); 
+                } else {
+                    // تلاش برای ورود با توکن Canvas یا ورود ناشناس
+                    if (initialAuthToken) {
+                        signInWithCustomToken(window.auth, initialAuthToken).catch(error => {
+                            console.error("Custom token sign-in failed:", error);
+                            signInAnonymously(window.auth).catch(console.error);
+                        });
+                    } else {
+                        signInAnonymously(window.auth).catch(console.error);
+                    }
+                }
+            });
+        }
+        
+        function setupDataListeners(uid) {
+            // 1. Listen to the user's private document (for profile data, e.g., display name)
+            // *** استفاده از onSnapshotProxy به جای onSnapshot Firestore ***
+            window.onSnapshotProxy(window.FIREBASE_DOC_PATH, (docSnap) => {
+                const oldHandle = window.state.platform.storeHandle;
+                
+                if (docSnap.exists()) {
+                    // Update state with platform data if available
+                    const data = docSnap.data();
+                    window.state.user = { ...window.state.user, ...data };
+                    if (data.platform) {
+                        window.state.platform = data.platform;
+                    }
+                }
+                
+                // اگر دیتای جدیدی از پلتفرم (مثلاً پس از ساخت) لود شده باشد
+                if (window.state.platform.storeHandle && window.state.platform.storeHandle !== oldHandle) {
+                    // اگر در نمای Success بودیم، به داشبورد هدایت کن
+                    if (window.state.currentView === 'success') {
+                        navigateTo('dashboard');
+                    }
+                }
+                
+                renderProfile(); // Rerender profile on data change
+                // NEW: Explicitly check and render dashboard on data change if needed
+                if (window.state.currentView === 'dashboard') {
+                    renderDashboard();
+                }
+            });
+
+            // 2. Try to sync if the user has an existing platform that wasn't found in their profile
+            trySyncExistingPlatform(uid);
+        }
+
+        /**
+         * UPDATED FUNCTION: Searches the worker for a store linked to the admin's Firebase UID.
+         * @param {string} firebaseUid - The authenticated Firebase User ID.
+         * @param {boolean} [force=false] - If true, ignores the current storeHandle status and retries sync.
+         */
+        async function trySyncExistingPlatform(firebaseUid, force = false) {
+            const { storeHandle } = window.state.platform;
+            const syncButton = document.getElementById('sync-platform-btn');
+            
+            // اگر قبلاً Handle را در پروفایل Firestore داشتیم و force نبود، کاری نمی‌کنیم
+            if (storeHandle && !force) return; 
+            
+            if (!firebaseUid) {
+                if (force) {
+                    Swal.fire({ icon: 'warning', title: 'خطا در احراز هویت', text: 'لطفاً صبر کنید تا احراز هویت فایربیس کامل شود یا Mini App را دوباره باز کنید.' });
+                }
+                return;
+            }
+
+            // آدرس Worker اصلی (همانند قبل، چون این endpoint خودش یک Worker call است)
+            const SYNC_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
+            const SYNC_ENDPOINT = `${SYNC_WORKER_URL}/get-store-by-admin-id`; 
+            
+            if (syncButton) toggleLoading(syncButton, true, 'در حال همگام‌سازی...');
+
+
+            console.log(`Attempting sync using Firebase UID: ${firebaseUid}`);
+            
+            try {
+                const payload = {
+                    firebaseUid: firebaseUid,
+                    adminChatId: window.state.user.tgUserId || null, 
+                };
+
+                const res = await fetch(SYNC_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+
+                if (res.status === 200 && data.success && data.data) {
+                    // Store found! 
+                    const platformData = data.data;
+
+                    // --- شروع اصلاحیه: به‌روزرسانی وضعیت محلی و رندر فوری ---
+                    // 1. به‌روزرسانی وضعیت محلی برای رندر فوری UI
+                    window.state.platform = platformData; 
+                    renderProfile(); 
+                    renderDashboard(); 
+
+                    // 2. نمایش پیام موفقیت (اگر همگام‌سازی دستی بود)
+                    if (force) {
+                        Swal.fire({ icon: 'success', title: 'همگام‌سازی موفق', text: 'اطلاعات فروشگاه با موفقیت به‌روزرسانی شد.' });
+                    }
+                    // --- پایان اصلاحیه: به‌روزرسانی وضعیت محلی و رندر فوری ---
+                    
+                    // 3. فقط در صورتی که مسیر Firebase آماده بود، داده‌ها را ذخیره دائمی کن.
+                    if (!window.FIREBASE_DOC_PATH) { 
+                        console.warn("Sync successful but Firebase auth not fully ready yet. Skipping persistence.");
+                        return; // خروج از تابع، اما حالت محلی (UI) قبلاً به‌روز شده است.
+                    }
+                    
+                    // *** ذخیره دائمی به پروفایل Firestore (از طریق Proxy) ***
+                    await saveDocToProxy(window.FIREBASE_DOC_PATH, { platform: platformData });
+                    
+                    console.log(`Successfully synced and persisted existing platform: ${platformData.storeHandle}`);
+                    
+                } else if (res.status === 404) {
+                    console.log(`No existing platform found for UID ${firebaseUid}.`);
+                    if (force) {
+                        Swal.fire({ icon: 'info', title: 'فروشگاهی یافت نشد', text: 'فروشگاهی با این حساب کاربری در سیستم ما ثبت نشده است.' });
+                    }
+                } else {
+                    console.warn(`Sync failed for UID ${firebaseUid}:`, data.error || data.message || 'Worker error');
+                    if (force) {
+                        Swal.fire({ icon: 'error', title: 'خطا در همگام‌سازی', text: data.error || data.message || `خطای ناشناخته در Worker (Status: ${res.status})` });
+                    }
+                }
+
+            } catch(error) {
+                console.error("Error during platform sync attempt:", error);
+                if (force) {
+                    Swal.fire({ icon: 'error', title: 'خطای شبکه', text: 'خطا در برقراری ارتباط با سرور همگام‌سازی.' });
+                }
+            } finally {
+                if (syncButton) toggleLoading(syncButton, false, 'همگام‌سازی اطلاعات (Refresh)');
+            }
+        }
+
+        // Expose functions globally for use in HTML/scripts
+        window.setupDataListeners = setupDataListeners;
+        // Expose manual sync function
+        window.manualSync = () => trySyncExistingPlatform(window.state.user.uid, true);
+    </script>
+    <!-- END FIREBASE MODULES -->
 
 	<style>
 		:root{
@@ -349,8 +352,8 @@
 			--text-light: #E6EEF5;
 			--gold: #FFC857;
 			--text-on-light: #1A202C; /* Dark text for popups */
-            --stage-width: 380px; /* کاهش عرض برای موبایل */
-            --nav-height: 60px; /* کاهش ارتفاع ناوبری */
+            --stage-width: 380px; /* کاهش عرض برای موبایل */
+            --nav-height: 60px; /* کاهش ارتفاع ناوبری */
 		}
 
 		html,body{height:100%;}
@@ -367,41 +370,41 @@
 			display:flex;
 			align-items:center;
 			justify-content:center;
-			overflow-x: hidden; 
+			overflow-x: hidden; 
 			overflow-y: auto; /* Allow scrolling within the main view */
 		}
-        
-        #app-container {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            max-width: 1200px; 
-            margin: auto;
-        }
-        
-        /* Main View Container */
-        #main-view {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
+        
+        #app-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            max-width: 1200px; 
+            margin: auto;
+        }
+        
+        /* Main View Container */
+        #main-view {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
 
-        /* Stage containers for different views (onboarding, form, success) */
+        /* Stage containers for different views (onboarding, form, success) */
 		.stage-container {
 			position: absolute;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-            padding: 0.5rem; /* کاهش پدینگ اطراف محتوا */
-            width: 100%; 
-            height: 100%;
-			transition: all 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55); 
+            padding: 0.5rem; /* کاهش پدینگ اطراف محتوا */
+            width: 100%; 
+            height: 100%;
+			transition: all 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55); 
 			will-change: opacity, transform;
-            /* Ensures scrollable content inside if necessary */
-            overflow-y: auto; 
+            /* Ensures scrollable content inside if necessary */
+            overflow-y: auto; 
 		}
 
 		/* Stage States for Transition */
@@ -409,35 +412,35 @@
 			opacity: 1;
 			transform: scale(1);
 			pointer-events: auto;
-            position: relative;
+            position: relative;
 		}
 		.stage-hidden {
 			opacity: 0;
 			transform: scale(0.95);
 			pointer-events: none;
-            position: absolute;
+            position: absolute;
 		}
 		.stage-exit {
 			opacity: 0;
-			transform: scale(0.85); 
+			transform: scale(0.85); 
 			pointer-events: none;
 		}
 		.stage-enter {
 			opacity: 1;
 			transform: scale(1);
 			pointer-events: auto;
-			transition-delay: 0.1s; 
+			transition-delay: 0.1s; 
 		}
 
-        /* Specific sizing for the initial Brand Stage */
-        #stage-onboarding .brand-card {
-            width: var(--stage-width);
-            max-width: 100%;
-            height: auto; 
-            min-height: 480px; /* کاهش ارتفاع مینیمم */
-        }
-        
-        /* NOTE: .form-grid-container removed as per user request */
+        /* Specific sizing for the initial Brand Stage */
+        #stage-onboarding .brand-card {
+            width: var(--stage-width);
+            max-width: 100%;
+            height: auto; 
+            min-height: 480px; /* کاهش ارتفاع مینیمم */
+        }
+        
+        /* NOTE: .form-grid-container removed as per user request */
 
 		/* left card (visual/brand) */
 		.brand-card{
@@ -486,23 +489,23 @@
 			box-shadow: 0 8px 24px rgba(2,6,23,0.6);
 			border:1px solid rgba(255,255,255,0.04);
 			backdrop-filter: blur(6px);
-            width: var(--stage-width); /* محدود کردن عرض فرم */
-            max-width: 100%;
+            width: var(--stage-width); /* محدود کردن عرض فرم */
+            max-width: 100%;
 		}
-        
-        /* Success Card Styling (Stage 3) and Profile/Dashboard Cards */
+        
+        /* Success Card Styling (Stage 3) and Profile/Dashboard Cards */
 		.content-card {
-            width: 100%;
-            max-width: 680px; 
-            background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-            border-radius:1rem; /* کاهش گوشه‌ها */
-            padding:1.5rem; /* کاهش پدینگ */
-            box-shadow: 0 15px 45px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.08);
-            border:1px solid rgba(255,255,255,0.06);
-            backdrop-filter: blur(8px);
-            text-align: right;
-            max-width: var(--stage-width); /* محدود کردن حداکثر عرض */
-        }
+            width: 100%;
+            max-width: 680px; 
+            background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+            border-radius:1rem; /* کاهش گوشه‌ها */
+            padding:1.5rem; /* کاهش پدینگ */
+            box-shadow: 0 15px 45px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.08);
+            border:1px solid rgba(255,255,255,0.06);
+            backdrop-filter: blur(8px);
+            text-align: right;
+            max-width: var(--stage-width); /* محدود کردن حداکثر عرض */
+        }
 
 		.headline{display:flex; align-items:center; gap:0.6rem}
 		.headline h1{font-size:1.3rem; font-weight:700; color:var(--text-light)} /* کاهش سایز فونت */
@@ -514,7 +517,7 @@
 			padding:0.6rem 0.8rem; border-radius:0.6rem; font-weight:500; color:var(--text-light); /* کاهش پدینگ و گوشه‌ها */
 			box-shadow: 0 4px 12px rgba(2,6,23,0.5);
 			transition: all 0.18s ease;
-            font-size: 0.95rem; /* کاهش سایز فونت ورودی */
+            font-size: 0.95rem; /* کاهش سایز فونت ورودی */
 		}
 
 		.form-label{font-weight:600; color:var(--muted); font-size:0.8rem} /* کاهش سایز فونت */
@@ -526,7 +529,7 @@
 			background:linear-gradient(90deg,var(--accent2),var(--accent1)); color:#fff; border:none;
 			box-shadow: 0 8px 20px rgba(0,114,255,0.25);
 			transition: transform .18s ease, box-shadow .18s ease;
-            font-size: 1rem; /* کاهش سایز فونت دکمه */
+            font-size: 1rem; /* کاهش سایز فونت دکمه */
 		}
 		.btn-cta:hover{transform:translateY(-3px); box-shadow: 0 12px 30px rgba(0,114,255,0.30)} /* کاهش میزان حرکت و سایه */
 		.btn-cta:disabled{
@@ -535,22 +538,22 @@
 			transform: translateY(0);
 			box-shadow: none;
 			/* REPLACED: Changed disabled background to match the initial state */
-			background: linear-gradient(90deg, #374151, #4b5563); 
+			background: linear-gradient(90deg, #374151, #4b5563); 
 		}
-        
-        /* Custom button for copy action in the success page */
-        .btn-copy {
-            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
-            border: 1px solid rgba(255,255,255,0.1);
-            color: var(--accent1);
-            padding: 0.4rem 0.7rem; /* کاهش پدینگ */
-            border-radius: 0.4rem; /* کاهش گوشه‌ها */
-            transition: all 0.2s;
-        }
-        .btn-copy:hover {
-            background: rgba(255,255,255,0.1);
-            color: var(--text-light);
-        }
+        
+        /* Custom button for copy action in the success page */
+        .btn-copy {
+            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--accent1);
+            padding: 0.4rem 0.7rem; /* کاهش پدینگ */
+            border-radius: 0.4rem; /* کاهش گوشه‌ها */
+            transition: all 0.2s;
+        }
+        .btn-copy:hover {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-light);
+        }
 
 		.muted-row{display:flex; gap:0.5rem; align-items:center; color:var(--muted); font-size:0.8rem} /* کاهش فاصله و سایز فونت */
 
@@ -565,12 +568,12 @@
 			/* Removed .form-grid-container responsive settings */
 			.brand-card{order:2}
 			.form-card{order:1}
-            .stage-container {
-                padding: 0.5rem; 
-            }
-            :root{
-                --stage-width: 100%;
-            }
+            .stage-container {
+                padding: 0.5rem; 
+            }
+            :root{
+                --stage-width: 100%;
+            }
 		}
 
 		/* subtle entrance animation for page 1 elements */
@@ -586,272 +589,272 @@
 		/* footer */
 		.small-foot{font-size:0.75rem; color:var(--muted)} /* کاهش سایز فونت */
 
-        /* --- Navigation Bar Styling (New) --- */
-        #nav-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: var(--nav-height);
-            background: rgba(15, 23, 36, 0.9); /* Dark semi-transparent */
-            backdrop-filter: blur(12px);
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 0.5rem;
-            z-index: 50;
-        }
+        /* --- Navigation Bar Styling (New) --- */
+        #nav-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: var(--nav-height);
+            background: rgba(15, 23, 36, 0.9); /* Dark semi-transparent */
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 0.5rem;
+            z-index: 50;
+        }
 
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 25%;
-            height: 100%;
-            color: var(--muted);
-            font-size: 0.65rem; /* کاهش سایز فونت ناوبری */
-            font-weight: 600;
-            cursor: pointer;
-            transition: color 0.2s ease, transform 0.2s ease;
-        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 25%;
+            height: 100%;
+            color: var(--muted);
+            font-size: 0.65rem; /* کاهش سایز فونت ناوبری */
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
 
-        .nav-item.active {
-            color: var(--accent1);
-        }
+        .nav-item.active {
+            color: var(--accent1);
+        }
 
-        .nav-item i {
-            font-size: 1.1rem; /* کاهش سایز آیکون ناوبری */
-            margin-bottom: 2px;
-        }
-        
-        /* NEW: Profile specific styles */
-        .profile-pic-container {
-            width: 96px; 
-            height: 96px; 
-            border-radius: 50%;
-            overflow: hidden;
-            margin: 0 auto 1rem;
-            border: 4px solid var(--accent1);
-            box-shadow: 0 0 10px rgba(0, 114, 255, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--accent2), var(--accent1));
-        }
-        .profile-pic-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+        .nav-item i {
+            font-size: 1.1rem; /* کاهش سایز آیکون ناوبری */
+            margin-bottom: 2px;
+        }
+        
+        /* NEW: Profile specific styles */
+        .profile-pic-container {
+            width: 96px; 
+            height: 96px; 
+            border-radius: 50%;
+            overflow: hidden;
+            margin: 0 auto 1rem;
+            border: 4px solid var(--accent1);
+            box-shadow: 0 0 10px rgba(0, 114, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent2), var(--accent1));
+        }
+        .profile-pic-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
 	</style>
 </head>
 <body>
 	<main id="app-container">
-        <!-- Main content view container -->
-        <div id="main-view">
-            
-            <!-- Stage 1: Onboarding/Brand Card (The initial view) -->
-            <div id="stage-onboarding" class="stage-container stage-active" data-view="home">
-                <!-- Content same as previous version for brand card... -->
-                <section class="brand-card animate-fade-up delay-1">
-                    <div class="brand-hero">
-                        <div class="logo-circle" aria-hidden>
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12a2 2 0 0 1-2 2h-5l-4 4v-4H6a2 2 0 0 1-2-2V4z"/></svg>
-                        </div>
-                        <div>
-                            <div class="brand-title">تیکت تل</div>
-                            <div class="brand-sub">پلتفرم پشتیبانی هوشمند — سریع، امن و قابل توسعه</div>
-                        </div>
-                    </div>
+        <!-- Main content view container -->
+        <div id="main-view">
+            
+            <!-- Stage 1: Onboarding/Brand Card (The initial view) -->
+            <div id="stage-onboarding" class="stage-container stage-active" data-view="home">
+                <!-- Content same as previous version for brand card... -->
+                <section class="brand-card animate-fade-up delay-1">
+                    <div class="brand-hero">
+                        <div class="logo-circle" aria-hidden>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12a2 2 0 0 1-2 2h-5l-4 4v-4H6a2 2 0 0 1-2-2V4z"/></svg>
+                        </div>
+                        <div>
+                            <div class="brand-title">تیکت تل</div>
+                            <div class="brand-sub">پلتفرم پشتیبانی هوشمند — سریع، امن و قابل توسعه</div>
+                        </div>
+                    </div>
 
-                    <p class="hint mt-4">با طراحی واکنش‌گرا و امکانات API-first، تیکت‌تل آماده اتصال به هر سرویس و ابزار مورد نیاز شماست. راه‌اندازی تنها با چند کلیک.</p>
+                    <p class="hint mt-4">با طراحی واکنش‌گرا و امکانات API-first، تیکت‌تل آماده اتصال به هر سرویس و ابزار مورد نیاز شماست. راه‌اندازی تنها با چند کلیک.</p>
 
-                    <div style="margin-top:0.8rem;">
-                        <div class="muted-row" style="justify-content:space-between">
-                            <div class="badge">Enterprise Ready</div>
-                            <div class="badge">GDPR-friendly</div>
-                            <div class="badge">Webhooks & API</div>
-                        </div>
-                    </div>
+                    <div style="margin-top:0.8rem;">
+                        <div class="muted-row" style="justify-content:space-between">
+                            <div class="badge">Enterprise Ready</div>
+                            <div class="badge">GDPR-friendly</div>
+                            <div class="badge">Webhooks & API</div>
+                        </div>
+                    </div>
 
-                    <div class="stats mt-3">
-                        <div class="stat-item">
-                            <div class="num">120+</div>
-                            <div class="lbl">شرکت‌های متصل</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="num">1M+</div>
-                            <div class="lbl">تیکت‌های پردازش‌شده</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="num">99.9%</div>
-                            <div class="lbl">آپتایم</div>
-                        </div>
-                    </div>
+                    <div class="stats mt-3">
+                        <div class="stat-item">
+                            <div class="num">120+</div>
+                            <div class="lbl">شرکت‌های متصل</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="num">1M+</div>
+                            <div class="lbl">تیکت‌های پردازش‌شده</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="num">99.9%</div>
+                            <div class="lbl">آپتایم</div>
+                        </div>
+                    </div>
 
-                    <div style="margin-top:1rem; display:flex; gap:0.6rem; align-items:center;">
-                        <button class="btn-cta flex-1" onclick="navigateTo('setup')">
-                            <i class="fas fa-play"></i> شروع راه‌اندازی پلتفرم
-                        </button>
-                        <div class="small-foot">یا به مستندات مراجعه کنید</div>
-                    </div>
+                    <div style="margin-top:1rem; display:flex; gap:0.6rem; align-items:center;">
+                        <button class="btn-cta flex-1" onclick="navigateTo('setup')">
+                            <i class="fas fa-play"></i> شروع راه‌اندازی پلتفرم
+                        </button>
+                        <div class="small-foot">یا به مستندات مراجعه کنید</div>
+                    </div>
 
-                    <div style="position:absolute; left:-80px; top:-40px; width:220px; height:220px; background:radial-gradient(circle at 30% 30%, rgba(0,198,255,0.07), transparent); filter:blur(42px); pointer-events:none"></div>
-                    <div style="position:absolute; right:-60px; bottom:-50px; width:160px; height:160px; background:radial-gradient(circle at 70% 70%, rgba(255,200,87,0.04), transparent); filter:blur(36px); pointer-events:none"></div>
-                </section>
-            </div>
+                    <div style="position:absolute; left:-80px; top:-40px; width:220px; height:220px; background:radial-gradient(circle at 30% 30%, rgba(0,198,255,0.07), transparent); filter:blur(42px); pointer-events:none"></div>
+                    <div style="position:absolute; right:-60px; bottom:-50px; width:160px; height:160px; background:radial-gradient(circle at 70% 70%, rgba(255,200,87,0.04), transparent); filter:blur(36px); pointer-events:none"></div>
+                </section>
+            </div>
 
-            <!-- Stage 2: Setup Form (Now single-column, centered) -->
-            <div id="stage-setup" class="stage-container stage-hidden" data-view="setup">
-                
-                <!-- Right / Form card (Now taking center stage) -->
-                <section class="form-card"> <!-- Max width increased for better centered look -->
-                    <div class="headline">
-                        <div>
-                            <h1>راه‌اندازی پلتفرم شما</h1>
-                            <p class="brand-sub">فیلدها را پر کنید تا پلتفرم شما ظرف چند ثانیه ساخته شود.</p>
-                        </div>
-                        <div style="margin-left:auto; text-align:left">
-                            
-                        </div>
-                    </div>
+            <!-- Stage 2: Setup Form (Now single-column, centered) -->
+            <div id="stage-setup" class="stage-container stage-hidden" data-view="setup">
+                
+                <!-- Right / Form card (Now taking center stage) -->
+                <section class="form-card"> <!-- Max width increased for better centered look -->
+                    <div class="headline">
+                        <div>
+                            <h1>راه‌اندازی پلتفرم شما</h1>
+                            <p class="brand-sub">فیلدها را پر کنید تا پلتفرم شما ظرف چند ثانیه ساخته شود.</p>
+                        </div>
+                        <div style="margin-left:auto; text-align:left">
+                            
+                        </div>
+                    </div>
 
-                    <form id="setup-form" class="mt-4 space-y-3"> <!-- کاهش فواصل به space-y-3 -->
-                        <!-- Form fields remain the same -->
-                        <div>
-                            <label for="store-handle" class="form-label">شناسه یکتای پلتفرم (در URL استفاده می‌شود)</label>
-                            <div style="display:flex; gap:0.6rem; align-items:center">
-                                <input id="store-handle" class="glass-input ltr w-full" placeholder="مثال: kafsh-store یا my-mobile (بعد از ساخت غیرقابل تغییر)" pattern="[a-zA-Z0-9-]+" required>
-                                
-                            </div>
-                            
-                        </div>
+                    <form id="setup-form" class="mt-4 space-y-3"> <!-- کاهش فواصل به space-y-3 -->
+                        <!-- Form fields remain the same -->
+                        <div>
+                            <label for="store-handle" class="form-label">شناسه یکتای پلتفرم (در URL استفاده می‌شود)</label>
+                            <div style="display:flex; gap:0.6rem; align-items:center">
+                                <input id="store-handle" class="glass-input ltr w-full" placeholder="مثال: kafsh-store یا my-mobile (بعد از ساخت غیرقابل تغییر)" pattern="[a-zA-Z0-9-]+" required>
+                                
+                            </div>
+                            
+                        </div>
 
-                        <div>
-                            <label for="admin-chat-id" class="form-label">شناسه عددی تلگرام مدیر (Admin Chat ID)</label>
-                            <!-- NOTE: Prefill with Telegram ID if available -->
-                            <input id="admin-chat-id" class="glass-input ltr w-full" placeholder="مثال: 123456789" pattern="[0-9]+" required>
-                            
-                        </div>
+                        <div>
+                            <label for="admin-chat-id" class="form-label">شناسه عددی تلگرام مدیر (Admin Chat ID)</label>
+                            <!-- NOTE: Prefill with Telegram ID if available -->
+                            <input id="admin-chat-id" class="glass-input ltr w-full" placeholder="مثال: 123456789" pattern="[0-9]+" required>
+                            
+                        </div>
 
-                        <div>
-                            <label for="user-bot-token" class="form-label">توکن ربات کاربران</label>
-                            <input id="user-bot-token" class="glass-input ltr w-full" placeholder="توکن رباتی که کاربران با آن در ارتباطند" required>
-                            
-                        </div>
+                        <div>
+                            <label for="user-bot-token" class="form-label">توکن ربات کاربران</label>
+                            <input id="user-bot-token" class="glass-input ltr w-full" placeholder="توکن رباتی که کاربران با آن در ارتباطند" required>
+                            
+                        </div>
 
-                        <div>
-                            <label for="admin-bot-token" class="form-label">توکن ربات ادمین (اعلان‌ها)</label>
-                            <input id="admin-bot-token" class="glass-input ltr w-full" placeholder="توکن ربات اعلان‌ها" required>
-                        </div>
+                        <div>
+                            <label for="admin-bot-token" class="form-label">توکن ربات ادمین (اعلان‌ها)</label>
+                            <input id="admin-bot-token" class="glass-input ltr w-full" placeholder="توکن ربات اعلان‌ها" required>
+                        </div>
 
-                        <div style="display:flex; gap:0.8rem; align-items:center; margin-top: 1.2rem !important;">
-                            <!-- Button is now immediately enabled by renderApp for unrestricted access -->
-                            <button id="create-platform-btn" class="btn-cta flex-1" type="submit" disabled><i class="fas fa-spinner animate-spin"></i> در حال اتصال...</button>
-                        </div>
+                        <div style="display:flex; gap:0.8rem; align-items:center; margin-top: 1.2rem !important;">
+                            <!-- Button is now immediately enabled by renderApp for unrestricted access -->
+                            <button id="create-platform-btn" class="btn-cta flex-1" type="submit" disabled><i class="fas fa-spinner animate-spin"></i> در حال اتصال...</button>
+                        </div>
 
-                        <div class="hint flex justify-between items-center" style="margin-top: 0.8rem !important;">
-                            <div class="small-foot">نیاز به کمک؟ <a href="https://amirrezahoseinabadi.github.io/support" target="_blank" style="color:var(--accent1);">پشتیبانی</a></div>
-                            <span class="muted-row">نسخه <strong style="margin-inline:6px; color:var(--gold)">1.0.0</strong></span>
-                        </div>
-                    </form>
+                        <div class="hint flex justify-between items-center" style="margin-top: 0.8rem !important;">
+                            <div class="small-foot">نیاز به کمک؟ <a href="https://amirrezahoseinabadi.github.io/support" target="_blank" style="color:var(--accent1);">پشتیبانی</a></div>
+                            <span class="muted-row">نسخه <strong style="margin-inline:6px; color:var(--gold)">1.0.0</strong></span>
+                        </div>
+                    </form>
 
-                    
-                    
-                    <!-- Explicit back button added below the form -->
-                    <!-- حذف دکمه بازگشت به صفحه اصلی -->
-                    
-                </section>
-            </div>
+                    
+                    
+                    <!-- Explicit back button added below the form -->
+                    <!-- حذف دکمه بازگشت به صفحه اصلی -->
+                    
+                </section>
+            </div>
 
-            <!-- Stage 3: Success Message (Hidden) -->
-            <div id="stage-success" class="stage-container stage-hidden" data-view="success">
-                <section id="success-card" class="content-card">
-                    <p class="text-white">در حال بارگذاری نتایج...</p>
-                </section>
-            </div>
-            
-            <!-- Stage 4: Profile View (New) -->
-            <div id="stage-profile" class="stage-container stage-hidden" data-view="profile">
-                <section id="profile-card" class="content-card w-full max-w-sm">
-                    <!-- Profile content will be rendered here dynamically -->
-                    <p class="text-white text-center">در حال بارگذاری اطلاعات پروفایل...</p>
-                </section>
-            </div>
+            <!-- Stage 3: Success Message (Hidden) -->
+            <div id="stage-success" class="stage-container stage-hidden" data-view="success">
+                <section id="success-card" class="content-card">
+                    <p class="text-white">در حال بارگذاری نتایج...</p>
+                </section>
+            </div>
+            
+            <!-- Stage 4: Profile View (New) -->
+            <div id="stage-profile" class="stage-container stage-hidden" data-view="profile">
+                <section id="profile-card" class="content-card w-full max-w-sm">
+                    <!-- Profile content will be rendered here dynamically -->
+                    <p class="text-white text-center">در حال بارگذاری اطلاعات پروفایل...</p>
+                </section>
+            </div>
 
-            <!-- Stage 5: Dashboard View (New) -->
-            <div id="stage-dashboard" class="stage-container stage-hidden" data-view="dashboard">
-                <section id="dashboard-card" class="content-card w-full max-w-xl">
-                    <h1 class="text-2xl font-extrabold text-white mb-6 border-b border-white/10 pb-3">🗂️ داشبورد پلتفرم</h1>
-                    <p class="gray-400 mb-4">این بخش برای مدیریت تیکت‌ها و تنظیمات کلی پلتفرم شما طراحی شده است.</p>
-                    <div id="dashboard-status" class="space-y-3">
-                        <!-- Dynamic content will go here -->
-                        <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">وضعیت:</span> <span class="text-green-400">✅ فعال</span></div>
-                        <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">شناسه پلتفرم:</span> <span id="dash-handle" class="ltr text-blue-400 font-mono">---</span></div>
-                    </div>
-                    
-                    <!-- NEW: Add Sync/Refresh Button -->
-                    <button id="sync-platform-btn" class="btn-cta text-sm w-full mt-6" onclick="window.manualSync()">
-                        <i class="fas fa-sync-alt"></i> همگام‌سازی اطلاعات (Refresh)
-                    </button>
-                    
-                    <button class="btn-cta text-sm w-full mt-3" onclick="alert('TODO: Implement Admin Panel link/logic')">
-                        <i class="fas fa-cog"></i> ورود به پنل مدیریت
-                    </button>
-                </section>
-            </div>
+            <!-- Stage 5: Dashboard View (New) -->
+            <div id="stage-dashboard" class="stage-container stage-hidden" data-view="dashboard">
+                <section id="dashboard-card" class="content-card w-full max-w-xl">
+                    <h1 class="text-2xl font-extrabold text-white mb-6 border-b border-white/10 pb-3">🗂️ داشبورد پلتفرم</h1>
+                    <p class="gray-400 mb-4">این بخش برای مدیریت تیکت‌ها و تنظیمات کلی پلتفرم شما طراحی شده است.</p>
+                    <div id="dashboard-status" class="space-y-3">
+                        <!-- Dynamic content will go here -->
+                        <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">وضعیت:</span> <span class="text-green-400">✅ فعال</span></div>
+                        <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">شناسه پلتفرم:</span> <span id="dash-handle" class="ltr text-blue-400 font-mono">---</span></div>
+                    </div>
+                    
+                    <!-- NEW: Add Sync/Refresh Button -->
+                    <button id="sync-platform-btn" class="btn-cta text-sm w-full mt-6" onclick="window.manualSync()">
+                        <i class="fas fa-sync-alt"></i> همگام‌سازی اطلاعات (Refresh)
+                    </button>
+                    
+                    <button class="btn-cta text-sm w-full mt-3" onclick="alert('TODO: Implement Admin Panel link/logic')">
+                        <i class="fas fa-cog"></i> ورود به پنل مدیریت
+                    </button>
+                </section>
+            </div>
 
-        </div> <!-- end #main-view -->
+        </div> <!-- end #main-view -->
 	</main>
-    
-    <!-- Bottom Navigation Bar (New) -->
-    <nav id="nav-bar">
-        <div class="nav-item active" data-target="home" onclick="navigateTo('home')">
-            <i class="fas fa-home"></i>
-            <span>خانه</span>
-        </div>
-        <div class="nav-item" data-target="dashboard" onclick="navigateTo('dashboard')">
-            <i class="fas fa-layer-group"></i>
-            <span>داشبورد</span>
-        </div>
-        <div class="nav-item" data-target="profile" onclick="navigateTo('profile')">
-            <i class="fas fa-user-circle"></i>
-            <span>پروفایل</span>
-        </div>
-        <div class="nav-item" data-target="settings" onclick="alert('TODO: Implement Settings View')">
-            <i class="fas fa-cogs"></i>
-            <span>تنظیمات</span>
-        </div>
-    </nav>
+    
+    <!-- Bottom Navigation Bar (New) -->
+    <nav id="nav-bar">
+        <div class="nav-item active" data-target="home" onclick="navigateTo('home')">
+            <i class="fas fa-home"></i>
+            <span>خانه</span>
+        </div>
+        <div class="nav-item" data-target="dashboard" onclick="navigateTo('dashboard')">
+            <i class="fas fa-layer-group"></i>
+            <span>داشبورد</span>
+        </div>
+        <div class="nav-item" data-target="profile" onclick="navigateTo('profile')">
+            <i class="fas fa-user-circle"></i>
+            <span>پروفایل</span>
+        </div>
+        <div class="nav-item" data-target="settings" onclick="alert('TODO: Implement Settings View')">
+            <i class="fas fa-cogs"></i>
+            <span>تنظیمات</span>
+        </div>
+    </nav>
 
 
 	<script>
-        // Global state object
-        window.state = {
-            currentView: 'home',
-            // uid will be the Firebase UID after successful sign-in
-            user: { uid: 'guest', fullName: 'کاربر میهمان', username: 'کاربر میهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null, photo_url: null }, 
-            platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null }
-        };
+        // Global state object
+        window.state = {
+            currentView: 'home',
+            // uid will be the Firebase UID after successful sign-in
+            user: { uid: 'guest', fullName: 'کاربر میهمان', username: 'کاربر میهمان', isAnonymous: true, isTelegramAuth: false, tgUserId: null, photo_url: null }, 
+            platform: { storeHandle: null, adminBotUsername: null, userBotUsername: null }
+        };
 
-        const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
-        // NOTE: FIREBASE_DOC_PATH will be dynamically updated after successful auth
-        let FIREBASE_DOC_PATH = null; 
-        
-        // --- توابع کمکی ---
-        
-        function enablePlatformCreationButton() {
-            const btn = document.getElementById('create-platform-btn');
-            // این تابع فقط برای فعال کردن دکمه و تنظیم متن آن در لود اولیه است.
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
-            }
-        }
+        const MANAGEMENT_WORKER_URL = "https://management-ticketing.amiruserbot7.workers.dev";
+        // NOTE: FIREBASE_DOC_PATH will be dynamically updated after successful auth
+        let FIREBASE_DOC_PATH = null; 
+        
+        // --- توابع کمکی ---
+        
+        function enablePlatformCreationButton() {
+            const btn = document.getElementById('create-platform-btn');
+            // این تابع فقط برای فعال کردن دکمه و تنظیم متن آن در لود اولیه است.
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i class='fas fa-rocket'></i> ساخت پلتفرم جدید`;
+            }
+        }
 
 		// Utility function to copy text to clipboard
 		function copyToClipboard(elementId) {
@@ -876,234 +879,234 @@
 				}
 			}
 		}
-        
-        // --- Stage (View) Management Functions ---
-        
-        function navigateTo(targetView) {
-            if (window.state.currentView === targetView) return;
+        
+        // --- Stage (View) Management Functions ---
+        
+        function navigateTo(targetView) {
+            if (window.state.currentView === targetView) return;
 
-            const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
-            const nextStage = document.querySelector(`.stage-container[data-view="${targetView}"]`);
-            const navItems = document.querySelectorAll('.nav-item');
-            
-            if (!currentStage || !nextStage) {
-                console.error('Invalid view transition:', window.state.currentView, '->', targetView);
-                return;
-            }
+            const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
+            const nextStage = document.querySelector(`.stage-container[data-view="${targetView}"]`);
+            const navItems = document.querySelectorAll('.nav-item');
+            
+            if (!currentStage || !nextStage) {
+                console.error('Invalid view transition:', window.state.currentView, '->', targetView);
+                return;
+            }
 
-            // Update navigation bar active class
-            navItems.forEach(item => {
-                item.classList.remove('active');
-                if (item.getAttribute('data-target') === targetView) {
-                    item.classList.add('active');
-                }
-            });
-            
-            // Render content for the target view before transition starts
-            if (targetView === 'profile') renderProfile();
-            if (targetView === 'dashboard') renderDashboard();
+            // Update navigation bar active class
+            navItems.forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('data-target') === targetView) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // Render content for the target view before transition starts
+            if (targetView === 'profile') renderProfile();
+            if (targetView === 'dashboard') renderDashboard();
 
-            // 1. Start the exit animation for the current stage
-            currentStage.classList.remove('stage-active');
-            currentStage.classList.add('stage-exit');
-            
-            // 2. Schedule the enter animation for the next stage after a short delay
-            setTimeout(() => {
-                currentStage.classList.remove('stage-exit');
-                currentStage.classList.add('stage-hidden'); 
-                
-                nextStage.classList.remove('stage-hidden');
-                nextStage.classList.add('stage-enter');
-                nextStage.classList.add('stage-active');
-                window.state.currentView = targetView;
-            }, 300); 
-            
-             setTimeout(() => {
-                nextStage.classList.remove('stage-enter');
-            }, 1000);
-        }
+            // 1. Start the exit animation for the current stage
+            currentStage.classList.remove('stage-active');
+            currentStage.classList.add('stage-exit');
+            
+            // 2. Schedule the enter animation for the next stage after a short delay
+            setTimeout(() => {
+                currentStage.classList.remove('stage-exit');
+                currentStage.classList.add('stage-hidden'); 
+                
+                nextStage.classList.remove('stage-hidden');
+                nextStage.classList.add('stage-enter');
+                nextStage.classList.add('stage-active');
+                window.state.currentView = targetView;
+            }, 300); 
+            
+             setTimeout(() => {
+                nextStage.classList.remove('stage-enter');
+            }, 1000);
+        }
 
-        // Renamed functions for clarity with new navigation system
-        const navigateToForm = () => navigateTo('setup');
-        const transitionToSuccess = () => navigateTo('success');
-
-
-        // --- Dynamic Rendering Functions (New) ---
-
-        function renderApp() {
-            // Initial render based on user authentication status
-            const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
-            if (currentStage) {
-                // Ensure only the current view is active on load
-                document.querySelectorAll('.stage-container').forEach(stage => {
-                    if (stage !== currentStage) {
-                        stage.classList.remove('stage-active', 'stage-enter', 'stage-exit');
-                        stage.classList.add('stage-hidden');
-                    }
-                });
-            }
-            
-            // Prefill admin-chat-id if we have the Telegram ID
-            const adminChatIdInput = document.getElementById('admin-chat-id');
-            if (adminChatIdInput && window.state.user.tgUserId && !adminChatIdInput.value) {
-                adminChatIdInput.value = window.state.user.tgUserId;
-            }
-            
-            // If the user has a platform handle, default to the Dashboard view
-            if (window.state.platform.storeHandle && window.state.currentView === 'home') {
-                 navigateTo('dashboard');
-            } else {
-                 navigateTo(window.state.currentView); // Ensure home is active
-            }
-            
-            // *** تغییر جدید: فعال‌سازی دکمه در اینجا برای رفع مشکل "در حال اتصال" ***
-            enablePlatformCreationButton();
-        }
-        
-        function renderProfile() {
-            const profileCard = document.getElementById('profile-card');
-            const { user, platform } = window.state;
-            const uid = user.uid || '---';
-            
-            // 1. Determine display name
-            // NEW LOGIC: Always prioritize fullName (First Name + Last Name)
-            let displayUsername = user.fullName;
-            if (user.isAnonymous) {
-                 displayUsername = 'کاربر میهمان';
-            }
-            
-            // 2. Determine the UID to display (Always show TG ID if available, otherwise Firebase UID)
-            const displayUID = user.tgUserId || user.uid || '---';
-            const displayUIDLabel = user.tgUserId ? 'شناسه عددی تلگرام' : 'شناسه فایربیس (UID)';
-
-            // 3. Determine profile picture HTML
-            let profilePicHtml;
-            const fallbackLetter = (user.first_name || 'U').substring(0, 1).toUpperCase();
-            
-            if (user.photo_url) {
-                profilePicHtml = `<div class="profile-pic-container"><img src="${user.photo_url}" alt="Profile Avatar" onerror="this.onerror=null;this.style.display='none'; this.parentNode.innerHTML='${fallbackLetter}'"></div>`;
-            } else {
-                profilePicHtml = `<div class="profile-pic-container">${fallbackLetter}</div>`;
-            }
+        // Renamed functions for clarity with new navigation system
+        const navigateToForm = () => navigateTo('setup');
+        const transitionToSuccess = () => navigateTo('success');
 
 
-            const status = platform.storeHandle ? 'پلتفرم راه‌اندازی شده' : 'نیاز به راه‌اندازی پلتفرم';
-            const statusColor = platform.storeHandle ? 'text-green-400' : 'text-yellow-400';
-            const statusIcon = platform.storeHandle ? '✅' : '⚠️';
-            const platformHandleDisplay = platform.storeHandle ? `<span class="ltr font-mono text-base text-blue-400">${platform.storeHandle}</span>` : `<span class="text-red-400">---</span>`;
-            
+        // --- Dynamic Rendering Functions (New) ---
 
-            profileCard.innerHTML = `
-                <div class="text-center mb-6">
-                    ${profilePicHtml}
-                    <h2 class="text-xl font-extrabold text-white mt-2">${displayUsername}</h2>
-                    <p class="text-xs text-gray-400 mt-1">${displayUIDLabel}: ${displayUID}</p>
-                </div>
-                
-                <div class="space-y-3 pt-4 border-t border-white/10">
-                    <h3 class="text-lg font-bold text-white mb-3">وضعیت پلتفرم</h3>
-                    
-                    <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
-                        <span class="font-bold text-gray-300">وضعیت:</span>
-                        <span class="font-extrabold ${statusColor}">${statusIcon} ${status}</span>
-                    </div>
+        function renderApp() {
+            // Initial render based on user authentication status
+            const currentStage = document.querySelector(`.stage-container[data-view="${window.state.currentView}"]`);
+            if (currentStage) {
+                // Ensure only the current view is active on load
+                document.querySelectorAll('.stage-container').forEach(stage => {
+                    if (stage !== currentStage) {
+                        stage.classList.remove('stage-active', 'stage-enter', 'stage-exit');
+                        stage.classList.add('stage-hidden');
+                    }
+                });
+            }
+            
+            // Prefill admin-chat-id if we have the Telegram ID
+            const adminChatIdInput = document.getElementById('admin-chat-id');
+            if (adminChatIdInput && window.state.user.tgUserId && !adminChatIdInput.value) {
+                adminChatIdInput.value = window.state.user.tgUserId;
+            }
+            
+            // If the user has a platform handle, default to the Dashboard view
+            if (window.state.platform.storeHandle && window.state.currentView === 'home') {
+                 navigateTo('dashboard');
+            } else {
+                 navigateTo(window.state.currentView); // Ensure home is active
+            }
+            
+            // *** تغییر جدید: فعال‌سازی دکمه در اینجا برای رفع مشکل "در حال اتصال" ***
+            enablePlatformCreationButton();
+        }
+        
+        function renderProfile() {
+            const profileCard = document.getElementById('profile-card');
+            const { user, platform } = window.state;
+            const uid = user.uid || '---';
+            
+            // 1. Determine display name
+            // NEW LOGIC: Always prioritize fullName (First Name + Last Name)
+            let displayUsername = user.fullName;
+            if (user.isAnonymous) {
+                 displayUsername = 'کاربر میهمان';
+            }
+            
+            // 2. Determine the UID to display (Always show TG ID if available, otherwise Firebase UID)
+            const displayUID = user.tgUserId || user.uid || '---';
+            const displayUIDLabel = user.tgUserId ? 'شناسه عددی تلگرام' : 'شناسه فایربیس (UID)';
 
-                    <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
-                        <span class="font-bold text-gray-300">شناسه پلتفرم:</span>
-                        ${platformHandleDisplay}
-                    </div>
+            // 3. Determine profile picture HTML
+            let profilePicHtml;
+            const fallbackLetter = (user.first_name || 'U').substring(0, 1).toUpperCase();
+            
+            if (user.photo_url) {
+                profilePicHtml = `<div class="profile-pic-container"><img src="${user.photo_url}" alt="Profile Avatar" onerror="this.onerror=null;this.style.display='none'; this.parentNode.innerHTML='${fallbackLetter}'"></div>`;
+            } else {
+                profilePicHtml = `<div class="profile-pic-container">${fallbackLetter}</div>`;
+            }
 
-                    ${platform.storeHandle ? `
-                        <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
-                            <span class="font-bold text-gray-300">ربات ادمین:</span>
-                            <a href="https://t.me/${platform.adminBotUsername}" target="_blank" class="text-blue-400 font-mono ltr text-sm">@${platform.adminBotUsername}</a>
-                        </div>
-                        <button class="btn-cta text-sm w-full mt-4" onclick="alert('TODO: Implement Admin Panel link/logic')">
-                            <i class="fas fa-cog"></i> ورود به پنل مدیریت
-                        </button>
-                    ` : `
-                        <button class="btn-cta text-sm w-full mt-4" onclick="navigateTo('setup')">
-                            شروع راه‌اندازی پلتفرم
-                        </button>
-                    `}
-                </div>
-            `;
-        }
 
-        function renderDashboard() {
-            const dashboardCard = document.getElementById('dashboard-card');
-            const handleSpan = document.getElementById('dash-handle');
-            const statusDiv = document.getElementById('dashboard-status');
-            const { platform } = window.state;
-            // Get the sync button if it exists (for manual loading state reset)
-            const syncButton = document.getElementById('sync-platform-btn');
-            if (syncButton) {
-                // Ensure the sync button is restored to its non-loading state on re-render
-                toggleLoading(syncButton, false, 'همگام‌سازی اطلاعات (Refresh)');
-            }
+            const status = platform.storeHandle ? 'پلتفرم راه‌اندازی شده' : 'نیاز به راه‌اندازی پلتفرم';
+            const statusColor = platform.storeHandle ? 'text-green-400' : 'text-yellow-400';
+            const statusIcon = platform.storeHandle ? '✅' : '⚠️';
+            const platformHandleDisplay = platform.storeHandle ? `<span class="ltr font-mono text-base text-blue-400">${platform.storeHandle}</span>` : `<span class="text-red-400">---</span>`;
+            
 
-            if (platform.storeHandle) {
-                 statusDiv.innerHTML = `
-                    <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">وضعیت:</span> <span class="text-green-400">✅ فعال</span></div>
-                    <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">شناسه پلتفرم:</span> <span id="dash-handle" class="ltr text-blue-400 font-mono">${platform.storeHandle}</span></div>
-                    <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">ربات کاربران:</span> <span class="ltr text-yellow-400 font-mono">@${platform.userBotUsername}</span></div>
-                 `;
-            } else {
-                 statusDiv.innerHTML = `
-                    <p class="text-red-400 p-4 rounded-lg" style="background:rgba(255,0,0,0.1);">⛔ پلتفرمی برای این حساب کاربری راه‌اندازی نشده است.</p>
-                    <button class="btn-cta text-sm w-full mt-4" onclick="navigateTo('setup')">
-                        شروع راه‌اندازی پلتفرم
-                    </button>
-                 `;
-            }
-        }
+            profileCard.innerHTML = `
+                <div class="text-center mb-6">
+                    ${profilePicHtml}
+                    <h2 class="text-xl font-extrabold text-white mt-2">${displayUsername}</h2>
+                    <p class="text-xs text-gray-400 mt-1">${displayUIDLabel}: ${displayUID}</p>
+                </div>
+                
+                <div class="space-y-3 pt-4 border-t border-white/10">
+                    <h3 class="text-lg font-bold text-white mb-3">وضعیت پلتفرم</h3>
+                    
+                    <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
+                        <span class="font-bold text-gray-300">وضعیت:</span>
+                        <span class="font-extrabold ${statusColor}">${statusIcon} ${status}</span>
+                    </div>
+
+                    <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
+                        <span class="font-bold text-gray-300">شناسه پلتفرم:</span>
+                        ${platformHandleDisplay}
+                    </div>
+
+                    ${platform.storeHandle ? `
+                        <div class="flex justify-between items-center p-3 rounded-lg" style="background:rgba(255,255,255,0.05);">
+                            <span class="font-bold text-gray-300">ربات ادمین:</span>
+                            <a href="https://t.me/${platform.adminBotUsername}" target="_blank" class="text-blue-400 font-mono ltr text-sm">@${platform.adminBotUsername}</a>
+                        </div>
+                        <button class="btn-cta text-sm w-full mt-4" onclick="alert('TODO: Implement Admin Panel link/logic')">
+                            <i class="fas fa-cog"></i> ورود به پنل مدیریت
+                        </button>
+                    ` : `
+                        <button class="btn-cta text-sm w-full mt-4" onclick="navigateTo('setup')">
+                            شروع راه‌اندازی پلتفرم
+                        </button>
+                    `}
+                </div>
+            `;
+        }
+
+        function renderDashboard() {
+            const dashboardCard = document.getElementById('dashboard-card');
+            const handleSpan = document.getElementById('dash-handle');
+            const statusDiv = document.getElementById('dashboard-status');
+            const { platform } = window.state;
+            // Get the sync button if it exists (for manual loading state reset)
+            const syncButton = document.getElementById('sync-platform-btn');
+            if (syncButton) {
+                // Ensure the sync button is restored to its non-loading state on re-render
+                toggleLoading(syncButton, false, 'همگام‌سازی اطلاعات (Refresh)');
+            }
+
+            if (platform.storeHandle) {
+                 statusDiv.innerHTML = `
+                    <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">وضعیت:</span> <span class="text-green-400">✅ فعال</span></div>
+                    <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">شناسه پلتفرم:</span> <span id="dash-handle" class="ltr text-blue-400 font-mono">${platform.storeHandle}</span></div>
+                    <div class="p-3 rounded-lg flex justify-between items-center" style="background:rgba(255,255,255,0.05);"><span class="font-bold">ربات کاربران:</span> <span class="ltr text-yellow-400 font-mono">@${platform.userBotUsername}</span></div>
+                 `;
+            } else {
+                 statusDiv.innerHTML = `
+                    <p class="text-red-400 p-4 rounded-lg" style="background:rgba(255,0,0,0.1);">⛔ پلتفرمی برای این حساب کاربری راه‌اندازی نشده است.</p>
+                    <button class="btn-cta text-sm w-full mt-4" onclick="navigateTo('setup')">
+                        شروع راه‌اندازی پلتفرم
+                    </button>
+                 `;
+            }
+        }
 
 		// *** تابع اصلاح‌شده: افزودن مکانیزم انتظار (Polling) برای آماده بودن Firebase و استفاده از Proxy ***
 		function finishSetup(result, retries = 0){
-            // اگر بیش از حد تلاش کرد و هنوز Firebase آماده نبود، متوقف کن
-            if (retries > 10) { 
-                 console.error("Firebase readiness timeout reached.");
-                 Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اتصال فایربیس برای ذخیره پروفایل زمان‌بندی نشد. لطفاً Mini App را دوباره باز کنید.'});
-                 showSuccess(result);
-                 return;
-            }
+            // اگر بیش از حد تلاش کرد و هنوز Firebase آماده نبود، متوقف کن
+            if (retries > 10) { 
+                 console.error("Firebase readiness timeout reached.");
+                 Swal.fire({icon:'error', title:'خطا در ذخیره', text:'پلتفرم ساخته شد، اما اتصال فایربیس برای ذخیره پروفایل زمان‌بندی نشد. لطفاً Mini App را دوباره باز کنید.'});
+                 showSuccess(result);
+                 return;
+            }
 
-            // بررسی شرط اصلی: آیا همه متغیرهای Auth و مسیر سند آماده‌اند؟
-            if (!window.auth || !window.FIREBASE_DOC_PATH || !window.auth.currentUser) { 
-                 // اگر آماده نبود، 200 میلی‌ثانیه صبر کن و دوباره تلاش کن (Polling)
-                 console.warn(`Firebase services not yet available (Retry ${retries}). Waiting...`);
-                 setTimeout(() => finishSetup(result, retries + 1), 200);
-                 return;
-            }
-            
-            // --- اگر همه چیز آماده بود، ذخیره‌سازی را انجام بده ---
-            console.log("Firebase services are ready. Proceeding to save platform data via Proxy.");
+            // بررسی شرط اصلی: آیا همه متغیرهای Auth و مسیر سند آماده‌اند؟
+            if (!window.auth || !window.FIREBASE_DOC_PATH || !window.auth.currentUser) { 
+                 // اگر آماده نبود، 200 میلی‌ثانیه صبر کن و دوباره تلاش کن (Polling)
+                 console.warn(`Firebase services not yet available (Retry ${retries}). Waiting...`);
+                 setTimeout(() => finishSetup(result, retries + 1), 200);
+                 return;
+            }
+            
+            // --- اگر همه چیز آماده بود، ذخیره‌سازی را انجام بده ---
+            console.log("Firebase services are ready. Proceeding to save platform data via Proxy.");
 
-            // Save platform details to user's private profile document
-            const dataToSave = { 
-                platform: {
-                    storeHandle: result.storeHandle,
-                    adminBotUsername: result.adminBotUsername,
-                    userBotUsername: result.userBotUsername,
-                    setupDate: new Date().toISOString()
-                }
-            };
-            
-            // *** استفاده از saveDocToProxy به جای setDoc Firestore ***
-            window.saveDocToProxy(window.FIREBASE_DOC_PATH, dataToSave)
-                .then(() => {
-                    console.log("Platform details saved to Proxy profile.");
-                    // Update state to trigger rendering of profile/dashboard
-                    window.state.platform = dataToSave.platform; 
-                    showSuccess(result);
-                    renderDashboard(); // Explicit render after successful setup save
-                })
-                .catch(error => {
-                    console.error("Error saving platform details via Proxy:", error);
-                    // نمایش خطای ذخیره‌سازی حتی اگر پلتفرم ساخته شده باشد
-                    Swal.fire({icon:'error', title:'خطا در ذخیره', text:`پلتفرم ساخته شد، اما در ذخیره اطلاعات آن در پروفایل شما خطایی رخ داد: ${error.message}`});
-                    showSuccess(result); 
-                });
+            // Save platform details to user's private profile document
+            const dataToSave = { 
+                platform: {
+                    storeHandle: result.storeHandle,
+                    adminBotUsername: result.adminBotUsername,
+                    userBotUsername: result.userBotUsername,
+                    setupDate: new Date().toISOString()
+                }
+            };
+            
+            // *** استفاده از saveDocToProxy به جای setDoc Firestore ***
+            window.saveDocToProxy(window.FIREBASE_DOC_PATH, dataToSave)
+                .then(() => {
+                    console.log("Platform details saved to Proxy profile.");
+                    // Update state to trigger rendering of profile/dashboard
+                    window.state.platform = dataToSave.platform; 
+                    showSuccess(result);
+                    renderDashboard(); // Explicit render after successful setup save
+                })
+                .catch(error => {
+                    console.error("Error saving platform details via Proxy:", error);
+                    // نمایش خطای ذخیره‌سازی حتی اگر پلتفرم ساخته شده باشد
+                    Swal.fire({icon:'error', title:'خطا در ذخیره', text:`پلتفرم ساخته شد، اما در ذخیره اطلاعات آن در پروفایل شما خطایی رخ داد: ${error.message}`});
+                    showSuccess(result); 
+                });
 		}
 
 
@@ -1135,7 +1138,7 @@
 						<span class="font-bold text-white text-base block mb-2">۲. فعال‌سازی ربات ادمین:</span>
 						<p class="text-sm text-gray-300">
 							ربات اعلان‌ها (
-							<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-400 font-bold hover:text-blue-300 transition-colors">@${adminBotUsername}</a> 
+							<a href="https://t.me/${adminBotUsername}" target="_blank" class="text-blue-400 font-bold hover:text-blue-300 transition-colors">@${adminBotUsername}</a> 
 							) را باز کرده و دستور <code>/start</code> را بزنید تا اعلانات پشتیبانی برای شما فعال شوند.
 						</p>
 					</li>
@@ -1150,25 +1153,25 @@
 			
 			transitionToSuccess();
 		}
-        
-        // --- API & Form Logic (Modified) ---
+        
+        // --- API & Form Logic (Modified) ---
 
 		document.getElementById('setup-form').addEventListener('submit', async (e)=>{
 			e.preventDefault();
 			const btn = document.getElementById('create-platform-btn');
 			const storeHandleInput = document.getElementById('store-handle');
-            
-            // Basic validation
+            
+            // Basic validation
 			if(!storeHandleInput.value.trim() || !document.getElementById('admin-chat-id').value.trim() || !document.getElementById('user-bot-token').value.trim() || !document.getElementById('admin-bot-token').value.trim()){
 				Swal.fire({icon:'error', title:'خطا', text:'لطفاً همه فیلدهای الزامی را تکمیل کنید.'});
 				return;
 			}
-            
-            // NEW: Ensure Firebase UID is available for the Worker
-            if (!window.state.user.uid || window.state.user.uid === 'guest') {
-                Swal.fire({icon:'error', title:'خطا', text:'لطفاً منتظر بمانید تا اتصال امن (احراز هویت فایربیس) برقرار شود.'});
-                return;
-            }
+            
+            // NEW: Ensure Firebase UID is available for the Worker
+            if (!window.state.user.uid || window.state.user.uid === 'guest') {
+                Swal.fire({icon:'error', title:'خطا', text:'لطفاً منتظر بمانید تا اتصال امن (احراز هویت فایربیس) برقرار شود.'});
+                return;
+            }
 
 			// START LOADING: تغییر وضعیت دکمه به لودینگ
 			toggleLoading(btn, true, 'در حال ساخت پلتفرم...');
@@ -1179,8 +1182,8 @@
 				userBotToken: document.getElementById('user-bot-token').value.trim(),
 				adminBotToken: document.getElementById('admin-bot-token').value.trim(),
 				miniAppUrl: `https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html?storeHandle=${storeHandleInput.value.trim().toLowerCase()}`,
-                // ADDING FIREBASE UID
-                firebaseUid: window.state.user.uid
+                // ADDING FIREBASE UID
+                firebaseUid: window.state.user.uid
 			};
 
 
@@ -1191,32 +1194,32 @@
 					method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
 				});
 				
-                // --- مدیریت امن خواندن JSON و خطاها ---
-                let data = {};
-                const resText = await res.text(); // اول متن خام را می‌خوانیم
-                try {
-                    data = JSON.parse(resText);
-                } catch (jsonError) {
-                    // اگر Worker پاسخ غیر JSON داد (مثلاً خطای 500 بدون بدنه مناسب)
-                    if (!res.ok) {
-                        throw new Error(`خطای سرور: ${res.status}. پاسخ نامفهوم. کنسول را بررسی کنید.`);
-                    }
-                }
-                // --- پایان مدیریت امن خواندن JSON ---
+                // --- مدیریت امن خواندن JSON و خطاها ---
+                let data = {};
+                const resText = await res.text(); // اول متن خام را می‌خوانیم
+                try {
+                    data = JSON.parse(resText);
+                } catch (jsonError) {
+                    // اگر Worker پاسخ غیر JSON داد (مثلاً خطای 500 بدون بدنه مناسب)
+                    if (!res.ok) {
+                        throw new Error(`خطای سرور: ${res.status}. پاسخ نامفهوم. کنسول را بررسی کنید.`);
+                    }
+                }
+                // --- پایان مدیریت امن خواندن JSON ---
 
-                // بررسی وضعیت پاسخ Worker (واسط)
+                // بررسی وضعیت پاسخ Worker (واسط)
 				if(!res.ok) {
-                    // اگر خطا 409 (Conflict) بود، یعنی شناسه تکراری است.
-                    if (res.status === 409) {
-                        throw new Error(`شناسه پلتفرم (${payload.storeHandle}) قبلاً استفاده شده است. لطفاً یک شناسه دیگر انتخاب کنید.`);
-                    }
-                    // برای سایر خطاها
-                    const errorMessage = data.error || `خطا در Worker (${res.status}). کنسول را بررسی کنید.`;
-                    throw new Error(errorMessage);
-                }
+                    // اگر خطا 409 (Conflict) بود، یعنی شناسه تکراری است.
+                    if (res.status === 409) {
+                        throw new Error(`شناسه پلتفرم (${payload.storeHandle}) قبلاً استفاده شده است. لطفاً یک شناسه دیگر انتخاب کنید.`);
+                    }
+                    // برای سایر خطاها
+                    const errorMessage = data.error || `خطا در Worker (${res.status}). کنسول را بررسی کنید.`;
+                    throw new Error(errorMessage);
+                }
 
 				// finishSetup: پلتفرم را در سند Profile کاربر در Firestore (از طریق Proxy) ذخیره می‌کند
-				finishSetup(data.data); 
+				finishSetup(data.data); 
 				isSuccess = true;
 
 			}catch(err){
@@ -1224,7 +1227,7 @@
 				Swal.fire({icon:'error', title:'عملیات ناموفق', text: err.message || err.toString()});
 			}finally{
 				// در هر صورت دکمه را آزاد می‌کند
-                toggleLoading(btn,false,'ساخت پلتفرم جدید');
+                toggleLoading(btn,false,'ساخت پلتفرم جدید');
 			}
 		});
 
@@ -1240,8 +1243,8 @@
 			}
 		}
 
-        // Initialize App View
-        window.addEventListener('load', renderApp);
+        // Initialize App View
+        window.addEventListener('load', renderApp);
 
 	</script>
 </body>
