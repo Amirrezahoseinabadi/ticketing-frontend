@@ -93,7 +93,8 @@
                     window.state.user = { 
                         ...window.state.user, 
                         uid: user.uid, // This is the actual Firebase UID
-                        isAnonymous: user.isAnonymous
+                        // FIX: Ensure isAnonymous is always set correctly from Firebase user object
+                        isAnonymous: user.isAnonymous 
                     };
                     
                     // اگر احراز هویت Mini App نبود، نام کاربری را از ایمیل یا حالت پیش‌فرض می‌گیرد.
@@ -158,28 +159,36 @@
             });
 
             // 2. Try to sync if the user has an existing platform that wasn't found in their profile
-            // این تابع حتی اگر user.isTelegramAuth هم نباشد، اجرا می‌شود اما با Firebase UID
-            trySyncExistingPlatform(uid);
+            // FIX: فقط اگر کاربر ناشناس نبود، همگام‌سازی اولیه را انجام بده.
+            if (!window.state.user.isAnonymous) {
+                trySyncExistingPlatform(uid);
+            }
         }
         
         /**
          * NEW FIX: انتظار برای آماده شدن کامل Firebase و احراز هویت.
          * از این تابع در شروع عملیاتی که به Firestore نیاز دارند (مثل Sync یا Setup) استفاده می‌کنیم.
          */
-        function waitForFirebaseReady(maxRetries = 50, delay = 100) {
+        function waitForFirebaseReady(maxRetries = 150, delay = 100) { // FIX: Increased maxRetries to 150 (15 seconds)
             return new Promise((resolve, reject) => {
                 let retries = 0;
                 const check = () => {
                     // بررسی همه وابستگی‌های حیاتی
-                    if (window.db && window.doc && window.setDoc && window.FIREBASE_DOC_PATH && window.isAuthReady) {
-                        console.log("Firebase is ready.");
+                    if (window.db && window.doc && window.setDoc && window.FIREBASE_DOC_PATH && window.isAuthReady && !window.state.user.isAnonymous) { // FIX: added !window.state.user.isAnonymous check
+                        console.log("Firebase is ready and user is authenticated.");
                         resolve();
                         return;
                     }
 
                     if (retries >= maxRetries) {
-                        console.error("Error: Firebase readiness timeout reached after 5 seconds.");
-                        reject(new Error("Firebase readiness timeout. Please reopen the Mini App."));
+                        console.error("Error: Firebase readiness timeout reached after 15 seconds.");
+                        // reject only if we expected a non-anonymous user, but couldn't get one
+                        if (window.state.user.isTelegramAuth && !window.state.user.isAnonymous) {
+                            reject(new Error("Firebase readiness timeout. Please reopen the Mini App."));
+                        } else {
+                            // resolve silently if we are an anonymous user and just waiting for optional platform data
+                            resolve(); 
+                        }
                         return;
                     }
 
@@ -202,10 +211,12 @@
             // اگر قبلاً Handle را در پروفایل Firestore داشتیم و force نبود، کاری نمی‌کنیم
             if (storeHandle && !force) return; 
             
-            if (!firebaseUid) {
+            // FIX: اگر کاربر ناشناس بود و حالت اجباری (force) فعال نبود، خارج می‌شویم.
+            if (!firebaseUid || window.state.user.isAnonymous) {
                 if (force) {
                     Swal.fire({ icon: 'warning', title: 'خطا در احراز هویت', text: 'لطفاً صبر کنید تا احراز هویت فایربیس کامل شود یا Mini App را دوباره باز کنید.' });
                 }
+                console.log("Sync skipped: User is anonymous or Firebase UID is missing.");
                 return;
             }
 
@@ -275,6 +286,7 @@
             } catch(error) {
                 console.error("Error during platform sync attempt:", error);
                 if (error.message.includes("Firebase readiness timeout")) {
+                     // در این مرحله اگر تایم اوت داد، یعنی مشکل احراز هویت است
                      Swal.fire({ icon: 'error', title: 'خطای احراز هویت', text: 'اتصال امن فایربیس برقرار نشد. Mini App را دوباره باز کنید.' });
                 } else if (force) {
                     Swal.fire({ icon: 'error', title: 'خطای شبکه', text: 'خطا در برقراری ارتباط با سرور همگام‌سازی.' });
