@@ -265,7 +265,7 @@
         let messagesPollingInterval = null;
         let hasOpenTicket = false;
         let isSubmitting = false;
-        let newlyCreatedTicket = null;
+        let newlyCreatedTicket = null; // --- FIX: Add this line ---
 
         const departmentMap = {
             general: 'سوالات متفرقه',
@@ -426,25 +426,17 @@
         async function fetchTickets() {
             if (!telegramUser) return;
             try {
-                // Use POST to avoid browser caching issues with GET requests
-                const data = await apiFetch('/tickets/list', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ telegram_id: telegramUser.id }),
-                });
+                const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}`);
+                let serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
 
-                // Filter out invalid or null ticket entries before processing
-                const serverTickets = data ? Object.keys(data)
-                    .map(key => ({ id: key, ...data[key] }))
-                    .filter(ticket => ticket && ticket.id && ticket.subject && ticket.created_at) 
-                    : [];
-
+                // --- FIX: Logic to prevent disappearing tickets ---
                 if (newlyCreatedTicket && !serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
                     serverTickets.unshift(newlyCreatedTicket);
                 } 
                 else if (newlyCreatedTicket && serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
                     newlyCreatedTicket = null;
                 }
+                // --- END FIX ---
 
                 allTicketsData = serverTickets;
                 
@@ -458,8 +450,6 @@
                 renderTickets(allTicketsData);
             } catch (error) {
                 console.error("Error fetching tickets:", error);
-                // Optionally show a user-facing error
-                // showNotification("خطا در دریافت لیست تیکت‌ها.", false);
             }
         }
 
@@ -763,6 +753,7 @@
                     body: JSON.stringify(payload),
                 });
                 
+                // --- FIX: More robust logic ---
                 newlyCreatedTicket = newTicket; 
                 dom.newTicketForm.reset();
                 showNotification('تیکت شما با موفقیت ارسال شد.');
@@ -905,4 +896,3 @@
     </script>
 </body>
 </html>
-
