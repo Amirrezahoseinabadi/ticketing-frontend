@@ -12,39 +12,67 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
 	<style>
-		/* CSS Variables for theming */
+		/* CSS Variables for a professional light theme */
 		:root{
-			--bg-dark: #0b111e;
-			--accent1: #00c6ff;
-			--accent2: #0072ff;
-			--muted: #8e9cb1;
-			--text-light: #e6eef5;
-			--text-on-light: #1A202C; /* For popups */
-			--glow-color: rgba(0, 114, 255, 0.5);
-			--gold: #FFC857;
+			--bg-light: #f7f8fc;
+			--accent1: #0d94e4;
+			--accent2: #0c64e0;
+			--text-dark: #1e293b;
+			--muted: #64748b;
+			--border-color: #e2e8f0;
+			--glow-color: rgba(13, 148, 228, 0.25);
+			--gold: #f59e0b;
 		}
 
 		html, body {
             height: 100%;
+			overflow: hidden; /* Hide scrollbars from aurora effect */
         }
 		body {
 			font-family: 'Vazirmatn', sans-serif;
-			color:var(--text-light);
+			color: var(--text-dark);
 			-webkit-font-smoothing:antialiased;
 			-moz-osx-font-smoothing:grayscale;
 			display:flex;
 			flex-direction: column;
 			min-height: 100vh;
-            /* Animated Gradient Background */
-            background: linear-gradient(-45deg, #0b111e, #101727, #0f1c3b, #0b111e);
-            background-size: 400% 400%;
-            animation: animated-gradient 15s ease infinite;
+            background-color: var(--bg-light);
+            position: relative;
 		}
         
-        @keyframes animated-gradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+        /* Professional Aurora Background Effect */
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            z-index: -1;
+            filter: blur(100px);
+            opacity: 0.15;
+            border-radius: 50%;
+        }
+        body::before {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, #67e8f9, transparent 60%);
+            top: -200px;
+            left: -200px;
+            animation: move-aurora-1 20s infinite alternate ease-in-out;
+        }
+        body::after {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, #818cf8, transparent 60%);
+            bottom: -150px;
+            right: -150px;
+            animation: move-aurora-2 25s infinite alternate ease-in-out;
+        }
+
+        @keyframes move-aurora-1 {
+            from { transform: translate(0, 0) rotate(0deg); }
+            to { transform: translate(100px, 50px) rotate(45deg); }
+        }
+        @keyframes move-aurora-2 {
+            from { transform: translate(0, 0) rotate(0deg); }
+            to { transform: translate(-50px, -100px) rotate(-30deg); }
         }
 
 		.page-wrapper {
@@ -53,22 +81,24 @@
 			flex-grow: 1;
 			padding: 1.5rem;
 			width: 100%;
-			max-width: 520px; /* Refined width for a sleeker look */
+			max-width: 520px;
 			margin: 0 auto;
             justify-content: center;
+			position: relative;
+			z-index: 1;
 		}
 
 		/* Form Card Styles */
 		.form-card{
-			background: rgba(15, 23, 36, 0.6); /* Darker, more glassy background */
-			border-radius: 1.25rem; /* Larger radius for a softer look */
-			padding: 2.5rem; /* Increased padding */
-			border: 1px solid rgba(255, 255, 255, 0.08);
-			backdrop-filter: blur(10px);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+			background: rgba(255, 255, 255, 0.75);
+			border-radius: 1.25rem;
+			padding: 2.5rem;
+			border: 1px solid rgba(255, 255, 255, 0.9);
+			backdrop-filter: blur(12px) saturate(150%);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
 		}
 
-		.headline h1{font-size:1.5rem; font-weight:700; color:var(--text-light); line-height: 1.6;}
+		.headline h1{font-size:1.5rem; font-weight:700; color:var(--text-dark); line-height: 1.6;}
 		.headline h1 .gradient-text {
 			background: linear-gradient(90deg, var(--accent1), var(--accent2));
 			-webkit-background-clip: text;
@@ -82,7 +112,6 @@
         .input-group {
             position: relative;
         }
-
         .input-group .input-icon {
             position: absolute;
             top: 50%;
@@ -90,27 +119,28 @@
             transform: translateY(-50%);
             color: var(--muted);
             font-size: 0.9rem;
-            pointer-events: none; /* Make icon unclickable */
+            pointer-events: none;
             transition: color 0.2s ease;
         }
 
 		.glass-input{
-			background: rgba(255, 255, 255, 0.04);
-			border:1px solid rgba(255,255,255,0.1);
+			background: #ffffff;
+			border:1px solid var(--border-color);
 			padding: 0.8rem 2.75rem 0.8rem 3rem;
 			border-radius:0.6rem; 
             font-weight:500;
 			font-size: 1rem;
-            color:var(--text-light);
+            color:var(--text-dark);
 			transition: all 0.2s ease;
             width: 100%;
+			box-shadow: 0 1px 2px rgba(0,0,0,0.05) inset;
 		}
-        .glass-input::placeholder { color: var(--muted); opacity: 0.6; }
+        .glass-input::placeholder { color: #94a3b8; }
         
         .glass-input:focus {
             outline: none;
             border-color: var(--accent2);
-            box-shadow: 0 0 15px var(--glow-color);
+            box-shadow: 0 0 0 3px var(--glow-color), 0 1px 2px rgba(0,0,0,0.05) inset;
         }
         .glass-input:focus + .input-icon {
             color: var(--accent1);
@@ -134,10 +164,7 @@
 			color: var(--accent1);
 			transform: translateY(-50%) scale(1.1);
 		}
-		.auto-fill-btn.hidden {
-			display: none;
-		}
-
+		.auto-fill-btn.hidden { display: none; }
 
 		.form-label{font-weight:600; color:var(--muted); font-size:0.85rem; display: block; margin-bottom: 0.5rem;}
 
@@ -145,23 +172,23 @@
 			display:inline-flex; align-items:center; gap:0.6rem; justify-content:center;
 			padding:0.85rem 1.1rem; border-radius:0.75rem; font-weight:700; cursor:pointer;
 			background:linear-gradient(90deg,var(--accent2),var(--accent1)); color:#fff; border:none;
-			box-shadow: 0 8px 25px rgba(0, 114, 255, 0.3);
+			box-shadow: 0 8px 25px rgba(12, 100, 224, 0.25);
 			transition: all .2s ease;
             width: 100%;
 		}
 		.btn-cta:hover{
             transform:translateY(-3px); 
-            box-shadow: 0 12px 30px rgba(0, 114, 255, 0.4);
+            box-shadow: 0 12px 30px rgba(12, 100, 224, 0.35);
         }
 		.btn-cta:disabled{
-			opacity: 0.5; pointer-events: none; transform: translateY(0);
+			opacity: 0.6; pointer-events: none; transform: translateY(0);
 			box-shadow: none;
 		}
 
 		.ltr{direction:ltr; text-align:left}
 
 		/* Page Footer */
-		.page-footer { text-align: center; padding: 2rem 0 0; font-size: 0.8rem; color: var(--muted); opacity: 0.8; }
+		.page-footer { text-align: center; padding: 2rem 0 0; font-size: 0.8rem; color: var(--muted); }
 		
 		.form-footer {
 			display: flex;
@@ -172,13 +199,13 @@
 			color: var(--muted);
 		}
 		.form-footer a {
-			color: var(--accent1);
+			color: var(--accent2);
 			font-weight: 600;
 			text-decoration: none;
 			transition: color 0.2s ease;
 		}
 		.form-footer a:hover {
-			color: #fff;
+			color: var(--accent1);
 		}
 		.form-footer .version {
 			font-weight: 600;
@@ -189,14 +216,11 @@
 		}
 
 		/* Animation */
-		.animate-fade-up{opacity:0; transform: translateY(15px); animation:fadeUp .7s ease forwards}
+		.animate-fade-up{opacity:0; transform: translateY(15px); animation:fadeUp .7s ease-out forwards}
 		@keyframes fadeUp{to{opacity:1; transform:none}}
 
 		/* SweetAlert */
-		.swal2-popup{font-family:'Vazirmatn',sans-serif !important; background:#f7fafc !important; color:var(--text-on-light) !important; border-radius: 1rem !important;}
-		.swal2-title, .swal2-html-container{color:var(--text-on-light) !important;}
-		.swal2-confirm{background:linear-gradient(90deg,var(--accent2),var(--accent1)) !important; box-shadow:0 4px 10px rgba(0,114,255,0.25) !important; color:#fff !important; border-radius: 0.5rem !important;}
-		.swal2-input, .swal2-textarea, .swal2-html-container input[type="text"]{border:1px solid #CBD5E0 !important; color:var(--text-on-light) !important; background:#EDF2F7 !important;}
+		.swal2-popup{font-family:'Vazirmatn',sans-serif !important; border-radius: 1rem !important;}
 	</style>
 </head>
 <body>
@@ -273,24 +297,24 @@
 				try {
 					const tg = window.Telegram.WebApp;
 					tg.ready();
-					tg.expand(); // Expand the Mini App to full height
+					tg.expand();
 					
-					// --- Auto-fill User ID Logic ---
+					// Auto-fill User ID Logic
 					const userId = tg.initDataUnsafe?.user?.id;
 					const useMyIdBtn = document.getElementById('use-my-id-btn');
 					const adminChatIdInput = document.getElementById('admin-chat-id');
 
 					if (userId && useMyIdBtn && adminChatIdInput) {
-						useMyIdBtn.classList.remove('hidden'); // Show the button
+						useMyIdBtn.classList.remove('hidden');
 						useMyIdBtn.addEventListener('click', () => {
 							tg.HapticFeedback.impactOccurred('light');
 							adminChatIdInput.value = userId;
 							adminChatIdInput.dispatchEvent(new Event('input', { bubbles: true }));
-							adminChatIdInput.focus(); // Focus the input after filling
+							adminChatIdInput.focus();
 						});
 					}
 
-					// --- Add Haptic Feedback to main button ---
+					// Add Haptic Feedback to main button
 					const createBtn = document.getElementById('create-platform-btn');
 					if(createBtn){
 						createBtn.addEventListener('click', () => {
@@ -344,9 +368,6 @@
 				}
 			});
 
-			/**
-			 * Toggles the loading state of a button.
-			 */
 			function toggleLoading(button, isLoading, text){
 				if(isLoading){
 					button.disabled = true;
@@ -357,9 +378,6 @@
 				}
 			}
 
-			/**
-			 * Shows a success modal with next steps.
-			 */
 			function showSuccess(result){
 				const { adminBotUsername, storeHandle } = result || {};
 				const MINI_APP_BASE_URL = "https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html";
@@ -370,17 +388,17 @@
 					title:'🎉 پلتفرم شما آماده است',
 					html: `
 						<div style="text-align:right; line-height: 1.7;">
-							<p style="font-weight:700; margin-bottom:1rem; color:var(--text-on-light)">گام‌های بعدی:</p>
+							<p style="font-weight:700; margin-bottom:1rem;">گام‌های بعدی:</p>
 							<ol style="list-style-type: none; padding: 0; margin: 0; color:#334155;">
 								<li style="margin-bottom: 1.25rem; font-size:15px;">
-									<strong style="color:var(--text-on-light)">۱. فعال‌سازی Mini App:</strong><br> آدرس زیر را کپی کرده و در تنظیمات ربات خود در BotFather قرار دهید:
-									<input style="width:100%; padding:10px; border-radius:6px; border:1px solid #E2E8F0; margin-top:8px; background:#EDF2F7; color:var(--text-on-light); direction:ltr; text-align:left; font-family:monospace;" readonly value="${miniAppUrl}" onclick="this.select(); document.execCommand('copy'); Swal.fire({toast:true, position:'top-end', icon:'success', title:'آدرس کپی شد', showConfirmButton:false, timer:1500})">
+									<strong>۱. فعال‌سازی Mini App:</strong><br> آدرس زیر را کپی کرده و در تنظیمات ربات خود در BotFather قرار دهید:
+									<input style="width:100%; padding:10px; border-radius:6px; border:1px solid #E2E8F0; margin-top:8px; background:#F8FAFC; color:#1e293b; direction:ltr; text-align:left; font-family:monospace;" readonly value="${miniAppUrl}" onclick="this.select(); document.execCommand('copy'); Swal.fire({toast:true, position:'top-end', icon:'success', title:'آدرس کپی شد', showConfirmButton:false, timer:1500})">
 								</li>
 								<li style="font-size:15px;">
-									<strong style="color:var(--text-on-light)">۲. فعال‌سازی ربات ادمین:</strong><br> ربات <a href="https://t.me/${adminBotUsername}" target="_blank" style="color:var(--accent2); font-weight:700;">@${adminBotUsername}</a> را باز کرده و دکمه Start را بزنید تا اعلان‌ها برای شما فعال شود.
+									<strong>۲. فعال‌سازی ربات ادمین:</strong><br> ربات <a href="https://t.me/${adminBotUsername}" target="_blank" style="color:var(--accent2); font-weight:700;">@${adminBotUsername}</a> را باز کرده و دکمه Start را بزنید تا اعلان‌ها برای شما فعال شود.
 								</li>
 							</ol>
-							<p style="margin-top:1.5rem; font-size:14px; color:#4A5568">برای جلوگیری از ساخت مجدد پلتفرم، این صفحه تا لحظاتی دیگر غیرفعال می‌شود.</p>
+							<p style="margin-top:1.5rem; font-size:14px; color:#475569;">برای جلوگیری از ساخت مجدد پلتفرم، این صفحه تا لحظاتی دیگر غیرفعال می‌شود.</p>
 						</div>
 					`,
 					width: '90%', 
