@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
 	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 	<title>تیکت تل — راه‌اندازی پلتفرم</title>
 	<!-- External Libraries -->
 	<script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -12,14 +12,20 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
 	<style>
-		/* CSS Variables for theming */
+		/* CSS Variables for theming, with fallbacks */
 		:root{
-			--bg-dark: #0b111e;
+			--tg-theme-bg-color: #0b111e;
+			--tg-theme-text-color: #e6eef5;
+			--tg-theme-hint-color: #8e9cb1;
+			--tg-theme-button-color: #0072ff;
+			--tg-theme-button-text-color: #ffffff;
+			--tg-theme-secondary-bg-color: rgba(15, 23, 36, 0.6);
+
 			--accent1: #00c6ff;
-			--accent2: #0072ff;
-			--muted: #8e9cb1;
-			--text-light: #e6eef5;
-			--text-on-light: #1A202C; /* Dark text for popups */
+			--accent2: var(--tg-theme-button-color);
+			--muted: var(--tg-theme-hint-color);
+			--text-light: var(--tg-theme-text-color);
+			--text-on-light: #1A202C; /* For popups */
 			--glow-color: rgba(0, 114, 255, 0.5);
 			--gold: #FFC857;
 		}
@@ -29,23 +35,14 @@
         }
 		body {
 			font-family: 'Vazirmatn', sans-serif;
-			color:var(--text-light);
+			color: var(--tg-theme-text-color);
+			background-color: var(--tg-theme-bg-color);
 			-webkit-font-smoothing:antialiased;
 			-moz-osx-font-smoothing:grayscale;
 			display:flex;
 			flex-direction: column;
 			min-height: 100vh;
-            /* Animated Gradient Background */
-            background: linear-gradient(-45deg, #0b111e, #101727, #0f1c3b, #0b111e);
-            background-size: 400% 400%;
-            animation: animated-gradient 15s ease infinite;
 		}
-        
-        @keyframes animated-gradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
 
 		.page-wrapper {
 			display: flex;
@@ -53,24 +50,24 @@
 			flex-grow: 1;
 			padding: 1.5rem;
 			width: 100%;
-			max-width: 520px; /* Refined width for a sleeker look */
+			max-width: 520px;
 			margin: 0 auto;
             justify-content: center;
 		}
 
 		/* Form Card Styles */
 		.form-card{
-			background: rgba(15, 23, 36, 0.6); /* Darker, more glassy background */
-			border-radius: 1.25rem; /* Larger radius for a softer look */
-			padding: 2.5rem; /* Increased padding */
+			background: var(--tg-theme-secondary-bg-color);
+			border-radius: 1.25rem;
+			padding: 2.5rem;
 			border: 1px solid rgba(255, 255, 255, 0.08);
 			backdrop-filter: blur(10px);
             box-shadow: 0 15px 35px rgba(0,0,0,0.3);
 		}
 
-		.headline h1{font-size:1.4rem; font-weight:700; color:var(--text-light); line-height: 1.6;}
+		.headline h1{font-size:1.5rem; font-weight:700; color:var(--text-light); line-height: 1.6;}
 		.headline h1 strong { color: var(--accent1); }
-		.headline p{color:var(--muted); margin-top: 0.5rem; font-size: 0.9rem;}
+		.headline p{color:var(--muted); margin-top: 0.5rem; font-size: 0.95rem;}
 
         /* Input Group with Icon */
         .input-group {
@@ -84,16 +81,17 @@
             transform: translateY(-50%);
             color: var(--muted);
             font-size: 0.9rem;
-            pointer-events: none; /* Make icon unclickable */
+            pointer-events: none;
             transition: color 0.2s ease;
         }
 
 		.glass-input{
 			background: rgba(255, 255, 255, 0.04);
 			border:1px solid rgba(255,255,255,0.1);
-			padding: 0.75rem 2.75rem 0.75rem 3rem; /* Increased left padding for auto-fill button */
+			padding: 0.8rem 2.75rem 0.8rem 3rem;
 			border-radius:0.6rem; 
-            font-weight:500; 
+            font-weight:500;
+			font-size: 1rem;
             color:var(--text-light);
 			transition: all 0.2s ease;
             width: 100%;
@@ -112,7 +110,7 @@
 		.auto-fill-btn {
 			position: absolute;
 			top: 50%;
-			left: 0.5rem; /* Positioned on the left */
+			left: 0.5rem;
 			transform: translateY(-50%);
 			background: none;
 			border: none;
@@ -133,12 +131,14 @@
 
 
 		.form-label{font-weight:600; color:var(--muted); font-size:0.85rem; display: block; margin-bottom: 0.5rem;}
-		.hint{font-size:0.8rem; color:var(--muted); margin-top: 0.5rem;}
+		.hint{font-size:0.85rem; color:var(--muted); margin-top: 0.5rem;}
 
 		.btn-cta{
 			display:inline-flex; align-items:center; gap:0.6rem; justify-content:center;
 			padding:0.85rem 1.1rem; border-radius:0.75rem; font-weight:700; cursor:pointer;
-			background:linear-gradient(90deg,var(--accent2),var(--accent1)); color:#fff; border:none;
+			background:var(--tg-theme-button-color); 
+			color:var(--tg-theme-button-text-color);
+			border:none;
 			box-shadow: 0 8px 25px rgba(0, 114, 255, 0.3);
 			transition: all .2s ease;
             width: 100%;
@@ -265,24 +265,47 @@
 
 	<script>
 		document.addEventListener('DOMContentLoaded', () => {
-			// --- TELEGRAM MINI APP LOGIC ---
-			// Check if running inside Telegram Mini App and try to auto-fill user ID
+			// --- TELEGRAM MINI APP INITIALIZATION ---
 			if (window.Telegram && window.Telegram.WebApp) {
 				try {
-					window.Telegram.WebApp.ready(); // Inform Telegram the app is ready
+					const tg = window.Telegram.WebApp;
+					tg.ready();
+					tg.expand(); // Expand the Mini App to full height
 
-					const userId = window.Telegram.WebApp.initDataUnsafe?.user?.id;
+					// Apply theme colors from Telegram to CSS variables
+					const root = document.documentElement;
+					if (tg.themeParams) {
+						root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#0b111e');
+						root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#e6eef5');
+						root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#8e9cb1');
+						root.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#0072ff');
+						root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
+						root.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || 'rgba(15, 23, 36, 0.6)');
+					}
+					
+					// --- Auto-fill User ID Logic ---
+					const userId = tg.initDataUnsafe?.user?.id;
 					const useMyIdBtn = document.getElementById('use-my-id-btn');
 					const adminChatIdInput = document.getElementById('admin-chat-id');
 
 					if (userId && useMyIdBtn && adminChatIdInput) {
 						useMyIdBtn.classList.remove('hidden'); // Show the button
 						useMyIdBtn.addEventListener('click', () => {
+							tg.HapticFeedback.impactOccurred('light');
 							adminChatIdInput.value = userId;
 							adminChatIdInput.dispatchEvent(new Event('input', { bubbles: true }));
 							adminChatIdInput.focus(); // Focus the input after filling
 						});
 					}
+
+					// --- Add Haptic Feedback to main button ---
+					const createBtn = document.getElementById('create-platform-btn');
+					if(createBtn){
+						createBtn.addEventListener('click', () => {
+							tg.HapticFeedback.impactOccurred('light');
+						});
+					}
+
 				} catch (e) {
 					console.error("Telegram WebApp error:", e);
 				}
