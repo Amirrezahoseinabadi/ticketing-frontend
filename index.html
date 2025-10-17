@@ -6,9 +6,6 @@
     <title>پشتیبانی</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- UPDATED: Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -256,30 +253,19 @@
         // =================================================================================
         // SECTION: Configuration & State
         // =================================================================================
-        
-        // This should be dynamically set for multi-store support in a real-world scenario
-        let STORE_HANDLE = 'dfdf'; 
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAjBkdCe-kJK2VFfM3lSFyFiFNXElOCPSg",
-            authDomain: "support-app-final.firebaseapp.com",
-            databaseURL: "https://support-app-final-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "support-app-final",
-            messagingSenderId: "220983533006",
-            appId: "1:220983533006:web:87f404486afb9f6a06df9f"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        const WORKER_URL = 'https://ticketing.amiruserbot7.workers.dev';
+        let STORE_HANDLE = null; 
 
         let telegramUser = null;
         let currentTicketId = null;
         let currentTicketData = null;
         let allTicketsData = [];
-        let ticketsRef = null;
-        let messagesRef = null;
+        let ticketsPollingInterval = null;
+        let messagesPollingInterval = null;
         let hasOpenTicket = false;
         let isSubmitting = false;
+        let newlyCreatedTicket = null;
 
         const departmentMap = {
             general: 'سوالات متفرقه',
@@ -331,7 +317,7 @@
         };
 
         // =================================================================================
-        // SECTION: UI Functions (Modals, Toasts, Views)
+        // SECTION: UI Functions
         // =================================================================================
         
         let activeToastTimeout = null;
@@ -372,16 +358,28 @@
         }
 
         // =================================================================================
+        // SECTION: API Communication (Worker-based)
+        // =================================================================================
+        
+        async function apiFetch(endpoint, options = {}) {
+            if (!STORE_HANDLE) throw new Error("شناسه پلتفرم مشخص نشده است.");
+            const url = `${WORKER_URL}/api/${STORE_HANDLE}${endpoint}`;
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorResult = await response.json().catch(() => ({ error: `HTTP Error: ${response.statusText}` }));
+                throw new Error(errorResult.error || 'خطای ناشناخته در سرور');
+            }
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || "پاسخ ناموفق از سرور");
+            return result.data;
+        }
+
+        // =================================================================================
         // SECTION: Core Application Logic
         // =================================================================================
         
-        function getStoreHandleFromUrl() {
+        function getStoreHandleFromTg() {
             try {
-                const urlParams = new URLSearchParams(window.location.search);
-                const handle = urlParams.get('storeHandle');
-                if (handle) return handle;
-
-                // Fallback for Telegram start_param
                 const tg = window.Telegram.WebApp;
                 if (tg.initDataUnsafe.start_param) {
                     const params = tg.initDataUnsafe.start_param.split('_');
@@ -389,10 +387,9 @@
                         return params[1];
                     }
                 }
-            } catch (e) {
-                console.error("Could not get storeHandle:", e);
-            }
-            return 'dfdf'; // Default fallback
+            } catch (e) { console.error("Could not get start_param:", e); }
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('storeHandle');
         }
 
         function startApp(user) {
@@ -403,38 +400,44 @@
             dom.mainAppContainer.classList.remove('hidden');
             dom.mainAppContainer.classList.add('flex');
             showView('ticketsList');
-            listenToTickets();
+            listenToTickets(); // Start polling
         }
 
-        // *** NEW: REAL-TIME LISTENER ***
-        function listenToTickets() {
-            if (ticketsRef) {
-                ticketsRef.off(); // Detach previous listener if any
-            }
-            ticketsRef = database.ref(`stores/${STORE_HANDLE}/data/tickets`).orderByChild('telegram_id').equalTo(telegramUser.id);
-            
-            ticketsRef.on('value', (snapshot) => {
-                const ticketsData = snapshot.val();
-                allTicketsData = ticketsData ? Object.keys(ticketsData).map(key => ({ id: key, ...ticketsData[key] })) : [];
+        async function fetchTickets() {
+            if (!telegramUser) return;
+            try {
+                const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}`);
+                let serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
 
-                // Logic to update conversation view if it's open
+                if (newlyCreatedTicket && !serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
+                    serverTickets.unshift(newlyCreatedTicket);
+                } 
+                else if (newlyCreatedTicket && serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
+                    newlyCreatedTicket = null;
+                    sessionStorage.removeItem('newlyCreatedTicket');
+                }
+                
+                allTicketsData = serverTickets;
+                
                 if (currentTicketId) {
                     const updatedTicketData = allTicketsData.find(t => t.id === currentTicketId);
                     if (updatedTicketData) {
                         currentTicketData = updatedTicketData;
                         updateConversationViewUI();
-                    } else {
-                        // Ticket might have been deleted
-                        showNotification("این تیکت دیگر وجود ندارد.", false);
-                        closeConversation();
                     }
                 }
-                
                 renderTickets(allTicketsData);
-            }, (error) => {
-                console.error("Firebase read failed: " + error.code);
-                showNotification("خطا در اتصال به سرور.", false);
-            });
+            } catch (error) {
+                console.error("Error fetching tickets:", error);
+                // Optionally stop polling on critical errors
+            }
+        }
+        
+        // REVISED: Polling mechanism
+        function listenToTickets() {
+            fetchTickets(); // Initial fetch
+            if (ticketsPollingInterval) clearInterval(ticketsPollingInterval);
+            ticketsPollingInterval = setInterval(fetchTickets, 5000); // Poll every 5 seconds
         }
 
         function renderTickets(tickets) {
@@ -449,7 +452,7 @@
                 addTicketCardListeners();
             }
         }
-        
+
         function renderTicketCard(data, index) {
             const statusDetails = statusInfo[data.status] || { text: data.status, colorClass: 'bg-gray-500' };
             const creationDate = new Date(data.created_at).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' });
@@ -487,9 +490,6 @@
             </div>`;
         }
 
-
-        // ... (The rest of your code, like renderMessage, openConversation, etc. remains largely the same)
-
         function addTicketCardListeners() {
             document.querySelectorAll('.ticket-card').forEach(card => {
                 card.addEventListener('click', (e) => {
@@ -509,12 +509,17 @@
         }
 
         async function deleteTicket(ticketId) {
-            showModal('تایید حذف','آیا از حذف این تیکت مطمئن هستید؟ این عمل غیرقابل بازگشت است.', true);
+            showModal('تایید حذف', 'آیا از حذف این تیکت مطمئن هستید؟ این عمل غیرقابل بازگشت است.', true);
             document.getElementById('modal-close-btn').onclick = async () => {
                  document.getElementById('custom-modal').classList.add('hidden');
-                 database.ref(`stores/${STORE_HANDLE}/data/tickets/${ticketId}`).remove();
-                 database.ref(`stores/${STORE_HANDLE}/data/messages/${ticketId}`).remove();
-                 showNotification('تیکت با موفقیت حذف شد.');
+                try {
+                    await apiFetch(`/tickets/${ticketId}`, { method: 'DELETE' });
+                    showNotification('تیکت با موفقیت حذف شد.');
+                    fetchTickets(); // Re-fetch after delete
+                } catch (error) {
+                    showNotification(`حذف تیکت با خطا مواجه شد: ${error.message}`, false);
+                    console.error("Error deleting ticket:", error);
+                }
             };
         }
 
@@ -525,8 +530,14 @@
             starContainer.style.opacity = '0.5';
             
             try {
-                await database.ref(`stores/${STORE_HANDLE}/data/tickets/${ticketId}`).update({ rating });
+                const payload = { rating, telegram_id: telegramUser.id };
+                await apiFetch(`/tickets/${ticketId}/rate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
                 showNotification('امتیاز شما با موفقیت ثبت شد.');
+                fetchTickets(); // Re-fetch after rating
             } catch (error) {
                 showNotification(`ثبت امتیاز با خطا مواجه شد: ${error.message}`, false);
                 delete starContainer.dataset.submitting;
@@ -550,7 +561,7 @@
         }
 
         function closeConversation() {
-            if (messagesRef) messagesRef.off();
+            if (messagesPollingInterval) clearInterval(messagesPollingInterval);
             dom.conversationView.classList.remove('is-open');
             setTimeout(() => {
                 dom.conversationView.classList.add('hidden');
@@ -570,26 +581,32 @@
             }
         }
 
-        // *** NEW: REAL-TIME MESSAGE LISTENER ***
-        function listenToMessages(ticketId) {
-            if (messagesRef) messagesRef.off();
-            messagesRef = database.ref(`stores/${STORE_HANDLE}/data/messages/${ticketId}`);
-            
-            messagesRef.on('value', (snapshot) => {
-                const messagesData = snapshot.val();
+        async function fetchMessages(ticketId) {
+            if (!ticketId) return;
+            try {
+                const messagesData = await apiFetch(`/messages?ticket_id=${ticketId}`);
                 const isScrolledToBottom = dom.conversationContainer.scrollHeight - dom.conversationContainer.clientHeight <= dom.conversationContainer.scrollTop + 50;
                 
                 dom.conversationContainer.innerHTML = '';
                 if (messagesData) {
-                    const sortedMessages = Object.values(messagesData).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-                    dom.conversationContainer.innerHTML = sortedMessages.map(renderMessage).join('');
+                    dom.conversationContainer.innerHTML = Object.values(messagesData)
+                        .sort((a,b) => new Date(a.created_at) - new Date(b.created_at))
+                        .map(renderMessage).join('');
                     attachHumanRequestListeners();
                 }
                 
                 if(isScrolledToBottom) {
                     dom.conversationContainer.scrollTop = dom.conversationContainer.scrollHeight;
                 }
-            });
+            } catch (error) {
+                console.error("Error fetching messages:", error);
+            }
+        }
+        
+        function listenToMessages(ticketId) {
+            fetchMessages(ticketId);
+            if (messagesPollingInterval) clearInterval(messagesPollingInterval);
+            messagesPollingInterval = setInterval(() => fetchMessages(ticketId), 5000); // Poll messages
         }
 
         function renderMessage(data) {
@@ -621,67 +638,71 @@
         async function sendTextMessage(text) {
              if (!currentTicketId || !text) return;
              
-             const messagePayload = { 
-                 sender: 'user', 
-                 text: text, 
-                 created_at: new Date().toISOString(),
-                 source: 'user'
-             };
-
+             const payload = { ticket_id: currentTicketId, sender: 'user', text };
+             
+             const submitButton = dom.replyForm.querySelector('button[type="submit"]');
+             submitButton.disabled = true;
+             
              dom.replyMessageInput.value = '';
              dom.replyMessageInput.style.height = 'auto';
 
              try {
-                await database.ref(`stores/${STORE_HANDLE}/data/messages/${currentTicketId}`).push(messagePayload);
-                await database.ref(`stores/${STORE_HANDLE}/data/tickets/${currentTicketId}`).update({ status: 'open', admin_unread: true });
+                await apiFetch('/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                fetchMessages(currentTicketId); // Immediately fetch new messages
              } catch (error) {
                  console.error("Error sending message:", error);
-                 showNotification("خطا در ارسال پیام.", false);
+                 showNotification(error.message, false);
+             } finally {
+                 submitButton.disabled = false;
              }
         }
         
-        // This function would need a server-side component to handle the file upload securely
         async function handleImageUpload(file) {
+            // This needs to be implemented via worker
              showNotification("ارسال تصویر در حال حاضر پشتیبانی نمی‌شود.", false);
         }
         
-        async function handleNewTicketSubmit() {
+        async function handleNewTicketSubmit(event) {
+            event.preventDefault();
             if (isSubmitting) return;
-            const subject = document.getElementById('subject').value.trim();
-            const message = document.getElementById('message').value.trim();
-            const department = document.getElementById('department').value;
 
-            if (!subject || !message) {
+            const formData = new FormData(dom.newTicketForm);
+            const data = Object.fromEntries(formData.entries());
+
+            if (!data.subject.trim() || !data.message.trim()) {
                 return showNotification("لطفا موضوع و متن پیام را وارد کنید.", false);
             }
 
             isSubmitting = true;
             dom.submitNewTicketBtn.disabled = true;
             dom.submitNewTicketBtn.textContent = 'در حال ارسال...';
-
-            const ticketPayload = {
-                telegram_id: telegramUser.id,
-                user_name: `${telegramUser.first_name || ''} ${telegramUser.last_name || ''}`.trim(),
-                subject: subject,
-                department: department,
-                message: message,
-                status: 'open',
-                admin_unread: true,
-                created_at: new Date().toISOString(),
-            };
             
             try {
-                const newTicketRef = database.ref(`stores/${STORE_HANDLE}/data/tickets`).push();
-                await newTicketRef.set({ ...ticketPayload, message: null }); // Don't store first message in ticket data
-                await database.ref(`stores/${STORE_HANDLE}/data/messages/${newTicketRef.key}`).push({
-                    sender: 'user',
-                    text: message,
-                    created_at: new Date().toISOString(),
-                    source: 'user'
+                const payload = {
+                    telegram_id: telegramUser.id,
+                    user_name: `${telegramUser.first_name || ''} ${telegramUser.last_name || ''}`.trim(),
+                    subject: data.subject,
+                    department: data.department,
+                    message: data.message,
+                };
+                
+                const newTicket = await apiFetch('/tickets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
                 });
                 
+                sessionStorage.setItem('newlyCreatedTicket', JSON.stringify(newTicket));
+                newlyCreatedTicket = newTicket; 
+
                 dom.newTicketForm.reset();
                 showNotification('تیکت شما با موفقیت ارسال شد.');
+                
+                fetchTickets(); // Immediately fetch to update list
                 showView('ticketsList');
 
             } catch (error) {
@@ -693,9 +714,9 @@
                 dom.submitNewTicketBtn.textContent = 'ارسال';
             }
         }
-        
+
         function attachHumanRequestListeners() {
-            // This would require a server-side endpoint to notify the admin
+            // Implementation for human request button
         }
 
         // =================================================================================
@@ -703,8 +724,23 @@
         // =================================================================================
 
         document.addEventListener('DOMContentLoaded', () => {
-            STORE_HANDLE = getStoreHandleFromUrl();
+            STORE_HANDLE = getStoreHandleFromTg();
             
+            try {
+                const storedTicket = sessionStorage.getItem('newlyCreatedTicket');
+                if (storedTicket) {
+                    newlyCreatedTicket = JSON.parse(storedTicket);
+                }
+            } catch (e) {
+                console.error("Could not parse stored ticket", e);
+                sessionStorage.removeItem('newlyCreatedTicket');
+            }
+            
+            if (!STORE_HANDLE) {
+                dom.loadingView.innerHTML = `...`; // Error message
+                return;
+            }
+
             try {
                 const tg = window.Telegram.WebApp;
                 tg.ready();
@@ -712,8 +748,8 @@
                 if (tg.initDataUnsafe?.user?.id) {
                     startApp(tg.initDataUnsafe.user);
                 } else {
-                    console.warn("Telegram user data not found. Using mock user for testing.");
-                    startApp({id: 319237991, first_name: "Test", last_name: "User"});
+                    console.warn("Telegram user data not found. Using mock user.");
+                    startApp({id: "12345678", first_name: "Test", last_name: "User"});
                 }
             } catch (error) {
                 console.error("Could not initialize Telegram Web App:", error);
@@ -733,7 +769,7 @@
         });
 
         // --- Form Submissions ---
-        dom.newTicketForm.addEventListener('submit', (e) => { e.preventDefault(); handleNewTicketSubmit(); });
+        dom.newTicketForm.addEventListener('submit', handleNewTicketSubmit);
         dom.replyForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const text = dom.replyMessageInput.value.trim();
