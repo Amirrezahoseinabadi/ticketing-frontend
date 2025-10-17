@@ -12,19 +12,13 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
 	<style>
-		/* CSS Variables for theming, with fallbacks */
+		/* CSS Variables for theming */
 		:root{
-			--tg-theme-bg-color: #0b111e;
-			--tg-theme-text-color: #e6eef5;
-			--tg-theme-hint-color: #8e9cb1;
-			--tg-theme-button-color: #0072ff;
-			--tg-theme-button-text-color: #ffffff;
-			--tg-theme-secondary-bg-color: rgba(15, 23, 36, 0.6);
-
+			--bg-dark: #0b111e;
 			--accent1: #00c6ff;
-			--accent2: var(--tg-theme-button-color);
-			--muted: var(--tg-theme-hint-color);
-			--text-light: var(--tg-theme-text-color);
+			--accent2: #0072ff;
+			--muted: #8e9cb1;
+			--text-light: #e6eef5;
 			--text-on-light: #1A202C; /* For popups */
 			--glow-color: rgba(0, 114, 255, 0.5);
 			--gold: #FFC857;
@@ -35,14 +29,23 @@
         }
 		body {
 			font-family: 'Vazirmatn', sans-serif;
-			color: var(--tg-theme-text-color);
-			background-color: var(--tg-theme-bg-color);
+			color:var(--text-light);
 			-webkit-font-smoothing:antialiased;
 			-moz-osx-font-smoothing:grayscale;
 			display:flex;
 			flex-direction: column;
 			min-height: 100vh;
+            /* Animated Gradient Background */
+            background: linear-gradient(-45deg, #0b111e, #101727, #0f1c3b, #0b111e);
+            background-size: 400% 400%;
+            animation: animated-gradient 15s ease infinite;
 		}
+        
+        @keyframes animated-gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
 
 		.page-wrapper {
 			display: flex;
@@ -50,16 +53,16 @@
 			flex-grow: 1;
 			padding: 1.5rem;
 			width: 100%;
-			max-width: 520px;
+			max-width: 520px; /* Refined width for a sleeker look */
 			margin: 0 auto;
             justify-content: center;
 		}
 
 		/* Form Card Styles */
 		.form-card{
-			background: var(--tg-theme-secondary-bg-color);
-			border-radius: 1.25rem;
-			padding: 2.5rem;
+			background: rgba(15, 23, 36, 0.6); /* Darker, more glassy background */
+			border-radius: 1.25rem; /* Larger radius for a softer look */
+			padding: 2.5rem; /* Increased padding */
 			border: 1px solid rgba(255, 255, 255, 0.08);
 			backdrop-filter: blur(10px);
             box-shadow: 0 15px 35px rgba(0,0,0,0.3);
@@ -81,7 +84,7 @@
             transform: translateY(-50%);
             color: var(--muted);
             font-size: 0.9rem;
-            pointer-events: none;
+            pointer-events: none; /* Make icon unclickable */
             transition: color 0.2s ease;
         }
 
@@ -136,9 +139,7 @@
 		.btn-cta{
 			display:inline-flex; align-items:center; gap:0.6rem; justify-content:center;
 			padding:0.85rem 1.1rem; border-radius:0.75rem; font-weight:700; cursor:pointer;
-			background:var(--tg-theme-button-color); 
-			color:var(--tg-theme-button-text-color);
-			border:none;
+			background:linear-gradient(90deg,var(--accent2),var(--accent1)); color:#fff; border:none;
 			box-shadow: 0 8px 25px rgba(0, 114, 255, 0.3);
 			transition: all .2s ease;
             width: 100%;
@@ -271,17 +272,6 @@
 					const tg = window.Telegram.WebApp;
 					tg.ready();
 					tg.expand(); // Expand the Mini App to full height
-
-					// Apply theme colors from Telegram to CSS variables
-					const root = document.documentElement;
-					if (tg.themeParams) {
-						root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#0b111e');
-						root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#e6eef5');
-						root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#8e9cb1');
-						root.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#0072ff');
-						root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
-						root.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || 'rgba(15, 23, 36, 0.6)');
-					}
 					
 					// --- Auto-fill User ID Logic ---
 					const userId = tg.initDataUnsafe?.user?.id;
