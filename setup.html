@@ -87,6 +87,7 @@
             justify-content: center;
 			position: relative;
 			z-index: 1;
+			perspective: 1000px; /* Added for 3D parallax effect */
 		}
 
 		/* Form Card Styles */
@@ -97,6 +98,8 @@
 			border: 1px solid rgba(255, 255, 255, 0.9);
 			backdrop-filter: blur(12px) saturate(150%);
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+			transform-style: preserve-3d; /* Added for 3D parallax effect */
+			transition: transform 0.4s ease-out; /* Added for smooth movement */
 		}
 
 		.headline h1{
@@ -375,6 +378,37 @@
 		}
 
 		document.addEventListener('DOMContentLoaded', () => {
+			// --- INTERACTIVE CARD EFFECT ---
+			const card = document.querySelector('.form-card');
+			const pageWrapper = document.querySelector('.page-wrapper');
+
+			if (card && pageWrapper) {
+				pageWrapper.addEventListener('mousemove', (e) => {
+					// Avoid this effect on touch devices
+					if (e.pointerType === 'touch') return;
+
+					const { clientX, clientY } = e;
+					const { offsetWidth, offsetHeight } = pageWrapper;
+					
+					// Use the center of the element itself for more intuitive rotation
+					const rect = card.getBoundingClientRect();
+					const centerX = rect.left + rect.width / 2;
+					const centerY = rect.top + rect.height / 2;
+
+					const x = (clientX - centerX) / (offsetWidth / 2);
+					const y = (clientY - centerY) / (offsetHeight / 2);
+
+					const rotateY = x * 7; // Max 7 degrees rotation
+					const rotateX = -y * 7; // Max 7 degrees rotation
+
+					card.style.transform = `rotateY(${rotateY}deg) rotateX(${rotateX}deg)`;
+				});
+
+				pageWrapper.addEventListener('mouseleave', () => {
+					card.style.transform = 'rotateY(0deg) rotateX(0deg)';
+				});
+			}
+
 			// --- REAL-TIME INPUT VALIDATION ---
 			const storeHandleInput = document.getElementById('store-handle');
 			const storeHandleError = document.getElementById('store-handle-error');
