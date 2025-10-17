@@ -155,7 +155,13 @@
 
     <!-- Main Application Container -->
     <div id="main-app-container" class="hidden h-full flex-col relative w-full">
-        <div id="main-content" class="flex-grow flex flex-col">
+        <!-- PULL TO REFRESH INDICATOR -->
+        <div id="pull-to-refresh-indicator" class="absolute top-0 left-0 right-0 h-16 flex items-center justify-center text-white opacity-0 transition-opacity z-0 -translate-y-full" style="background-color: var(--brand-dark-blue);">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M20 4h-5v5M4 20h5v-5"/></svg>
+            <span class="ml-2">در حال بروزرسانی...</span>
+        </div>
+
+        <div id="main-content" class="flex-grow flex flex-col w-full h-full">
             <header class="p-4 text-center text-white text-lg font-bold shadow-md sticky top-0 z-10" style="background-color: var(--brand-secondary-bg);">
                 <h1 id="header-title">تیکت‌ها</h1>
             </header>
@@ -288,6 +294,9 @@
         const dom = {
             loadingView: document.getElementById('loading-view'),
             mainAppContainer: document.getElementById('main-app-container'),
+            mainContent: document.getElementById('main-content'),
+            pullToRefreshIndicator: document.getElementById('pull-to-refresh-indicator'),
+            appContainer: document.getElementById('app-container'),
             ticketsListView: document.getElementById('tickets-list-view'),
             newTicketView: document.getElementById('new-ticket-view'),
             conversationView: document.getElementById('conversation-view'),
@@ -397,7 +406,6 @@
         function getStoreHandleFromTg() {
             try {
                 const tg = window.Telegram.WebApp;
-                // The startParam can contain other info, we look for 'storeHandle_' prefix
                 if (tg.initDataUnsafe.start_param) {
                     const params = tg.initDataUnsafe.start_param.split('_');
                     if (params[0] === 'storeHandle' && params[1]) {
@@ -407,7 +415,6 @@
             } catch (e) {
                 console.error("Could not get start_param:", e);
             }
-             // Fallback for local testing or if start_param is not set
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('storeHandle');
         }
@@ -420,6 +427,14 @@
             dom.mainAppContainer.classList.remove('hidden');
             dom.mainAppContainer.classList.add('flex');
             showView('ticketsList');
+
+            // --- REVISED FIX: Immediately render the stored ticket ---
+            if (newlyCreatedTicket) {
+                allTicketsData.unshift(newlyCreatedTicket);
+                renderTickets(allTicketsData);
+            }
+            // --- END REVISED FIX ---
+
             listenToTickets();
         }
 
@@ -427,21 +442,24 @@
             if (!telegramUser) return;
             try {
                 const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}`);
-                let serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+                const serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
 
-                // --- FIX: Logic to prevent disappearing tickets ---
-                if (newlyCreatedTicket && !serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
-                    serverTickets.unshift(newlyCreatedTicket);
-                } 
-                else if (newlyCreatedTicket && serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
+                // --- REVISED FIX LOGIC ---
+                if (newlyCreatedTicket && serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
                     newlyCreatedTicket = null;
-                    // --- FIX: Clear session storage once ticket is confirmed from server ---
                     sessionStorage.removeItem('newlyCreatedTicket');
+                    allTicketsData = serverTickets;
+                } else if (newlyCreatedTicket) {
+                    const combinedTickets = [...serverTickets];
+                    if (!combinedTickets.some(t => t.id === newlyCreatedTicket.id)) {
+                        combinedTickets.unshift(newlyCreatedTicket);
+                    }
+                    allTicketsData = combinedTickets;
+                } else {
+                    allTicketsData = serverTickets;
                 }
-                // --- END FIX ---
+                // --- END REVISED FIX LOGIC ---
 
-                allTicketsData = serverTickets;
-                
                 if (currentTicketId) {
                     const updatedTicketData = allTicketsData.find(t => t.id === currentTicketId);
                     if (updatedTicketData && currentTicketData && updatedTicketData.status !== currentTicketData.status) {
@@ -530,7 +548,6 @@
         }
 
         async function deleteTicket(ticketId) {
-            // NOTE: Using a custom modal instead of confirm() for better UX in Mini Apps
             showModal(
                 'تایید حذف', 
                 'آیا از حذف این تیکت مطمئن هستید؟ این عمل غیرقابل بازگشت است.', 
@@ -755,14 +772,12 @@
                     body: JSON.stringify(payload),
                 });
                 
-                // --- FIX: Persist newly created ticket in session storage ---
                 sessionStorage.setItem('newlyCreatedTicket', JSON.stringify(newTicket));
                 newlyCreatedTicket = newTicket; 
 
                 dom.newTicketForm.reset();
                 showNotification('تیکت شما با موفقیت ارسال شد.');
                 
-                // Immediately add to local list for instant UI update
                 allTicketsData.unshift(newTicket);
                 renderTickets(allTicketsData);
                 showView('ticketsList');
@@ -806,7 +821,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             STORE_HANDLE = getStoreHandleFromTg();
             
-            // --- FIX: Load temporarily stored ticket on startup ---
             try {
                 const storedTicket = sessionStorage.getItem('newlyCreatedTicket');
                 if (storedTicket) {
@@ -816,7 +830,6 @@
                 console.error("Could not parse stored ticket", e);
                 sessionStorage.removeItem('newlyCreatedTicket');
             }
-            // --- END FIX ---
             
             if (!STORE_HANDLE) {
                 dom.loadingView.innerHTML = `
@@ -834,6 +847,7 @@
                 const tg = window.Telegram.WebApp;
                 tg.ready();
                 tg.expand();
+                tg.enableClosingConfirmation();
                 if (tg.initDataUnsafe?.user?.id) {
                     startApp(tg.initDataUnsafe.user);
                 } else {
@@ -845,6 +859,66 @@
                 showModal('خطای راه‌اندازی', 'امکان برقراری ارتباط با تلگرام وجود ندارد.', true);
             }
         });
+
+        // --- PULL TO REFRESH LOGIC ---
+        let touchstartY = 0;
+        let isRefreshing = false;
+        const refreshThreshold = 100; // pixels to pull down
+
+        dom.appContainer.addEventListener('touchstart', e => {
+            if (dom.appContainer.scrollTop === 0) {
+                touchstartY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+
+        dom.appContainer.addEventListener('touchmove', e => {
+            if (isRefreshing || touchstartY === 0) return;
+            const touchY = e.touches[0].clientY;
+            const pullDistance = touchY - touchstartY;
+
+            if (pullDistance > 0 && dom.appContainer.scrollTop === 0) {
+                e.preventDefault();
+                const indicatorOpacity = Math.min(pullDistance / refreshThreshold, 1);
+                dom.pullToRefreshIndicator.style.opacity = indicatorOpacity;
+                const contentTranslate = Math.min(pullDistance, refreshThreshold / 1.5);
+                dom.mainContent.style.transform = `translateY(${contentTranslate}px)`;
+            }
+        }, { passive: false });
+
+        dom.appContainer.addEventListener('touchend', async e => {
+            if (isRefreshing || touchstartY === 0) return;
+            const touchY = e.changedTouches[0].clientY;
+            const pullDistance = touchY - touchstartY;
+
+            const resetUI = () => {
+                isRefreshing = false;
+                touchstartY = 0;
+                dom.mainContent.style.transition = 'transform 0.3s';
+                dom.mainContent.style.transform = 'translateY(0px)';
+                dom.pullToRefreshIndicator.style.transition = 'opacity 0.3s';
+                dom.pullToRefreshIndicator.style.opacity = 0;
+                setTimeout(() => {
+                    dom.mainContent.style.transition = '';
+                    dom.pullToRefreshIndicator.style.transition = '';
+                }, 300);
+            };
+
+            if (pullDistance > refreshThreshold && dom.appContainer.scrollTop === 0) {
+                isRefreshing = true;
+                dom.pullToRefreshIndicator.style.opacity = 1;
+                dom.mainContent.style.transform = `translateY(50px)`;
+                window.Telegram?.WebApp.HapticFeedback.impactOccurred('medium');
+                
+                try {
+                    await fetchTickets();
+                } finally {
+                    resetUI();
+                }
+            } else {
+                resetUI();
+            }
+        });
+
 
         // --- Main Navigation ---
         dom.navButtons.ticketsList.addEventListener('click', () => showView('ticketsList'));
@@ -914,3 +988,4 @@
     </script>
 </body>
 </html>
+
