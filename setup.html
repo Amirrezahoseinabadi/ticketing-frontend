@@ -69,8 +69,14 @@
 		}
 
 		.headline h1{font-size:1.5rem; font-weight:700; color:var(--text-light); line-height: 1.6;}
-		.headline h1 strong { color: var(--accent1); }
-		.headline p{color:var(--muted); margin-top: 0.5rem; font-size: 0.95rem;}
+		.headline h1 .gradient-text {
+			background: linear-gradient(90deg, var(--accent1), var(--accent2));
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			text-fill-color: transparent;
+			display: inline-block;
+		}
 
         /* Input Group with Icon */
         .input-group {
@@ -134,7 +140,6 @@
 
 
 		.form-label{font-weight:600; color:var(--muted); font-size:0.85rem; display: block; margin-bottom: 0.5rem;}
-		.hint{font-size:0.85rem; color:var(--muted); margin-top: 0.5rem;}
 
 		.btn-cta{
 			display:inline-flex; align-items:center; gap:0.6rem; justify-content:center;
@@ -200,18 +205,16 @@
 		<main class="content-main">
 			<section class="form-card animate-fade-up">
 				<div class="headline">
-					<h1><strong>تیکت تل</strong>؛ پلتفرم پشتیبانی هوشمند — سریع، امن و قابل توسعه</h1>
-					<p>اطلاعات زیر را تکمیل کنید تا پلتفرم شما ساخته شود.</p>
+					<h1><strong class="gradient-text">تیکت تل</strong>؛ پلتفرم پشتیبانی هوشمند — سریع، امن و قابل توسعه</h1>
 				</div>
 	
 				<form id="setup-form" class="mt-8 space-y-6">
 					<div>
-						<label for="store-handle" class="form-label">شناسه پلتفرم (انگلیسی)</label>
+						<label for="store-handle" class="form-label">شناسه پلتفرم را انگلیسی وارد کنید - در URL پنل استفاده میشود</label>
                         <div class="input-group">
 						    <input id="store-handle" class="glass-input ltr" placeholder="my-store" pattern="[a-zA-Z0-9-]+" required>
                             <i class="input-icon fas fa-store"></i>
                         </div>
-						<div class="hint">این شناسه در URL استفاده می‌شود و قابل تغییر نیست.</div>
 					</div>
 	
 					<div>
@@ -223,7 +226,6 @@
 								<i class="fas fa-magic-wand-sparkles"></i>
 							</button>
                         </div>
-						<div class="hint">شناسه عددی شما برای ارسال اعلان‌ها استفاده می‌شود.</div>
 					</div>
 	
 					<div>
