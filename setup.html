@@ -98,14 +98,26 @@
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
 		}
 
-		.headline h1{font-size:1.5rem; font-weight:700; color:var(--text-dark); line-height: 1.6;}
-		.headline h1 .gradient-text {
+		.headline h1{
+			display: flex;
+			align-items: baseline;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+			line-height: 1.6;
+		}
+		.headline .gradient-text {
 			background: linear-gradient(90deg, var(--accent1), var(--accent2));
 			-webkit-background-clip: text;
 			-webkit-text-fill-color: transparent;
 			background-clip: text;
 			text-fill-color: transparent;
-			display: inline-block;
+			font-size: 1.75rem;
+			font-weight: 800;
+		}
+		.headline .headline-subtitle {
+			font-size: 1.1rem;
+			font-weight: 500;
+			color: var(--muted);
 		}
 
         /* Input Group with Icon */
@@ -229,91 +241,39 @@
 			backdrop-filter: blur(10px) !important;
 			border: 1px solid rgba(255,255,255,0.95);
 		}
-		.swal2-title, .swal2-html-container{color:var(--text-dark) !important;}
-		.swal2-confirm{
-			background:linear-gradient(90deg,var(--accent2),var(--accent1)) !important; 
-			box-shadow:0 8px 20px rgba(12, 100, 224, 0.25) !important; 
-			color:#fff !important; 
-			border-radius: 0.75rem !important;
-			font-weight: 700 !important;
-			padding: 0.75rem 1.5rem !important;
-		}
-		.swal2-icon.swal2-success .swal2-success-line-long,
-		.swal2-icon.swal2-success .swal2-success-line-tip {
-			background-color: var(--success-green) !important;
-		}
-		.swal2-icon.swal2-success {
-			border-color: var(--success-green) !important;
-		}
-		.swal2-icon.swal2-success .swal2-success-ring {
-			border-color: rgba(34, 197, 94, 0.2) !important; /* Lighter ring for light theme */
-		}
+		.swal2-html-container{color:var(--text-dark) !important;}
+		.swal2-actions { margin-top: 1.5rem !important; }
+		.swal-custom-footer { font-size: 0.9rem; color: var(--muted); font-weight: 500; }
+		.swal-header-flex { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1.5rem; }
+		.swal-header-flex h2 { font-weight: 800; font-size: 1.6rem; margin: 0; }
+
+		/* Custom SVG Checkmark Icon (Smaller) */
+		.success-checkmark-container { width: 50px; height: 50px; margin: 0; }
+		.success-checkmark-svg .path { stroke-dasharray: 1000; stroke-dashoffset: 0; }
+		.success-checkmark-svg .circle { stroke-dashoffset: 1000; animation: dash 0.9s ease-out forwards; }
+		.success-checkmark-svg .check { stroke-dashoffset: -100; animation: dash-check 0.35s 0.35s ease-out forwards; }
+		@keyframes dash { 0% { stroke-dashoffset: 1000; } 100% { stroke-dashoffset: 0; } }
+		@keyframes dash-check { 0% { stroke-dashoffset: -100; } 100% { stroke-dashoffset: 900; } }
 
 		/* Custom style for success details */
-		.success-details-card {
-			background: #f0f4f8; /* Light gray background for the card */
-			border-radius: 0.75rem;
-			padding: 1.25rem;
-			margin-top: 1.5rem;
-			box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-			text-align: right;
-		}
-		.success-details-card h3 {
-			font-size: 1.1rem;
-			font-weight: 700;
-			color: var(--text-dark);
-			margin-bottom: 1rem;
-			display: flex;
-			align-items: center;
-			justify-content: flex-end; /* Align icon to the right */
-			gap: 0.75rem;
-		}
-		.success-details-card h3 i {
-			color: var(--accent1);
-			font-size: 1.3rem;
-		}
-		.success-details-card p {
-			font-size: 0.95rem;
-			color: var(--muted);
-			margin-bottom: 0.75rem;
-		}
-		.copy-input-container {
-			position: relative;
-			margin-top: 0.5rem;
-		}
-		.copy-input {
-			width: 100%;
-			padding: 0.75rem 1rem;
-			border-radius: 0.5rem;
-			border: 1px solid var(--border-color);
-			background: #fff;
-			color: var(--text-dark);
-			direction: ltr;
-			text-align: left;
-			font-family: monospace;
-			font-size: 0.9rem;
-			cursor: pointer;
-			user-select: all; /* Allow easy selection */
-		}
-		.copy-input:focus {
-			outline: none;
-			border-color: var(--accent2);
-			box-shadow: 0 0 0 2px var(--glow-color);
-		}
-		.copy-message {
-			position: absolute;
-			top: -1.5rem;
-			left: 50%;
-			transform: translateX(-50%);
-			background: #333;
-			color: white;
-			padding: 0.25rem 0.5rem;
-			border-radius: 4px;
-			font-size: 0.75rem;
-			white-space: nowrap;
-			opacity: 0;
-			transition: opacity 0.2s ease-in-out;
-		}
+		.success-details-card { background: #f0f4f8; border-radius: 0.75rem; padding: 1rem; margin-top: 1rem; box-shadow: 0 5px 15px rgba(0,0,0,0.05); text-align: right; }
+		.success-details-card h3 { font-size: 1.1rem; font-weight: 700; color: var(--text-dark); margin-bottom: 0.75rem; }
+		.success-details-card p { font-size: 0.95rem; color: var(--muted); margin-bottom: 0.75rem; line-height: 1.7; }
+		
+		/* Professional Copy Button */
+		.copy-button { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid var(--border-color); background: #fff; cursor: pointer; transition: all 0.2s ease; }
+		.copy-button:hover { border-color: var(--accent2); box-shadow: 0 0 0 2px var(--glow-color); }
+		.copy-button-text { color: var(--text-dark); direction: ltr; text-align: left; font-family: monospace; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+		.copy-button-icon { color: var(--muted); font-size: 1rem; margin-right: 0.75rem; }
+		.copy-button:hover .copy-button-icon { color: var(--accent2); }
+		.swal2-toast-custom { font-family: 'Vazirmatn', sans-serif !important; }
+
+		/* Roadmap styles */
+		.roadmap { padding-right: 1rem; margin-top: 0.75rem; border-right: 2px solid var(--border-color); }
+		.roadmap-step { position: relative; margin-bottom: 0.5rem; padding-right: 1.5rem; font-size: 0.9rem; }
+		.roadmap-step::before { content: ''; position: absolute; right: -0.4rem; top: 0.35rem; width: 0.7rem; height: 0.7rem; border-radius: 50%; background-color: var(--accent2); border: 2px solid #fff; }
+		.roadmap-step span { font-weight: 600; color: var(--text-dark); }
+		.roadmap-step code { background: #e2e8f0; padding: 0.1rem 0.4rem; border-radius: 4px; font-family: monospace; color: var(--accent2); }
 
 	</style>
 </head>
@@ -322,7 +282,10 @@
 		<!-- Main Content --><main class="content-main">
 			<section class="form-card animate-fade-up">
 				<div class="headline">
-					<h1><strong class="gradient-text">تیکت تل</strong>؛ پلتفرم پشتیبانی هوشمند — سریع، امن و قابل توسعه</h1>
+					<h1>
+						<strong class="gradient-text">تیکت تل</strong>
+						<span class="headline-subtitle">؛ نسل جدید پشتیبانی در تلگرام</span>
+					</h1>
 				</div>
 	
 				<form id="setup-form" class="mt-8 space-y-6">
@@ -383,6 +346,30 @@
 	</div>
 
 	<script>
+		// Global function for copying URL, must be in scope for swal
+		window.copyUrl = function(element, url) {
+			navigator.clipboard.writeText(url).then(() => {
+				const icon = element.querySelector('.copy-button-icon');
+				icon.classList.remove('fa-copy');
+				icon.classList.add('fa-check');
+				
+				Swal.fire({
+					toast: true,
+					position: 'top-end',
+					icon: 'success',
+					title: 'آدرس کپی شد!',
+					showConfirmButton: false,
+					timer: 1500,
+					customClass: { popup: 'swal2-toast-custom' }
+				});
+
+				setTimeout(() => {
+					icon.classList.remove('fa-check');
+					icon.classList.add('fa-copy');
+				}, 2000);
+			});
+		}
+
 		document.addEventListener('DOMContentLoaded', () => {
 			// --- TELEGRAM MINI APP INITIALIZATION ---
 			if (window.Telegram && window.Telegram.WebApp) {
@@ -474,37 +461,67 @@
 				const { adminBotUsername, storeHandle } = result || {};
 				const MINI_APP_BASE_URL = "https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html";
 				const miniAppUrl = `${MINI_APP_BASE_URL}?storeHandle=${storeHandle}`;
+				let timerInterval;
 
 				Swal.fire({
-					icon:'success',
-					title:'🎉 پلتفرم شما آماده است',
 					html: `
+						<div class="swal-header-flex">
+							<div class="success-checkmark-container">
+								<svg class="success-checkmark-svg" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130.2 130.2">
+									<circle class="path circle" fill="none" stroke="#22c55e" stroke-width="6" stroke-miterlimit="10" cx="65.1" cy="65.1" r="62.1"/>
+									<polyline class="path check" fill="none" stroke="#22c55e" stroke-width="6" stroke-linecap="round" stroke-miterlimit="10" points="100.2,40.2 51.5,88.8 29.8,67.5 "/>
+								</svg>
+							</div>
+							<h2>پلتفرم شما آماده است!</h2>
+						</div>
 						<div style="text-align:right; line-height: 1.7;">
 							<div class="success-details-card">
-								<h3><i class="fas fa-link"></i> فعال‌سازی Mini App</h3>
-								<p>آدرس زیر را کپی کرده و در تنظیمات ربات خود در BotFather قرار دهید:</p>
-								<div class="copy-input-container">
-									<input class="copy-input" readonly value="${miniAppUrl}" 
-										onclick="this.select(); navigator.clipboard.writeText(this.value).then(() => { Swal.fire({toast:true, position:'top-end', icon:'success', title:'آدرس کپی شد!', showConfirmButton:false, timer:1500, customClass: {popup: 'swal2-toast-custom'}}); });"
-										onfocus="this.select();"
-									>
+								<h3>🔗 فعال‌سازی مینی اپ</h3>
+								<p>ابتدا آدرس زیر را کپی کنید:</p>
+								<div class="copy-button" onclick="copyUrl(this, '${miniAppUrl}')">
+									<span class="copy-button-text">${miniAppUrl}</span>
+									<i class="far fa-copy copy-button-icon"></i>
+								</div>
+								<div class="roadmap">
+									<div class="roadmap-step">به ربات <a href="https://t.me/BotFather" target="_blank" style="font-weight:700; color:var(--accent2);">@BotFather</a> بروید.</div>
+									<div class="roadmap-step">دستور <code>/mybots</code> را ارسال و ربات خود را انتخاب کنید.</div>
+									<div class="roadmap-step">مسیر <span>Bot Settings > Menu Button</span> را دنبال کنید.</div>
+									<div class="roadmap-step">گزینه <span>Configure Menu Button</span> را انتخاب و آدرس کپی شده را ارسال کنید.</div>
+									<div class="roadmap-step" style="margin-bottom:0;">یک نام کوتاه برای دکمه (مثلا: پشتیبانی) وارد کنید.</div>
 								</div>
 							</div>
 
-							<div class="success-details-card" style="margin-top: 1.5rem;">
-								<h3><i class="fas fa-robot"></i> فعال‌سازی ربات ادمین</h3>
-								<p>ربات <a href="https://t.me/${adminBotUsername}" target="_blank" style="color:var(--accent2); font-weight:700;">@${adminBotUsername}</a> را باز کرده و دکمه Start را بزنید تا اعلان‌ها برای شما فعال شود.</p>
+							<div class="success-details-card" style="margin-top: 1rem;">
+								<h3>🤖 فعال‌سازی ربات ادمین</h3>
+								<p>این ربات مخصوص شماست و اعلان‌های تیکت‌های جدید را در آن دریافت می‌کنید. برای فعال‌سازی، ربات زیر را باز کرده و دکمه <strong>Start</strong> را بزنید:</p>
+								<a href="https://t.me/${adminBotUsername}" target="_blank" style="color:var(--accent2); font-weight:700; font-size: 1.05rem;">@${adminBotUsername}</a>
 							</div>
 						</div>
 					`,
-					width: '90%', 
-					maxWidth: '680px',
-					confirmButtonText:'متوجه شدم',
+					showConfirmButton: false, // Hide the default button
 					allowOutsideClick: false,
-				}).then(() => { 
-					// Optionally, disable the form or navigate away
-					document.getElementById('setup-form').style.opacity = '0.5';
-					document.getElementById('setup-form').style.pointerEvents = 'none';
+					width: '95%', 
+					maxWidth: '480px', // More compact width
+					footer: '<div id="swal-footer-content" class="swal-custom-footer"></div>',
+					didOpen: () => {
+						const footer = document.getElementById('swal-footer-content');
+						let secondsLeft = 60;
+
+						const updateTimer = () => {
+							footer.textContent = `این پنجره تا ${secondsLeft} ثانیه دیگر بسته می‌شود`;
+							secondsLeft--;
+							if (secondsLeft < 0) {
+								clearInterval(timerInterval);
+								footer.innerHTML = `<button onclick="Swal.close()" class="swal2-confirm swal2-styled" style="display: inline-block; background: linear-gradient(90deg, var(--accent2), var(--accent1)); color: #fff; border-radius: 0.75rem; font-weight: 700; padding: 0.75rem 1.5rem;">بستن</button>`;
+							}
+						};
+						
+						updateTimer(); // Initial call
+						timerInterval = setInterval(updateTimer, 1000);
+					},
+					willClose: () => {
+						clearInterval(timerInterval);
+					}
 				});
 			}
 		});
