@@ -265,7 +265,7 @@
         let messagesPollingInterval = null;
         let hasOpenTicket = false;
         let isSubmitting = false;
-        let newlyCreatedTicket = null; // --- FIX: Add this line ---
+        let newlyCreatedTicket = null; 
 
         const departmentMap = {
             general: 'سوالات متفرقه',
@@ -435,6 +435,8 @@
                 } 
                 else if (newlyCreatedTicket && serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
                     newlyCreatedTicket = null;
+                    // --- FIX: Clear session storage once ticket is confirmed from server ---
+                    sessionStorage.removeItem('newlyCreatedTicket');
                 }
                 // --- END FIX ---
 
@@ -753,10 +755,14 @@
                     body: JSON.stringify(payload),
                 });
                 
-                // --- FIX: More robust logic ---
+                // --- FIX: Persist newly created ticket in session storage ---
+                sessionStorage.setItem('newlyCreatedTicket', JSON.stringify(newTicket));
                 newlyCreatedTicket = newTicket; 
+
                 dom.newTicketForm.reset();
                 showNotification('تیکت شما با موفقیت ارسال شد.');
+                
+                // Immediately add to local list for instant UI update
                 allTicketsData.unshift(newTicket);
                 renderTickets(allTicketsData);
                 showView('ticketsList');
@@ -799,6 +805,18 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             STORE_HANDLE = getStoreHandleFromTg();
+            
+            // --- FIX: Load temporarily stored ticket on startup ---
+            try {
+                const storedTicket = sessionStorage.getItem('newlyCreatedTicket');
+                if (storedTicket) {
+                    newlyCreatedTicket = JSON.parse(storedTicket);
+                }
+            } catch (e) {
+                console.error("Could not parse stored ticket", e);
+                sessionStorage.removeItem('newlyCreatedTicket');
+            }
+            // --- END FIX ---
             
             if (!STORE_HANDLE) {
                 dom.loadingView.innerHTML = `
