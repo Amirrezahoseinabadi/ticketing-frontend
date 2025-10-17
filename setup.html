@@ -21,7 +21,8 @@
 			--border-color: #e2e8f0;
 			--glow-color: rgba(13, 148, 228, 0.25);
 			--gold: #f59e0b;
-			--success-green: #22c55e; /* For success icon */
+			--success-green: #22c55e;
+			--error-red: #ef4444;
 		}
 
 		html, body {
@@ -157,6 +158,19 @@
         .glass-input:focus + .input-icon {
             color: var(--accent1);
         }
+		.glass-input.input-error {
+			border-color: var(--error-red);
+		}
+		.glass-input.input-error:focus {
+			box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+		}
+		.error-message {
+			color: var(--error-red);
+			font-size: 0.8rem;
+			margin-top: 0.5rem;
+			display: none;
+		}
+
 
 		.auto-fill-btn {
 			position: absolute;
@@ -295,6 +309,7 @@
 						    <input id="store-handle" class="glass-input ltr" placeholder="my-store" pattern="[a-zA-Z0-9-]+" required>
                             <i class="input-icon fas fa-store"></i>
                         </div>
+						<div id="store-handle-error" class="error-message">لطفا فقط از حروف انگلیسی، اعداد و خط تیره (-) استفاده کنید.</div>
 					</div>
 	
 					<div>
@@ -350,27 +365,35 @@
 		window.copyUrl = function(element, url) {
 			navigator.clipboard.writeText(url).then(() => {
 				const icon = element.querySelector('.copy-button-icon');
-				icon.classList.remove('fa-copy');
-				icon.classList.add('fa-check');
+				const originalHTML = element.innerHTML;
+				element.innerHTML = '<span class="copy-button-text">کپی شد!</span><i class="fas fa-check copy-button-icon"></i>';
 				
-				Swal.fire({
-					toast: true,
-					position: 'top-end',
-					icon: 'success',
-					title: 'آدرس کپی شد!',
-					showConfirmButton: false,
-					timer: 1500,
-					customClass: { popup: 'swal2-toast-custom' }
-				});
-
 				setTimeout(() => {
-					icon.classList.remove('fa-check');
-					icon.classList.add('fa-copy');
+					element.innerHTML = originalHTML;
 				}, 2000);
 			});
 		}
 
 		document.addEventListener('DOMContentLoaded', () => {
+			// --- REAL-TIME INPUT VALIDATION ---
+			const storeHandleInput = document.getElementById('store-handle');
+			const storeHandleError = document.getElementById('store-handle-error');
+			const submitBtn = document.getElementById('create-platform-btn');
+
+			storeHandleInput.addEventListener('input', () => {
+				const regex = /^[a-zA-Z0-9-]*$/;
+				if (regex.test(storeHandleInput.value)) {
+					storeHandleInput.classList.remove('input-error');
+					storeHandleError.style.display = 'none';
+					submitBtn.disabled = false;
+				} else {
+					storeHandleInput.classList.add('input-error');
+					storeHandleError.style.display = 'block';
+					submitBtn.disabled = true;
+				}
+			});
+
+
 			// --- TELEGRAM MINI APP INITIALIZATION ---
 			if (window.Telegram && window.Telegram.WebApp) {
 				try {
@@ -424,12 +447,18 @@
 					miniAppUrl: `https://amirrezahoseinabadi.github.io/ticketing-frontend/index.html?storeHandle=${storeHandle}`
 				};
 
-				// Basic validation
+				// Final check before submitting
 				if(!payload.storeHandle || !payload.adminChatId || !payload.userBotToken || !payload.adminBotToken){
 					Swal.fire({icon:'error', title:'خطا', text:'لطفاً همه فیلدهای الزامی را تکمیل کنید.'});
 					toggleLoading(btn, false, 'ساخت پلتفرم جدید');
 					return;
 				}
+				if (!/^[a-zA-Z0-9-]+$/.test(payload.storeHandle)) {
+					Swal.fire({icon:'error', title:'خطای شناسه', text:'شناسه پلتفرم فقط می‌تواند شامل حروف انگلیسی، اعداد و خط تیره باشد.'});
+					toggleLoading(btn, false, 'ساخت پلتفرم جدید');
+					return;
+				}
+
 
 				// API Call
 				try{
@@ -498,10 +527,11 @@
 							</div>
 						</div>
 					`,
-					showConfirmButton: false, // Hide the default button
+					showConfirmButton: false,
 					allowOutsideClick: false,
+					allowEscapeKey: false,
 					width: '95%', 
-					maxWidth: '480px', // More compact width
+					maxWidth: '480px',
 					footer: '<div id="swal-footer-content" class="swal-custom-footer"></div>',
 					didOpen: () => {
 						const footer = document.getElementById('swal-footer-content');
@@ -516,7 +546,7 @@
 							}
 						};
 						
-						updateTimer(); // Initial call
+						updateTimer();
 						timerInterval = setInterval(updateTimer, 1000);
 					},
 					willClose: () => {
