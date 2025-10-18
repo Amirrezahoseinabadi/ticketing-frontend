@@ -265,7 +265,6 @@
         let messagesPollingInterval = null;
         let hasOpenTicket = false;
         let isSubmitting = false;
-        let newlyCreatedTicket = null; // --- FIX: Add this line ---
 
         const departmentMap = {
             general: 'سوالات متفرقه',
@@ -427,16 +426,10 @@
             if (!telegramUser) return;
             try {
                 const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}`);
-                let serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
-
-                // --- FIX: Logic to prevent disappearing tickets ---
-                if (newlyCreatedTicket && !serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
-                    serverTickets.unshift(newlyCreatedTicket);
-                } 
-                else if (newlyCreatedTicket && serverTickets.some(t => t.id === newlyCreatedTicket.id)) {
-                    newlyCreatedTicket = null;
-                }
-                // --- END FIX ---
+                const serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+                
+                // --- FIX: This temporary client-side fix is no longer needed ---
+                // The server query is now reliable.
 
                 allTicketsData = serverTickets;
                 
@@ -450,6 +443,8 @@
                 renderTickets(allTicketsData);
             } catch (error) {
                 console.error("Error fetching tickets:", error);
+                // To prevent infinite loading, show empty state on error
+                renderTickets([]); 
             }
         }
 
@@ -747,18 +742,19 @@
                     storeHandle: STORE_HANDLE
                 };
                 
+                // The server now returns the complete new ticket object
                 const newTicket = await apiFetch('/tickets', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 });
                 
-                // --- FIX: More robust logic ---
-                newlyCreatedTicket = newTicket; 
                 dom.newTicketForm.reset();
                 showNotification('تیکت شما با موفقیت ارسال شد.');
-                allTicketsData.unshift(newTicket);
-                renderTickets(allTicketsData);
+                
+                // The polling will automatically pick up the new ticket, 
+                // but we can force an immediate refresh for better UX.
+                fetchTickets();
                 showView('ticketsList');
 
             } catch (error) {
@@ -820,6 +816,7 @@
                     startApp(tg.initDataUnsafe.user);
                 } else {
                     console.warn("Telegram user data not found. Using mock user for testing.");
+                    // Ensure the mock user ID is a string, just like real data
                     startApp({id: "12345678", first_name: "Test", last_name: "User"});
                 }
             } catch (error) {
