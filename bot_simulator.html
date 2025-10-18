@@ -94,9 +94,40 @@
         const backButton = document.getElementById('back-button');
         const messageBox = document.getElementById('message-box');
 
+        // تعریف ساختار تمامی کلیدهای متنی (باید با Worker/ticketing.js همگام باشد)
+        const CUSTOM_TEXT_STRUCTURE = {
+            MINI_APP_UI: {
+                title: "متن‌های مینی‌اپ",
+                emoji: "📱",
+                keys: {
+                    greetingTitle: { name: "عنوان خوش‌آمدگویی" },
+                    quickTipMessage: { name: "پیام راهنمای سریع" },
+                    faqButtonText: { name: "متن دکمه راهنما" },
+                    faqUrl: { name: "لینک دکمه راهنما" },
+                    navTickets: { name: "منوی: تیکت‌ها" },
+                    navNewTicket: { name: "منوی: تیکت جدید" },
+                    infoModalTitle: { name: "عنوان راهنمای تیکت" },
+                    infoModalTip: { name: "پیام راهنمای مودال" },
+                    closedTicketBanner: { name: "بنر تیکت بسته شده" },
+                    submitNewTicketBtn: { name: "متن دکمه ارسال" },
+                    modalCloseBtn: { name: "متن دکمه متوجه شدم" },
+                }
+            },
+            USER_NOTIFICATIONS: {
+                title: "متن‌های اعلان ربات",
+                emoji: "📣",
+                keys: {
+                    userReplyNotification: { name: "اعلان پاسخ ادمین", markdown: true, variables: ['{Department}', '{Subject}'] },
+                    ticketClosedNotification: { name: "اعلان بسته شدن تیکت", markdown: true, variables: ['{Subject}'] },
+                }
+            }
+        };
+
+
         let currentState = 'Loading';
         const history = [];
-        const TEXT_KEY_TO_EDIT = 'quickTipMessage'; // کلید متنی که ویرایش می‌شود
+        let currentEditingKey = null; // کلید متنی که در حال ویرایش است
+        let currentMenuType = null; // نوع منو (MINI_APP_UI یا USER_NOTIFICATIONS)
         let appTexts = {}; // ذخیره متون دریافتی از Worker
 
         // --- توابع کمکی ---
@@ -110,21 +141,34 @@
             }, 3000);
         }
 
-        function navigateTo(newState, isBack = false) {
+        function navigateTo(newState, data = null, isBack = false) {
             if (!isBack) {
-                history.push(currentState);
+                history.push({ state: currentState, data: { key: currentEditingKey, type: currentMenuType } });
             }
             currentState = newState;
+            
+            if (newState.startsWith('SubMenu_')) {
+                currentMenuType = data;
+                currentEditingKey = null;
+            } else if (newState === 'EditScreen') {
+                currentEditingKey = data;
+            } else if (newState === 'MainMenu' || newState === 'Dashboard') {
+                currentMenuType = null;
+                currentEditingKey = null;
+            }
+
             render();
         }
 
         function handleBack() {
             if (history.length > 0) {
-                const previousState = history.pop();
-                currentState = previousState;
+                const lastHistory = history.pop();
+                currentState = lastHistory.state;
+                currentEditingKey = lastHistory.data.key;
+                currentMenuType = lastHistory.data.type;
                 render();
             } else {
-                navigateTo('Dashboard', true);
+                navigateTo('Dashboard', null, true);
             }
         }
 
@@ -152,9 +196,6 @@
                 }
             } catch (error) {
                 console.error("Error fetching app texts:", error);
-                appTexts = { 
-                    [TEXT_KEY_TO_EDIT]: "💡 نکته: خطا در بارگذاری متون. متن پیش‌فرض نمایش داده می‌شود." 
-                };
                 showMessage(`❌ خطا در اتصال به Worker API: ${error.message}`, 'error');
             }
             currentState = 'Dashboard';
@@ -162,7 +203,7 @@
         }
 
         // --- Data Persistence (از طریق Worker API) ---
-        async function handleSave() {
+        async function handleSave(keyToSave) {
             const saveButton = document.getElementById('save-button');
             const editArea = document.getElementById('edit-area');
             const newText = editArea.value;
@@ -172,7 +213,7 @@
 
             const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/texts`;
             const payload = {
-                [TEXT_KEY_TO_EDIT]: newText
+                [keyToSave]: newText
             };
 
             try {
@@ -186,9 +227,9 @@
 
                 if (response.ok && result.success) {
                     // به‌روزرسانی محلی برای نمایش فوری
-                    appTexts[TEXT_KEY_TO_EDIT] = newText; 
+                    appTexts[keyToSave] = newText; 
                     showMessage("✅ متن با موفقیت ذخیره و اعمال شد!");
-                    navigateTo('SubMenu_AppTexts');
+                    navigateTo('SubMenu_Texts', currentMenuType); // بازگشت به زیرمنوی مربوطه
                 } else {
                     throw new Error(result.error || 'خطا در Worker API هنگام ذخیره.');
                 }
@@ -228,7 +269,7 @@
                     </div>
                 </div>
                 <button onclick="navigateTo('MainMenu')" class="w-full bg-indigo-600 text-white py-3 mt-6 rounded-xl shadow-md hover:bg-indigo-700 transition duration-200 font-bold">
-                    مدیریت متن‌ها
+                    مدیریت متون
                 </button>
             `;
         }
@@ -236,66 +277,63 @@
         function renderMainMenu() {
             backButton.classList.remove('hidden');
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">مدیریت متون ربات</h2>
-                <p class="text-sm text-gray-500 mb-6">متون کلیدی مینی اپ و پاسخ‌های پیش‌فرض را ویرایش کنید.</p>
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">مدیریت متون کلیدی</h2>
+                <p class="text-sm text-gray-500 mb-6">متون کلیدی مینی اپ و اعلان‌های ربات کاربر را ویرایش کنید.</p>
                 <div class="bg-white border border-gray-100 rounded-xl divide-y divide-gray-100 shadow-sm">
-                    <div class="menu-item" onclick="navigateTo('SubMenu_AppTexts')">
-                        <span>متن‌های مینی‌اپ</span>
+                    <div class="menu-item" onclick="navigateTo('SubMenu_Texts', 'MINI_APP_UI')">
+                        <span>${CUSTOM_TEXT_STRUCTURE.MINI_APP_UI.emoji} ${CUSTOM_TEXT_STRUCTURE.MINI_APP_UI.title}</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </div>
+                    <div class="menu-item" onclick="navigateTo('SubMenu_Texts', 'USER_NOTIFICATIONS')">
+                        <span>${CUSTOM_TEXT_STRUCTURE.USER_NOTIFICATIONS.emoji} ${CUSTOM_TEXT_STRUCTURE.USER_NOTIFICATIONS.title}</span>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                         </svg>
                     </div>
                     <div class="menu-item opacity-50 cursor-not-allowed">
-                        <span>قوانین پاسخ‌دهی</span>
+                        <span>تنظیمات عمومی (به زودی)</span>
                         <span class="text-xs text-red-500"> (به زودی)</span>
-                    </div>
-                    <div class="menu-item opacity-50 cursor-not-allowed">
-                        <span>تنظیمات زبان</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                        </svg>
                     </div>
                 </div>
             `;
         }
 
-        function renderSubMenu_AppTexts() {
+        function renderSubMenu_Texts() {
             backButton.classList.remove('hidden');
+            const menuType = currentMenuType;
+            const menuData = CUSTOM_TEXT_STRUCTURE[menuType];
+
+            if (!menuData) {
+                content.innerHTML = '<p class="text-red-600 p-4 font-bold">خطا: نوع منو نامعتبر است.</p>';
+                return;
+            }
+
+            const itemsHtml = Object.keys(menuData.keys).map(key => {
+                const item = menuData.keys[key];
+                return `
+                    <div class="menu-item" onclick="navigateTo('EditScreen', '${key}')">
+                        <span class="flex items-center">
+                            <span class="ml-2">📝</span>
+                            ${item.name}
+                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </div>
+                `;
+            }).join('');
+
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">متن‌های مینی‌اپ</h2>
-                <p class="text-sm text-gray-500 mb-6">متون اصلی بخش‌های مختلف ربات را مدیریت کنید.</p>
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">${menuData.emoji} ${menuData.title}</h2>
+                <p class="text-sm text-gray-500 mb-6">کلید متنی مورد نظر برای ویرایش را انتخاب کنید.</p>
                 <div class="bg-white border border-gray-100 rounded-xl divide-y divide-gray-100 shadow-sm">
-                    <div class="menu-item" onclick="navigateTo('EditScreen_QuickGuide')">
-                        <span class="flex items-center">
-                            <span class="ml-2">💡</span>
-                            پیام راهنمای سریع
-                        </span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </div>
-                    <div class="menu-item opacity-50 cursor-not-allowed">
-                        <span class="flex items-center">
-                            <span class="ml-2">🎫</span>
-                            متن تیکت‌های باز
-                        </span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </div>
-                    <div class="menu-item opacity-50 cursor-not-allowed">
-                        <span class="flex items-center">
-                            <span class="ml-2">❌</span>
-                            متن دکمه بسته شده
-                        </span>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </div>
+                    ${itemsHtml}
                     <div class="menu-item" onclick="navigateTo('MainMenu')">
                         <span class="flex items-center font-bold text-indigo-600">
                             <span class="ml-2">↩️</span>
-                            بازگشت به مدیریت متن‌ها
+                            بازگشت به منوی اصلی
                         </span>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -305,35 +343,49 @@
             `;
         }
 
-        function renderEditScreen_QuickGuide() {
+        function renderEditScreen() {
             backButton.classList.remove('hidden');
-            
+            const key = currentEditingKey;
+            const menuType = currentMenuType;
+
+            const menuData = CUSTOM_TEXT_STRUCTURE[menuType];
+            const item = menuData.keys[key];
+
+            if (!item) {
+                content.innerHTML = '<p class="text-red-600 p-4 font-bold">خطا: کلید متنی مورد نظر برای ویرایش یافت نشد.</p>';
+                return;
+            }
+
             // اگر متنی دریافت نشده باشد، از یک متن موقت استفاده می‌شود
-            const currentText = appTexts[TEXT_KEY_TO_EDIT] || "در حال حاضر متن قابل نمایش نیست.";
-
-            content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ویرایش: پیام راهنمای سریع</h2>
-                <p class="text-sm text-gray-500 mb-4">متن راهنمای سریع که به کاربر نمایش داده می‌شود. (ID: \`${TEXT_KEY_TO_EDIT}\`)</p>
-
+            const currentText = appTexts[key] || `متن پیش‌فرض برای ${item.name} در دیتابیس موجود نیست.`;
+            const markdownHint = item.markdown ? `
                 <!-- کادر راهنما در مورد Markdown -->
                 <div class="bg-yellow-50 border-r-4 border-yellow-400 p-3 mb-4 rounded-lg text-sm text-gray-700">
-                    <p class="font-bold">⚠️ توجه: فرمت متن Markdown</p>
+                    <p class="font-bold">⚠️ توجه: پشتیبانی از فرمت Markdown</p>
                     <ul class="list-disc pr-5 mt-1 space-y-1">
-                        <li>**متن ضخیم**: متن را بین دو ستاره قرار دهید (**متن**)</li>
-                        <li>*متن کج*: متن را بین یک ستاره قرار دهید (*متن*)</li>
-                        <li>[لینک]: متن را بین قلاب و آدرس را در پرانتز قرار دهید ([متن](لینک))</li>
+                        <li>**متن ضخیم**: متن را بین دو ستاره قرار دهید</li>
+                        <li>*متن کج*: متن را بین یک ستاره قرار دهید</li>
+                        ${item.variables ? `<li>**متغیرهای قابل استفاده**: ${item.variables.join(', ')}</li>` : ''}
                     </ul>
                 </div>
+            ` : '';
+            
+
+            content.innerHTML = `
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ویرایش: ${item.name}</h2>
+                <p class="text-sm text-gray-500 mb-4">متن فعلی که در سیستم نمایش داده می‌شود. (ID: \`${key}\`)</p>
+
+                ${markdownHint}
 
                 <!-- ناحیه ویرایش متن -->
-                <textarea id="edit-area" rows="8" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="متن راهنمای خود را اینجا وارد کنید...">${currentText}</textarea>
+                <textarea id="edit-area" rows="${item.markdown ? '12' : '8'}" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="متن خود را اینجا وارد کنید...">${currentText}</textarea>
 
                 <!-- دکمه‌های عملیات -->
                 <div class="flex justify-end space-x-3 mt-4" dir="ltr">
-                    <button onclick="navigateTo('SubMenu_AppTexts')" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition duration-150 font-semibold">
+                    <button onclick="navigateTo('SubMenu_Texts', currentMenuType)" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition duration-150 font-semibold">
                         لغو (بازگشت)
                     </button>
-                    <button id="save-button" onclick="handleSave()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 font-semibold shadow-md">
+                    <button id="save-button" onclick="handleSave('${key}')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 font-semibold shadow-md">
                         ذخیره و اعمال تغییرات
                     </button>
                 </div>
@@ -358,11 +410,11 @@
                     case 'MainMenu':
                         renderMainMenu();
                         break;
-                    case 'SubMenu_AppTexts':
-                        renderSubMenu_AppTexts();
+                    case 'SubMenu_Texts':
+                        renderSubMenu_Texts();
                         break;
-                    case 'EditScreen_QuickGuide':
-                        renderEditScreen_QuickGuide();
+                    case 'EditScreen':
+                        renderEditScreen();
                         break;
                     default:
                         renderDashboard();
