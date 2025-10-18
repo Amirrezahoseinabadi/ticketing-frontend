@@ -8,6 +8,7 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Firebase Libraries -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
@@ -192,7 +193,7 @@
                 </div>
             </main>
             <nav id="main-nav" class="nav-bar h-[80px] flex items-center justify-around">
-                <button id="nav-tickets-list" class="nav-button active flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg><span class="text-xs">تیکت‌ها</span></button>
+                <button id="nav-tickets-list" class="nav-button active flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-smalll-5 5v-5z" /></svg><span class="text-xs">تیکت‌ها</span></button>
                 <button id="nav-new-ticket" class="nav-button flex flex-col items-center space-y-1 w-1/2"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg><span class="text-xs">تیکت جدید</span></button>
             </nav>
         </div>
@@ -263,6 +264,7 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        const auth = firebase.auth();
         
         let telegramUserId = null;
         let telegramUserName = 'کاربر';
@@ -271,7 +273,7 @@
         let allTicketsData = [];
         let hasOpenTicket = false;
         let isSubmitting = false;
-        window.currentMessagesRef = null; // To keep track of the current message listener
+        window.currentMessagesRef = null;
 
         const dom = {
             loadingView: document.getElementById('loading-view'),
@@ -345,7 +347,6 @@
             dom.modal.message.textContent = message;
             dom.modal.icon.innerHTML = `<svg class="w-12 h-12 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
             
-            // Clone and replace to remove old event listeners
             const newConfirmBtn = dom.modal.confirmBtn.cloneNode(true);
             dom.modal.confirmBtn.parentNode.replaceChild(newConfirmBtn, dom.modal.confirmBtn);
             dom.modal.confirmBtn = newConfirmBtn;
@@ -365,7 +366,6 @@
             dom.modal.container.classList.add('flex');
         }
 
-
         function startApp(user) {
             telegramUserId = user.id.toString();
             telegramUserName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'کاربر';
@@ -382,12 +382,24 @@
                 const tg = window.Telegram.WebApp;
                 tg.ready();
                 tg.expand();
-                if (tg.initDataUnsafe?.user?.id) {
-                    startApp(tg.initDataUnsafe.user);
-                } else {
-                    console.warn("Telegram user data not found. Using mock user.");
-                    startApp({id: "12345678", first_name: "Test", last_name: "User"});
-                }
+                const user = tg.initDataUnsafe?.user;
+
+                // --- FIX: Firebase Authentication ---
+                auth.signInAnonymously()
+                    .then(() => {
+                        console.log("Firebase anonymous sign-in successful.");
+                        if (user?.id) {
+                            startApp(user);
+                        } else {
+                            console.warn("Telegram user data not found. Using mock user.");
+                            startApp({id: "12345678", first_name: "Test", last_name: "User"});
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Firebase anonymous sign-in failed:", error);
+                        dom.loadingView.innerHTML = '<p class="text-red-400">خطا در احراز هویت. لطفا صفحه را مجددا بارگذاری کنید.</p>';
+                    });
+
             } catch (error) {
                 console.error("Could not initialize Telegram Web App:", error);
                 showNotification('خطای راه‌اندازی تلگرام', false);
@@ -429,7 +441,7 @@
             });
         }
         
-        async function deleteTicket(ticketId) {
+        function deleteTicket(ticketId) {
              showConfirmationModal(
                 'تایید حذف', 
                 'آیا از حذف این تیکت مطمئن هستید؟ این عمل غیرقابل بازگشت است.', 
@@ -437,11 +449,9 @@
                     db.ref(`tickets/${telegramUserId}/${ticketId}`).remove()
                         .then(() => {
                             showNotification('تیکت با موفقیت حذف شد.');
-                            // The real-time listener will handle the UI update automatically.
                         })
                         .catch(error => {
                             showNotification(`حذف تیکت با خطا مواجه شد: ${error.message}`, false);
-                            console.error("Error deleting ticket:", error);
                         });
                 }
             );
@@ -478,13 +488,9 @@
             starContainer.dataset.submitting = 'true';
             starContainer.style.opacity = '0.5';
             
-            const updates = {};
-            updates[`/tickets/${telegramUserId}/${ticketId}/rating`] = rating;
-            
-            db.ref().update(updates)
+            db.ref(`tickets/${telegramUserId}/${ticketId}/rating`).set(rating)
                 .then(() => {
                     showNotification('امتیاز شما با موفقیت ثبت شد.');
-                    // Real-time listener handles the update.
                 })
                 .catch(error => {
                     showNotification(`ثبت امتیاز با خطا مواجه شد: ${error.message}`, false);
@@ -524,8 +530,10 @@
             let messageContent = '';
             if (data.type === 'image_placeholder') {
                 messageContent = `<div class="flex items-center space-x-2 space-x-reverse italic opacity-80"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" /></svg><p class="text-sm">تصویر ارسال شد</p></div>`;
+            } else if (data.imageUrl) {
+                 messageContent = `<a href="${data.imageUrl}" target="_blank"><img src="${data.imageUrl}" class="rounded-lg max-w-xs mt-2" alt="تصویر پیوست شده"></a>`;
             } else {
-                 messageContent = `<p class="whitespace-pre-wrap text-sm">${data.text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-300 underline">$1</a>')}</p>`;
+                 messageContent = `<p class="whitespace-pre-wrap text-sm">${(data.text || '').replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-300 underline">$1</a>')}</p>`;
             }
 
             const humanRequestButton = data.source === 'ai' ? `<div class="mt-3 pt-2 border-t border-white/10"><p class="text-xs text-gray-400 mb-2">اگر این پیام مشکلتان را برطرف نکرد:</p><button class="request-human-btn text-xs w-full text-center py-2 px-3 rounded-lg border border-sky-500 text-sky-400 hover:bg-sky-500 hover:text-white transition-colors duration-200" data-ticket-id="${currentTicketId}">برای اتصال به کارشناس کلیک کنید</button></div>` : '';
@@ -536,10 +544,7 @@
         function openConversation(ticketId) {
             currentTicketId = ticketId;
             currentTicketData = allTicketsData.find(t => t.id === ticketId);
-            if (!currentTicketData) {
-                showNotification("خطا: اطلاعات تیکت یافت نشد.", false);
-                return;
-            }
+            if (!currentTicketData) { return; }
             dom.conversationView.classList.remove('hidden');
             dom.conversationView.classList.add('flex');
             setTimeout(() => { dom.conversationView.classList.add('is-open'); }, 10);
@@ -584,11 +589,10 @@
                 if (button.dataset.listenerAttached) return;
                 button.dataset.listenerAttached = 'true';
                 button.addEventListener('click', async (e) => {
-                    const ticketId = e.target.dataset.ticketId;
                     e.target.disabled = true;
                     e.target.textContent = 'در حال ارسال...';
                     try {
-                        const response = await fetch(`${WORKER_URL}/tickets/${ticketId}/request-human`, { method: 'POST' });
+                        const response = await fetch(`${WORKER_URL}/tickets/${currentTicketId}/request-human`, { method: 'POST' });
                          if (!response.ok) { throw new Error('خطا در ارسال درخواست'); }
                         showNotification('درخواست شما برای اتصال به کارشناس ثبت شد.');
                         e.target.textContent = 'درخواست ثبت شد';
@@ -617,8 +621,6 @@
 
         function sendTextMessage(text) {
              if (!currentTicketId || !text) return;
-             const messagesRef = db.ref(`messages/${currentTicketId}`);
-             const newMessageRef = messagesRef.push();
              
              const payload = { 
                 sender: 'user', 
@@ -629,28 +631,20 @@
              const submitButton = dom.replyForm.querySelector('button[type="submit"]');
              submitButton.disabled = true;
              
-             newMessageRef.set(payload)
-                .then(() => {
-                    db.ref(`tickets/${telegramUserId}/${currentTicketId}/status`).set('open');
-                })
-                .catch(error => {
-                    console.error("Error sending message:", error);
-                    showNotification(error.message, false);
-                })
-                .finally(() => {
-                    submitButton.disabled = false;
-                });
+             db.ref(`messages/${currentTicketId}`).push(payload)
+                .then(() => db.ref(`tickets/${telegramUserId}/${currentTicketId}/status`).set('open'))
+                .catch(error => showNotification(error.message, false))
+                .finally(() => submitButton.disabled = false);
              
              dom.replyMessageInput.value = '';
              dom.replyMessageInput.style.height = 'auto';
         }
         
         async function handleImageUpload(file) {
-            if (!file) return;
+            if (!file || !currentTicketId) return;
             if (file.size > 5 * 1024 * 1024) { // 5MB limit
                 return showNotification("حجم فایل نباید بیشتر از 5 مگابایت باشد.", false);
             }
-            // Image upload still uses worker as it likely handles storage.
             const submitButton = dom.replyForm.querySelector('button[type="submit"]');
             dom.attachFileBtn.disabled = true;
             submitButton.disabled = true;
@@ -659,13 +653,13 @@
             try {
                 const formData = new FormData();
                 formData.append('ticket_id', currentTicketId);
-                formData.append('sender', 'user');
+                formData.append('telegram_id', telegramUserId); // Pass user ID for worker verification
                 formData.append('image', file);
 
                 const response = await fetch(`${WORKER_URL}/messages`, { method: 'POST', body: formData });
                 if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(errText || "خطا در آپلود فایل");
+                    const err = await response.json();
+                    throw new Error(err.error || "خطا در آپلود فایل");
                 }
                 showNotification("تصویر با موفقیت ارسال شد.", true);
             } catch (error) {
@@ -693,8 +687,8 @@
             dom.submitNewTicketBtn.disabled = true;
             dom.submitNewTicketBtn.textContent = 'در حال ارسال...';
             
-            const ticketsRef = db.ref(`tickets/${telegramUserId}`);
-            const newTicketRef = ticketsRef.push();
+            const newTicketRef = db.ref(`tickets/${telegramUserId}`).push();
+            const ticketId = newTicketRef.key;
             
             const ticketPayload = {
                 created_at: new Date().toISOString(),
@@ -704,24 +698,24 @@
                 telegram_id: telegramUserId,
                 user_name: telegramUserName
             };
+            
+            const messagePayload = {
+                created_at: new Date().toISOString(),
+                sender: 'user',
+                text: message
+            };
 
-            newTicketRef.set(ticketPayload)
-                .then(() => {
-                    const messagesRef = db.ref(`messages/${newTicketRef.key}`);
-                    return messagesRef.push({
-                        created_at: new Date().toISOString(),
-                        sender: 'user',
-                        text: message
-                    });
-                })
+            const updates = {};
+            updates[`/tickets/${telegramUserId}/${ticketId}`] = ticketPayload;
+            updates[`/messages/${ticketId}/${db.ref().push().key}`] = messagePayload;
+
+            db.ref().update(updates)
                 .then(() => {
                     showNotification('تیکت شما با موفقیت ارسال شد.');
                     dom.newTicketForm.reset();
                     showView('ticketsList');
                 })
-                .catch(error => {
-                    showNotification(`ارسال تیکت با خطا مواجه شد: ${error.message}`, false);
-                })
+                .catch(error => showNotification(`ارسال تیکت با خطا مواجه شد: ${error.message}`, false))
                 .finally(() => {
                     isSubmitting = false;
                     dom.submitNewTicketBtn.disabled = false;
@@ -729,64 +723,25 @@
                 });
         };
 
-        dom.replyForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const text = dom.replyMessageInput.value.trim();
-            if(text) sendTextMessage(text);
-        });
-
+        dom.replyForm.addEventListener('submit', (e) => { e.preventDefault(); const text = dom.replyMessageInput.value.trim(); if(text) sendTextMessage(text); });
         dom.attachFileBtn.addEventListener('click', () => dom.fileUploadInput.click());
-        dom.fileUploadInput.addEventListener('change', (e) => {
-            if (e.target.files?.[0]) handleImageUpload(e.target.files[0]);
-        });
-
-        dom.emojiBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dom.emojiPickerContainer.classList.toggle('hidden');
-        });
-
-        dom.emojiPicker.addEventListener('emoji-click', event => {
-            dom.replyMessageInput.value += event.detail.unicode;
-            dom.replyMessageInput.focus();
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!dom.emojiPickerContainer.contains(e.target) && !dom.emojiBtn.contains(e.target)) {
-                dom.emojiPickerContainer.classList.add('hidden');
-            }
-        });
-
-        dom.replyMessageInput.addEventListener('input', () => {
-            dom.replyMessageInput.style.height = 'auto';
-            dom.replyMessageInput.style.height = `${dom.replyMessageInput.scrollHeight}px`;
-        });
-
+        dom.fileUploadInput.addEventListener('change', (e) => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); });
+        dom.emojiBtn.addEventListener('click', (e) => { e.stopPropagation(); dom.emojiPickerContainer.classList.toggle('hidden'); });
+        dom.emojiPicker.addEventListener('emoji-click', event => { dom.replyMessageInput.value += event.detail.unicode; dom.replyMessageInput.focus(); });
+        document.addEventListener('click', (e) => { if (!dom.emojiPickerContainer.contains(e.target) && !dom.emojiBtn.contains(e.target)) { dom.emojiPickerContainer.classList.add('hidden'); } });
+        dom.replyMessageInput.addEventListener('input', () => { dom.replyMessageInput.style.height = 'auto'; dom.replyMessageInput.style.height = `${dom.replyMessageInput.scrollHeight}px`; });
         dom.navButtons.ticketsList.addEventListener('click', () => showView('ticketsList'));
         dom.navButtons.newTicket.addEventListener('click', () => {
-            if (hasOpenTicket) {
-                showNotification('شما یک تیکت باز دارید. لطفا تا بسته شدن آن منتظر بمانید.', false);
-            } else {
-                dom.infoModal.classList.add('flex');
-                dom.infoModal.classList.remove('hidden');
-            }
+            if (hasOpenTicket) { showNotification('شما یک تیکت باز دارید. لطفا تا بسته شدن آن منتظر بمانید.', false); } 
+            else { dom.infoModal.classList.add('flex'); dom.infoModal.classList.remove('hidden'); }
         });
-
         dom.backToTicketsBtn.addEventListener('click', closeConversation);
         dom.newTicketForm.addEventListener('submit', handleNewTicketSubmit);
-        dom.infoModalCloseBtn.addEventListener('click', () => {
-            dom.infoModal.classList.add('hidden');
-            dom.infoModal.classList.remove('flex');
-            showView('newTicket');
-        });
-        
-        const openFaq = () => {
-            const faqUrl = 'https://faqhub.amiruserbot7.workers.dev/';
-            window.Telegram?.WebApp.openLink(faqUrl) || window.open(faqUrl, '_blank');
-        };
+        dom.infoModalCloseBtn.addEventListener('click', () => { dom.infoModal.classList.add('hidden'); dom.infoModal.classList.remove('flex'); showView('newTicket'); });
+        const openFaq = () => { const faqUrl = 'https://faqhub.amiruserbot7.workers.dev/'; window.Telegram?.WebApp.openLink(faqUrl) || window.open(faqUrl, '_blank'); };
         document.getElementById('faq-button').addEventListener('click', openFaq);
         document.getElementById('faq-link-modal').addEventListener('click', (e) => { e.preventDefault(); openFaq(); });
 
     </script>
 </body>
 </html>
-
