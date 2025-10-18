@@ -372,7 +372,11 @@
                 throw new Error("شناسه پلتفرم مشخص نشده است.");
             }
             const url = `${WORKER_URL}/api/${STORE_HANDLE}${endpoint}`;
-            const response = await fetch(url, options);
+            
+            // Add cache: 'no-store' to the options to prevent caching issues.
+            const fetchOptions = { ...options, cache: 'no-store' };
+
+            const response = await fetch(url, fetchOptions);
 
             if (!response.ok) {
                 const errorResult = await response.json().catch(() => ({ error: `HTTP Error: ${response.statusText}` }));
@@ -896,3 +900,4 @@
     </script>
 </body>
 </html>
+
