@@ -430,7 +430,8 @@
         async function fetchTickets() {
             if (!telegramUser) return;
             try {
-                const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}`);
+                const timestamp = new Date().getTime();
+                const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}&_=${timestamp}`);
                 let serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
 
                 // --- FIX: Logic to prevent disappearing tickets ---
@@ -612,7 +613,8 @@
         async function fetchMessages(ticketId) {
             if (!ticketId) return;
             try {
-                const messagesData = await apiFetch(`/messages?ticket_id=${ticketId}`);
+                const timestamp = new Date().getTime();
+                const messagesData = await apiFetch(`/messages?ticket_id=${ticketId}&_=${timestamp}`);
                 const isScrolledToBottom = dom.conversationContainer.scrollHeight - dom.conversationContainer.clientHeight <= dom.conversationContainer.scrollTop + 50;
                 
                 dom.conversationContainer.innerHTML = '';
