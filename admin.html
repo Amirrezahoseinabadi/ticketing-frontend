@@ -81,20 +81,17 @@
     </div>
     
     <script>
-        // NOTE: The WORKER_URL now points to the TICKETING worker, not the management bot worker.
         const TICKETING_WORKER_URL = "https://ticketing.amiruserbot7.workers.dev/api"; 
         const firebaseConfig = {
             apiKey: "AIzaSyAjBkdCe-kJK2VFfM3lSFyFiFNXElOCPSg",
             databaseURL: "https://support-app-final-default-rtdb.asia-southeast1.firebasedatabase.app",
         };
 
-        // --- GLOBAL STATE ---
         let storeHandle = null;
         let currentTicketId = null;
         let allTickets = {};
         let db = null;
         
-        // --- DOM ELEMENTS ---
         const DOMElements = {
             mainPanel: document.getElementById('main-panel'),
             loadingView: document.getElementById('loading-view'),
@@ -143,24 +140,32 @@
         });
 
         function initializeApp() {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.database();
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
 
-            DOMElements.mainPanel.classList.remove('hidden');
-            DOMElements.mainPanel.classList.add('flex');
-            DOMElements.panelTitle.textContent = `پنل مدیریت: ${storeHandle}`;
+                DOMElements.mainPanel.classList.remove('hidden');
+                DOMElements.mainPanel.classList.add('flex');
+                DOMElements.panelTitle.textContent = `پنل مدیریت: ${storeHandle}`;
 
-            const ticketsRef = db.ref(`stores/${storeHandle}/data/tickets`);
-            ticketsRef.on('value', (snapshot) => {
-                allTickets = snapshot.val() || {};
-                applyFilters();
-            }, (error) => {
-                showError(`خطا در اتصال به دیتابیس: ${error.message}`);
-            });
+                const ticketsRef = db.ref(`stores/${storeHandle}/data/tickets`);
+                ticketsRef.on('value', (snapshot) => {
+                    allTickets = snapshot.val() || {};
+                    applyFilters();
+                }, (error) => {
+                    if (error.code === 'PERMISSION_DENIED') {
+                        showError('خطای دسترسی به دیتابیس. لطفا از صحیح بودن قوانین امنیتی (Rules) در کنسول Firebase اطمینان حاصل کنید. دسترسی برای خواندن اطلاعات تیکت‌ها مجاز نیست.');
+                    } else {
+                        showError(`خطا در اتصال به دیتابیس: ${error.message}`);
+                    }
+                });
 
-            DOMElements.replyForm.addEventListener('submit', handleReplySubmit);
-            DOMElements.statusSelect.addEventListener('change', handleStatusChange);
-            DOMElements.searchBox.addEventListener('input', applyFilters);
+                DOMElements.replyForm.addEventListener('submit', handleReplySubmit);
+                DOMElements.statusSelect.addEventListener('change', handleStatusChange);
+                DOMElements.searchBox.addEventListener('input', applyFilters);
+            } catch (error) {
+                showError(`خطای کلی در راه‌اندازی برنامه: ${error.message}`);
+            }
         }
         
         function applyFilters() {
