@@ -119,17 +119,17 @@
                 title: "متن‌های رابط کاربری (Mini App)",
                 emoji: "📱",
                 keys: {
-                    greetingTitle: { name: "عنوان کارت خوش‌آمدگویی", icon: "megaphone" },
-                    quickTipMessage: { name: "پیام نکته/راهنمای سریع", icon: "lightbulb" },
-                    faqButtonText: { name: "متن دکمه سوالات متداول", icon: "help-circle" },
-                    faqUrl: { name: "لینک دکمه سوالات متداول", icon: "link-2" },
-                    navTickets: { name: "متن منوی 'تیکت‌ها'", icon: "ticket" },
-                    navNewTicket: { name: "متن منوی 'تیکت جدید'", icon: "plus-circle" },
-                    infoModalTitle: { name: "عنوان پنجره راهنمای تیکت", icon: "book-open" },
-                    infoModalTip: { name: "پیام داخل پنجره راهنمای تیکت", icon: "info" },
-                    closedTicketBanner: { name: "متن بنر تیکت بسته شده", icon: "lock" },
-                    submitNewTicketBtn: { name: "متن دکمه ارسال تیکت", icon: "send" },
-                    modalCloseBtn: { name: "متن دکمه بستن پنجره‌ها", icon: "x-circle" },
+                    greetingTitle: { name: "عنوان کارت خوش‌آمدگویی", desc: `متن اصلی کارت راهنما (مثلاً: سلام مشتری عزیز!)`, icon: "megaphone" },
+                    quickTipMessage: { name: "پیام نکته/راهنمای سریع", desc: `متن کوچک زیر عنوان در کارت راهنما (مثلاً: لطفا مشکل را با جزئیات بنویسید)`, icon: "lightbulb" },
+                    faqButtonText: { name: "متن دکمه سوالات متداول", desc: `متنی که روی دکمه مشاهده سوالات متداول نمایش داده می‌شود.`, icon: "help-circle" },
+                    faqUrl: { name: "لینک دکمه سوالات متداول", desc: `آدرس URL کامل (مثلاً: https://yourfaq.com) که دکمه راهنما به آن متصل می‌شود. (باید با https:// شروع شود)`, icon: "link-2" },
+                    navTickets: { name: "متن منوی 'تیکت‌ها'", desc: `متن آیکون تیکت‌ها در نوار پایین مینی‌اپ.`, icon: "ticket" },
+                    navNewTicket: { name: "متن منوی 'تیکت جدید'", desc: `متن آیکون ایجاد تیکت جدید در نوار پایین مینی‌اپ.`, icon: "plus-circle" },
+                    infoModalTitle: { name: "عنوان پنجره راهنمای تیکت", desc: `عنوان پنجره‌ای که قبل از ثبت تیکت جدید نمایش داده می‌شود.`, icon: "book-open" },
+                    infoModalTip: { name: "پیام داخل پنجره راهنمای تیکت", desc: `متن اصلی داخل پنجره راهنما قبل از ثبت تیکت.`, icon: "info" },
+                    closedTicketBanner: { name: "بنر تیکت بسته شده", desc: `متنی که در پایین یک تیکت بسته شده نمایش داده می‌شود.`, icon: "lock" },
+                    submitNewTicketBtn: { name: "متن دکمه ارسال تیکت", desc: `متنی که روی دکمه 'ارسال' تیکت جدید نمایش داده می‌شود.`, icon: "send" },
+                    modalCloseBtn: { name: "متن دکمه بستن پنجره‌ها", desc: `متن دکمه بستن پنجره‌های مودال.`, icon: "x-circle" },
                 }
             },
             USER_NOTIFICATIONS: {
@@ -140,13 +140,15 @@
                         name: "اعلان پاسخ ادمین به کاربر", 
                         markdown: true, 
                         icon: "bell",
-                        variables: ['{Department}', '{Subject}'] 
+                        variables: ['{Department}', '{Subject}'],
+                        desc: `این پیام پس از پاسخ کارشناس، در چت کاربر نمایش داده می‌شود. از متغیرهای پویا و Markdown برای زیبایی استفاده کنید.`
                     },
                     ticketClosedNotification: { 
                         name: "اعلان بسته شدن تیکت به کاربر", 
                         markdown: true, 
                         icon: "check-circle", 
-                        variables: ['{Subject}'] 
+                        variables: ['{Subject}'],
+                        desc: `این پیام پس از بستن نهایی تیکت توسط کارشناس نمایش داده می‌شود و می‌تواند شامل درخواست امتیاز باشد.`
                     },
                 }
             }
@@ -162,9 +164,9 @@
 
         let currentState = 'Loading';
         const history = [];
-        let currentEditingKey = null; 
-        let currentMenuType = null;
-        let appTexts = {}; 
+        let currentEditingKey = null; // کلید متنی که در حال ویرایش است
+        let currentMenuType = null; // نوع منو (MINI_APP_UI یا USER_NOTIFICATIONS)
+        let appTexts = {}; // ذخیره متون دریافتی از Worker
         let statsData = null; // NEW: ذخیره داده‌های آماری
 
         // --- توابع کمکی ---
@@ -230,7 +232,6 @@
         // --- Data Fetching (از Worker API) ---
 
         async function fetchStats() {
-            // NOTE: فرض بر وجود API جدید در Worker است
             const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/stats`;
             try {
                 const response = await fetch(url);
@@ -517,25 +518,25 @@
                     <table class="w-full text-xs text-right border-collapse">
                         <thead>
                             <tr class="bg-indigo-100 border-b">
-                                <th class="p-1 font-semibold">نمونه خروجی</th>
-                                <th class="p-1 font-semibold">سینتکس</th>
-                                <th class="p-1 font-semibold">توضیح</th>
+                                <th class="p-1 font-semibold text-center">نمونه خروجی</th>
+                                <th class="p-1 font-semibold text-center">سینتکس</th>
+                                <th class="p-1 font-semibold text-right">توضیح</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr class="border-b">
-                                <td class="p-1 font-bold">متن ضخیم</td>
-                                <td class="p-1 font-mono text-left">**متن**</td>
+                                <td class="p-1 font-bold text-center">متن ضخیم</td>
+                                <td class="p-1 font-mono text-left text-center">**متن**</td>
                                 <td class="p-1">متن بولد (Bold)</td>
                             </tr>
                             <tr class="border-b">
-                                <td class="p-1 italic-example">متن کج</td>
-                                <td class="p-1 font-mono text-left">*متن*</td>
+                                <td class="p-1 italic-example text-center">متن کج</td>
+                                <td class="p-1 font-mono text-left text-center">*متن*</td>
                                 <td class="p-1">متن کج (Italic)</td>
                             </tr>
                             <tr>
-                                <td class="p-1 font-mono text-xs bg-gray-200 rounded inline-block px-1">code</td>
-                                <td class="p-1 font-mono text-left">\`متن\`</td>
+                                <td class="p-1 font-mono text-xs bg-gray-200 rounded inline-block px-1 text-center">code</td>
+                                <td class="p-1 font-mono text-left text-center">\`متن\`</td>
                                 <td class="p-1">کد یا شناسه (Monospace)</td>
                             </tr>
                         </tbody>
@@ -556,7 +557,11 @@
             content.innerHTML = `
                 <div class="space-y-4">
                     <h2 class="text-2xl font-extrabold text-gray-800">${item.name}</h2>
-                    <!-- بخش شناسه کلید حذف شد -->
+                    
+                    <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700">
+                        <p class="font-bold text-base text-gray-800">توضیح کلید:</p>
+                        <p class="mt-1">${item.desc}</p>
+                    </div>
 
                     ${markdownHint}
 
