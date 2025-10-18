@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پنل مدیریت متون ربات</title>
+    <!-- بارگذاری Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* تنظیم فونت برای پشتیبانی بهتر از فارسی */
+        body {
+            font-family: 'Inter', Tahoma, sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* کلاس برای شبیه‌سازی صفحه اپلیکیشن موبایل */
+        #app-screen {
+            min-height: 700px;
+            max-width: 420px;
+            margin: 2rem auto;
+            background-color: #ffffff;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+        /* سبک برای آیتم‌های منو */
+        .menu-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+            transition: background-color 0.1s ease;
+            font-weight: 500;
+        }
+        .menu-item:hover {
+            background-color: #f9fafb;
+        }
+        /* سبک برای کارت‌های داشبورد */
+        .metric-card {
+            background-color: #f9fafb;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-screen">
+        <!-- هدر ثابت -->
+        <header class="bg-indigo-600 text-white p-4 flex items-center justify-between shadow-lg">
+            <h1 class="text-xl font-bold">پنل مدیریت ربات</h1>
+            <!-- آیکون بازگشت (شبیه‌سازی) -->
+            <button id="back-button" class="text-white hover:text-indigo-200 transition duration-150 hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+            </button>
+        </header>
+
+        <!-- کانتینر اصلی محتوا -->
+        <div id="content" class="p-4 space-y-4">
+            <div id="loading-spinner" class="text-center p-8">
+                <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-indigo-600 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-4 text-gray-600">در حال بارگذاری متون از API Worker...</p>
+            </div>
+        </div>
+
+        <!-- پیام نمایش داده شده در پایین صفحه -->
+        <div id="message-box" class="fixed bottom-0 left-0 right-0 p-4 bg-green-500 text-white text-center rounded-t-xl hidden">
+            عملیات با موفقیت انجام شد!
+        </div>
+    </div>
+
+    <script>
+        // --- تنظیمات مهم (WORKER & STORE) ---
+        // !!! این مقادیر باید واقعی باشند !!!
+        const STORE_HANDLE = 'dfdfdfd'; // شناسه پلتفرم از دیتابیس Realtime
+        // فرض کنید Worker شما در همین دامنه قرار دارد.
+        const WORKER_API_BASE_URL = window.location.origin; 
+        // در محیط واقعی، این باید URL کامل Worker شما باشد، مثلاً: 'https://your-worker-name.your-user.workers.dev'
+        // --- پایان تنظیمات ---
+
+        const content = document.getElementById('content');
+        const backButton = document.getElementById('back-button');
+        const messageBox = document.getElementById('message-box');
+
+        let currentState = 'Loading';
+        const history = [];
+        const TEXT_KEY_TO_EDIT = 'quickTipMessage'; // کلید متنی که ویرایش می‌شود
+        let appTexts = {}; // ذخیره متون دریافتی از Worker
+
+        // --- توابع کمکی ---
+
+        function showMessage(text, type = 'success') {
+            messageBox.textContent = text;
+            messageBox.className = `fixed bottom-0 left-0 right-0 p-4 text-white text-center rounded-t-xl z-10 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 3000);
+        }
+
+        function navigateTo(newState, isBack = false) {
+            if (!isBack) {
+                history.push(currentState);
+            }
+            currentState = newState;
+            render();
+        }
+
+        function handleBack() {
+            if (history.length > 0) {
+                const previousState = history.pop();
+                currentState = previousState;
+                render();
+            } else {
+                navigateTo('Dashboard', true);
+            }
+        }
+
+        // --- Data Fetching (از Worker API) ---
+        async function fetchAppTexts() {
+            const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/texts`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('API Worker failed to fetch texts.');
+                }
+                const result = await response.json();
+                if (result.success && result.data) {
+                    appTexts = result.data;
+                    console.log("App Texts loaded from Worker:", appTexts);
+                } else {
+                    throw new Error('API Worker returned unsuccessful response.');
+                }
+            } catch (error) {
+                console.error("Error fetching app texts:", error);
+                // Fallback (for simulator only, a real app should handle this better)
+                appTexts = { 
+                    [TEXT_KEY_TO_EDIT]: "💡 نکته: خطا در بارگذاری متون. متن پیش‌فرض نمایش داده می‌شود." 
+                };
+                showMessage("❌ خطا در اتصال به Worker API. داده‌های پیش‌فرض بارگذاری شد.", 'error');
+            }
+            currentState = 'Dashboard';
+            render();
+        }
+
+        // --- Data Persistence (از طریق Worker API) ---
+        async function handleSave() {
+            const saveButton = document.getElementById('save-button');
+            const editArea = document.getElementById('edit-area');
+            const newText = editArea.value;
+
+            saveButton.disabled = true;
+            saveButton.textContent = 'در حال ذخیره...';
+
+            const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/texts`;
+            const payload = {
+                [TEXT_KEY_TO_EDIT]: newText
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // به‌روزرسانی محلی برای نمایش فوری (هر چند Worker باید به صورت Realtime این کار را انجام دهد)
+                    appTexts[TEXT_KEY_TO_EDIT] = newText; 
+                    showMessage("✅ متن با موفقیت ذخیره و اعمال شد!");
+                    navigateTo('SubMenu_AppTexts');
+                } else {
+                    throw new Error(result.error || 'خطا در Worker API هنگام ذخیره.');
+                }
+            } catch (error) {
+                console.error("Error saving text via Worker:", error);
+                showMessage(`❌ خطا در ذخیره متن: ${error.message}`, 'error');
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = 'ذخیره و اعمال تغییرات';
+            }
+        }
+
+
+        // =================================================================
+        // RENDER FUNCTIONS (UI)
+        // =================================================================
+
+        function renderDashboard() {
+            backButton.classList.add('hidden');
+            content.innerHTML = `
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-6 border-b pb-2">آمار و گزارش عملکرد ربات</h2>
+                <div class="metric-card space-y-3">
+                    <h3 class="text-lg font-semibold text-indigo-700">خلاصه حجم کاری</h3>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <p class="flex justify-between border-b pb-1"><span>تعداد کل تیکت‌ها:</span> <span class="font-bold text-gray-900">145</span></p>
+                        <p class="flex justify-between border-b pb-1"><span>تیکت‌های باز:</span> <span class="font-bold text-red-600">3</span></p>
+                        <p class="flex justify-between"><span>تیکت‌های بسته:</span> <span class="font-bold text-gray-500">142</span></p>
+                        <p class="flex justify-between"><span>در انتظار پاسخ:</span> <span class="font-bold text-orange-500">1</span></p>
+                    </div>
+                </div>
+                <div class="metric-card space-y-3">
+                    <h3 class="text-lg font-semibold text-indigo-700">کیفیت خدمات و رضایت</h3>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <p class="flex justify-between border-b pb-1"><span>میانگین امتیاز کاربر:</span> <span class="font-bold text-green-600">4.92 / 5.00</span></p>
+                        <p class="flex justify-between border-b pb-1"><span>نرخ امتیازدهی:</span> <span class="font-bold text-gray-900">88.5%</span></p>
+                        <p class="col-span-2 text-xs text-gray-500 mt-2">نکته: برای شخصی‌سازی متون مینی‌اپ، روی دکمه مدیریت متن‌ها بزنید.</p>
+                    </div>
+                </div>
+                <button onclick="navigateTo('MainMenu')" class="w-full bg-indigo-600 text-white py-3 mt-6 rounded-xl shadow-md hover:bg-indigo-700 transition duration-200 font-bold">
+                    مدیریت متن‌ها
+                </button>
+            `;
+        }
+
+        function renderMainMenu() {
+            backButton.classList.remove('hidden');
+            content.innerHTML = `
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">مدیریت متون ربات</h2>
+                <p class="text-sm text-gray-500 mb-6">متون کلیدی مینی اپ و پاسخ‌های پیش‌فرض را ویرایش کنید.</p>
+                <div class="bg-white border border-gray-100 rounded-xl divide-y divide-gray-100 shadow-sm">
+                    <div class="menu-item" onclick="navigateTo('SubMenu_AppTexts')">
+                        <span>متن‌های مینی‌اپ</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </div>
+                    <div class="menu-item opacity-50 cursor-not-allowed">
+                        <span>قوانین پاسخ‌دهی</span>
+                        <span class="text-xs text-red-500"> (به زودی)</span>
+                    </div>
+                    <div class="menu-item opacity-50 cursor-not-allowed">
+                        <span>تنظیمات زبان</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSubMenu_AppTexts() {
+            backButton.classList.remove('hidden');
+            content.innerHTML = `
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">متن‌های مینی‌اپ</h2>
+                <p class="text-sm text-gray-500 mb-6">متون اصلی بخش‌های مختلف ربات را مدیریت کنید.</p>
+                <div class="bg-white border border-gray-100 rounded-xl divide-y divide-gray-100 shadow-sm">
+                    <div class="menu-item" onclick="navigateTo('EditScreen_QuickGuide')">
+                        <span class="flex items-center">
+                            <span class="ml-2">💡</span>
+                            پیام راهنمای سریع
+                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </div>
+                    <div class="menu-item opacity-50 cursor-not-allowed">
+                        <span class="flex items-center">
+                            <span class="ml-2">🎫</span>
+                            متن تیکت‌های باز
+                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </div>
+                    <div class="menu-item opacity-50 cursor-not-allowed">
+                        <span class="flex items-center">
+                            <span class="ml-2">❌</span>
+                            متن دکمه بسته شده
+                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </div>
+                    <div class="menu-item" onclick="navigateTo('MainMenu')">
+                        <span class="flex items-center font-bold text-indigo-600">
+                            <span class="ml-2">↩️</span>
+                            بازگشت به مدیریت متن‌ها
+                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderEditScreen_QuickGuide() {
+            backButton.classList.remove('hidden');
+            
+            // اگر متنی دریافت نشده باشد، از یک متن موقت استفاده می‌شود
+            const currentText = appTexts[TEXT_KEY_TO_EDIT] || "در حال حاضر متن قابل نمایش نیست.";
+
+            content.innerHTML = `
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ویرایش: پیام راهنمای سریع</h2>
+                <p class="text-sm text-gray-500 mb-4">متن راهنمای سریع که به کاربر نمایش داده می‌شود. (ID: \`${TEXT_KEY_TO_EDIT}\`)</p>
+
+                <!-- کادر راهنما در مورد Markdown -->
+                <div class="bg-yellow-50 border-r-4 border-yellow-400 p-3 mb-4 rounded-lg text-sm text-gray-700">
+                    <p class="font-bold">⚠️ توجه: فرمت متن Markdown</p>
+                    <ul class="list-disc pr-5 mt-1 space-y-1">
+                        <li>**متن ضخیم**: متن را بین دو ستاره قرار دهید (**متن**)</li>
+                        <li>*متن کج*: متن را بین یک ستاره قرار دهید (*متن*)</li>
+                        <li>[لینک]: متن را بین قلاب و آدرس را در پرانتز قرار دهید ([متن](لینک))</li>
+                    </ul>
+                </div>
+
+                <!-- ناحیه ویرایش متن -->
+                <textarea id="edit-area" rows="8" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="متن راهنمای خود را اینجا وارد کنید...">${currentText}</textarea>
+
+                <!-- دکمه‌های عملیات -->
+                <div class="flex justify-end space-x-3 mt-4" dir="ltr">
+                    <button onclick="navigateTo('SubMenu_AppTexts')" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition duration-150 font-semibold">
+                        لغو (بازگشت)
+                    </button>
+                    <button id="save-button" onclick="handleSave()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-150 font-semibold shadow-md">
+                        ذخیره و اعمال تغییرات
+                    </button>
+                </div>
+            `;
+        }
+
+
+        // --- تابع اصلی رندر ---
+
+        function render() {
+            if (currentState === 'Loading') {
+                content.innerHTML = document.getElementById('loading-spinner').outerHTML;
+                return;
+            }
+
+            content.classList.add('transition', 'duration-300', 'opacity-0');
+            setTimeout(() => {
+                switch (currentState) {
+                    case 'Dashboard':
+                        renderDashboard();
+                        break;
+                    case 'MainMenu':
+                        renderMainMenu();
+                        break;
+                    case 'SubMenu_AppTexts':
+                        renderSubMenu_AppTexts();
+                        break;
+                    case 'EditScreen_QuickGuide':
+                        renderEditScreen_QuickGuide();
+                        break;
+                    default:
+                        renderDashboard();
+                }
+                content.classList.remove('opacity-0');
+            }, 50);
+        }
+
+        // رویدادهای اصلی
+        backButton.addEventListener('click', handleBack);
+
+        // شروع اپلیکیشن: ابتدا داده‌ها را از Worker دریافت کن
+        fetchAppTexts();
+
+    </script>
+</body>
+</html>
