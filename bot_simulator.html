@@ -80,11 +80,14 @@
 
     <script>
         // --- تنظیمات مهم (WORKER & STORE) ---
-        // !!! این مقادیر باید واقعی باشند !!!
-        const STORE_HANDLE = 'dfdfdfd'; // شناسه پلتفرم از دیتابیس Realtime
-        // فرض کنید Worker شما در همین دامنه قرار دارد.
-        const WORKER_API_BASE_URL = window.location.origin; 
-        // در محیط واقعی، این باید URL کامل Worker شما باشد، مثلاً: 'https://your-worker-name.your-user.workers.dev'
+
+        // 1. استخراج STORE_HANDLE از پارامتر URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const STORE_HANDLE = urlParams.get('storeHandle'); 
+        
+        // 2. آدرس پایه Worker API (تایید شده توسط کاربر)
+        const WORKER_API_BASE_URL = 'https://ticketing.amiruserbot7.workers.dev'; 
+
         // --- پایان تنظیمات ---
 
         const content = document.getElementById('content');
@@ -127,26 +130,32 @@
 
         // --- Data Fetching (از Worker API) ---
         async function fetchAppTexts() {
+            if (!STORE_HANDLE) {
+                content.innerHTML = '<p class="text-red-600 p-4 font-bold">خطا: شناسه پلتفرم (storeHandle) در آدرس URL یافت نشد. (مانند: ?storeHandle=dfdfdfd)</p>';
+                return;
+            }
+
             const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/texts`;
+            
             try {
                 const response = await fetch(url);
                 if (!response.ok) {
-                    throw new Error('API Worker failed to fetch texts.');
+                    throw new Error('API Worker failed to fetch texts. Check WORKER_API_BASE_URL.');
                 }
                 const result = await response.json();
+                
                 if (result.success && result.data) {
                     appTexts = result.data;
                     console.log("App Texts loaded from Worker:", appTexts);
                 } else {
-                    throw new Error('API Worker returned unsuccessful response.');
+                    throw new Error(result.error || 'API Worker returned unsuccessful response.');
                 }
             } catch (error) {
                 console.error("Error fetching app texts:", error);
-                // Fallback (for simulator only, a real app should handle this better)
                 appTexts = { 
                     [TEXT_KEY_TO_EDIT]: "💡 نکته: خطا در بارگذاری متون. متن پیش‌فرض نمایش داده می‌شود." 
                 };
-                showMessage("❌ خطا در اتصال به Worker API. داده‌های پیش‌فرض بارگذاری شد.", 'error');
+                showMessage(`❌ خطا در اتصال به Worker API: ${error.message}`, 'error');
             }
             currentState = 'Dashboard';
             render();
@@ -176,7 +185,7 @@
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    // به‌روزرسانی محلی برای نمایش فوری (هر چند Worker باید به صورت Realtime این کار را انجام دهد)
+                    // به‌روزرسانی محلی برای نمایش فوری
                     appTexts[TEXT_KEY_TO_EDIT] = newText; 
                     showMessage("✅ متن با موفقیت ذخیره و اعمال شد!");
                     navigateTo('SubMenu_AppTexts');
