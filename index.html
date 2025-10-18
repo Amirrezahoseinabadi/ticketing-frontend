@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -165,7 +164,7 @@
                 <div id="tickets-list-view" class="p-4">
                     <div id="smart-card" class="p-4 rounded-lg shadow-lg mb-4 fade-in-item" style="background: linear-gradient(135deg, #3D5A80 0%, #274059 100%);">
                         <h3 id="smart-card-greeting" class="text-lg font-bold text-white mb-3">سلام کاربر عزیز! 👋</h3>
-                        <p class="text-sm mb-4 p-3 rounded-lg" style="background-color: rgba(0,0,0,0.2);"><span class="text-xl">💡</span> <span class="font-bold">نکته:</span> برای دریافت پاسخ سریع‌تر، مشکل خود را با جزئیات کامل شرح دهید.</p>
+                        <p id="smart-card-tip" class="text-sm mb-4 p-3 rounded-lg" style="background-color: rgba(0,0,0,0.2);"><span class="text-xl">💡</span> <span class="font-bold">نکته:</span> برای دریافت پاسخ سریع‌تر، مشکل خود را با جزئیات کامل شرح دهید.</p>
                         <button id="faq-button" class="w-full text-white text-sm px-4 py-2.5 rounded-md" style="background-color: var(--brand-light-blue);">مشاهده سوالات متداول</button>
                     </div>
                     <div id="tickets-container" class="space-y-3"></div>
@@ -266,6 +265,7 @@
         let messagesPollingInterval = null;
         let hasOpenTicket = false;
         let isSubmitting = false;
+        let uiTexts = {}; // --- NEW: To store dynamic UI texts ---
 
         const departmentMap = {
             general: 'سوالات متفرقه',
@@ -310,7 +310,6 @@
             infoModal: document.getElementById('info-modal'),
             infoModalCloseBtn: document.getElementById('info-modal-close-btn'),
             faqButton: document.getElementById('faq-button'),
-            faqLinkModal: document.getElementById('faq-link-modal'),
             emojiPickerContainer: document.getElementById('emoji-picker-container'),
             emojiPicker: document.querySelector('emoji-picker'),
             greetingCard: document.getElementById('smart-card-greeting'),
@@ -348,10 +347,10 @@
             dom.newTicketView.classList.add('hidden');
             if (viewName === 'ticketsList') {
                 dom.ticketsListView.classList.remove('hidden');
-                dom.headerTitle.textContent = 'تیکت‌ها';
+                dom.headerTitle.textContent = uiTexts.headerTickets || 'تیکت‌ها';
             } else if (viewName === 'newTicket') {
                 dom.newTicketView.classList.remove('hidden');
-                dom.headerTitle.textContent = 'تیکت جدید';
+                dom.headerTitle.textContent = uiTexts.headerNewTicket || 'تیکت جدید';
             }
             Object.values(dom.navButtons).forEach(btn => btn.classList.remove('active'));
             if (dom.navButtons[viewName]) dom.navButtons[viewName].classList.add('active');
@@ -361,12 +360,6 @@
         // SECTION: API Communication
         // =================================================================================
         
-        /**
-         * A generic fetch wrapper for calling the worker API.
-         * @param {string} endpoint - The API endpoint (e.g., '/tickets').
-         * @param {object} options - Standard fetch options.
-         * @returns {Promise<any>} - The parsed JSON response.
-         */
         async function apiFetch(endpoint, options = {}) {
             if (!STORE_HANDLE) {
                 throw new Error("شناسه پلتفرم مشخص نشده است.");
@@ -390,14 +383,9 @@
         // SECTION: Core Application Logic
         // =================================================================================
         
-        /**
-         * Reads the storeHandle from Telegram's start_param.
-         * @returns {string|null}
-         */
         function getStoreHandleFromTg() {
             try {
                 const tg = window.Telegram.WebApp;
-                // The startParam can contain other info, we look for 'storeHandle_' prefix
                 if (tg.initDataUnsafe.start_param) {
                     const params = tg.initDataUnsafe.start_param.split('_');
                     if (params[0] === 'storeHandle' && params[1]) {
@@ -407,15 +395,52 @@
             } catch (e) {
                 console.error("Could not get start_param:", e);
             }
-             // Fallback for local testing or if start_param is not set
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get('storeHandle');
         }
 
-        function startApp(user) {
+        // --- NEW: Function to fetch and apply dynamic texts ---
+        async function fetchAndApplyTexts() {
+            try {
+                const data = await apiFetch('/texts');
+                uiTexts = data;
+
+                document.getElementById('smart-card-greeting').textContent = uiTexts.greetingTitle;
+                document.getElementById('smart-card-tip').innerHTML = uiTexts.quickTipMessage;
+                document.getElementById('faq-button').textContent = uiTexts.faqButtonText;
+                
+                document.querySelector('#nav-tickets-list span').textContent = uiTexts.navTickets;
+                document.querySelector('#nav-new-ticket span').textContent = uiTexts.navNewTicket;
+
+                document.querySelector('#info-modal h3').textContent = uiTexts.infoModalTitle;
+                // Safely find and update the modal tip paragraph
+                const modalTipP = document.querySelector('#info-modal .overflow-y-auto p');
+                if(modalTipP) modalTipP.innerHTML = uiTexts.infoModalTip.replace('صفحه سوالات متداول', `<a href="#" id="faq-link-modal" class="text-blue-300 hover:underline">صفحه سوالات متداول</a>`);
+                
+                const closedBannerP = document.querySelector('#closed-ticket-banner p');
+                if (closedBannerP) closedBannerP.textContent = uiTexts.closedTicketBanner;
+
+                dom.submitNewTicketBtn.textContent = uiTexts.submitNewTicketBtn;
+                dom.infoModalCloseBtn.textContent = uiTexts.modalCloseBtn;
+                document.getElementById('modal-close-btn').textContent = uiTexts.modalCloseBtn;
+
+                // Re-attach listener for the new faq link in the modal
+                const newFaqLink = document.getElementById('faq-link-modal');
+                if (newFaqLink) newFaqLink.addEventListener('click', (e) => { e.preventDefault(); openFaq(); });
+
+            } catch (error) {
+                console.error("Could not fetch UI texts:", error);
+                showNotification("خطا در بارگذاری متون سفارشی", false);
+            }
+        }
+
+        async function startApp(user) {
             telegramUser = user;
+            await fetchAndApplyTexts(); // Fetch texts before rendering the rest
+            
             const userName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'کاربر';
-            dom.greetingCard.textContent = `سلام ${userName}! 👋`;
+            dom.greetingCard.textContent = (uiTexts.greetingTitle || "سلام کاربر عزیز! 👋").replace('کاربر عزیز', userName);
+
             dom.loadingView.classList.add('hidden');
             dom.mainAppContainer.classList.remove('hidden');
             dom.mainAppContainer.classList.add('flex');
@@ -429,9 +454,6 @@
                 const data = await apiFetch(`/tickets?telegram_id=${telegramUser.id}`);
                 const serverTickets = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
                 
-                // --- FIX: This temporary client-side fix is no longer needed ---
-                // The server query is now reliable.
-
                 allTicketsData = serverTickets;
                 
                 if (currentTicketId) {
@@ -443,8 +465,8 @@
                 }
                 renderTickets(allTicketsData);
             } catch (error) {
-                console.error("Error fetching tickets:", error);
-                // To prevent infinite loading, show empty state on error
+                console.error("خطا در دریافت تیکت‌ها از سرور:", error.message);
+                showNotification(`خطا در همگام‌سازی: ${error.message}`, false, 5000);
                 renderTickets([]); 
             }
         }
@@ -524,7 +546,6 @@
         }
 
         async function deleteTicket(ticketId) {
-            // NOTE: Using a custom modal instead of confirm() for better UX in Mini Apps
             showModal(
                 'تایید حذف', 
                 'آیا از حذف این تیکت مطمئن هستید؟ این عمل غیرقابل بازگشت است.', 
@@ -730,12 +751,13 @@
             }
 
             isSubmitting = true;
+            const originalSubmitText = dom.submitNewTicketBtn.textContent;
             dom.submitNewTicketBtn.disabled = true;
             dom.submitNewTicketBtn.textContent = 'در حال ارسال...';
             
             try {
                 const payload = {
-                    telegram_id: telegramUser.id,
+                    telegram_id: telegramUser.id.toString(),
                     user_name: `${telegramUser.first_name || ''} ${telegramUser.last_name || ''}`.trim(),
                     subject: data.subject,
                     department: data.department,
@@ -743,8 +765,7 @@
                     storeHandle: STORE_HANDLE
                 };
                 
-                // The server now returns the complete new ticket object
-                const newTicket = await apiFetch('/tickets', {
+                await apiFetch('/tickets', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
@@ -752,9 +773,6 @@
                 
                 dom.newTicketForm.reset();
                 showNotification('تیکت شما با موفقیت ارسال شد.');
-                
-                // The polling will automatically pick up the new ticket, 
-                // but we can force an immediate refresh for better UX.
                 fetchTickets();
                 showView('ticketsList');
 
@@ -764,7 +782,7 @@
             } finally {
                 isSubmitting = false;
                 dom.submitNewTicketBtn.disabled = false;
-                dom.submitNewTicketBtn.textContent = 'ارسال';
+                dom.submitNewTicketBtn.textContent = originalSubmitText;
             }
         }
 
@@ -817,7 +835,6 @@
                     startApp(tg.initDataUnsafe.user);
                 } else {
                     console.warn("Telegram user data not found. Using mock user for testing.");
-                    // Ensure the mock user ID is a string, just like real data
                     startApp({id: "12345678", first_name: "Test", last_name: "User"});
                 }
             } catch (error) {
@@ -826,7 +843,6 @@
             }
         });
 
-        // --- Main Navigation ---
         dom.navButtons.ticketsList.addEventListener('click', () => showView('ticketsList'));
         dom.navButtons.newTicket.addEventListener('click', () => {
             if (hasOpenTicket) {
@@ -837,7 +853,6 @@
             }
         });
 
-        // --- Form Submissions ---
         dom.newTicketForm.addEventListener('submit', handleNewTicketSubmit);
         dom.replyForm.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -845,7 +860,6 @@
             if(text) sendTextMessage(text);
         });
 
-        // --- Buttons & Modals ---
         dom.backToTicketsBtn.addEventListener('click', closeConversation);
         dom.infoModalCloseBtn.addEventListener('click', () => {
             dom.infoModal.classList.add('hidden');
@@ -857,7 +871,6 @@
             document.getElementById('custom-modal').classList.remove('flex');
         });
 
-        // --- File & Emoji Pickers ---
         dom.attachFileBtn.addEventListener('click', () => dom.fileUploadInput.click());
         dom.fileUploadInput.addEventListener('change', (e) => {
             if (e.target.files?.[0]) handleImageUpload(e.target.files[0]);
@@ -877,20 +890,20 @@
             }
         });
 
-        // --- Auto-resizing Textarea ---
         dom.replyMessageInput.addEventListener('input', () => {
             dom.replyMessageInput.style.height = 'auto';
             dom.replyMessageInput.style.height = `${dom.replyMessageInput.scrollHeight}px`;
         });
         
-        // --- External Links ---
         const openFaq = () => {
-            const faqUrl = 'https://faqhub.amiruserbot7.workers.dev/'; // Replace with your FAQ URL
+            const faqUrl = uiTexts.faqUrl || 'https://faqhub.amiruserbot7.workers.dev/';
             window.Telegram?.WebApp.openLink(faqUrl) || window.open(faqUrl, '_blank');
         };
         dom.faqButton.addEventListener('click', openFaq);
-        dom.faqLinkModal.addEventListener('click', (e) => { e.preventDefault(); openFaq(); });
+        const initialFaqLink = document.getElementById('faq-link-modal');
+        if(initialFaqLink) initialFaqLink.addEventListener('click', (e) => { e.preventDefault(); openFaq(); });
 
     </script>
 </body>
 </html>
+
