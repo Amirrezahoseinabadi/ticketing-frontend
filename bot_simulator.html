@@ -87,8 +87,8 @@
             <h1 id="header-title" class="text-xl font-extrabold mr-4 flex-grow truncate">پنل مدیریت ربات</h1>
         </header>
 
-        <!-- کانتینر اصلی محتوا -->
-        <div id="content" class="p-4 space-y-4">
+        <!-- کانتینر اصلی محتوا (padding از p-4 به p-5 افزایش یافت) -->
+        <div id="content" class="p-5 space-y-5">
             <div id="loading-spinner" class="text-center p-8">
                 <i data-lucide="loader-circle" class="animate-spin h-10 w-10 text-indigo-600 inline"></i>
                 <p class="mt-4 text-gray-600 font-semibold">در حال بارگذاری داده‌های اولیه...</p>
@@ -399,7 +399,8 @@
             content.innerHTML = `
                 <div class="space-y-6">
                     
-                    <h2 class="text-2xl font-extrabold text-gray-800 border-b pb-3 mb-4">گزارش عملکرد فروشگاه</h2>
+                    <!-- کاهش اندازه فونت از text-2xl به text-xl -->
+                    <h2 class="text-xl font-extrabold text-gray-800 border-b pb-3 mb-4">گزارش عملکرد فروشگاه</h2>
                     
                     <div class="grid grid-cols-2 gap-4">
                         ${metricCards.map(card => `
@@ -408,7 +409,7 @@
                                     <h3 class="text-sm font-semibold text-gray-500">${card.title}</h3>
                                     <i data-lucide="${card.icon}" class="${card.color} h-6 w-6"></i>
                                 </div>
-                                <!-- اندازه اعداد از text-3xl به text-2xl کاهش یافت -->
+                                <!-- اندازه اعداد در text-2xl باقی ماند -->
                                 <p class="text-2xl font-extrabold text-gray-900">${card.value}</p>
                                 <p class="text-xs text-gray-400 mt-1 truncate">${card.desc}</p>
                             </div>
@@ -460,7 +461,8 @@
             }
 
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">شخصی‌سازی محتوا</h2>
+                <!-- کاهش اندازه فونت از text-2xl به text-xl -->
+                <h2 class="text-xl font-extrabold text-gray-800 mb-2">شخصی‌سازی محتوا</h2>
                 <p class="text-sm text-gray-500 mb-6">متون کلیدی مینی اپ و اعلان‌های ارسال شده به کاربران را ویرایش کنید.</p>
                 <!-- استفاده از bg-white/90 برای حس شیشه‌ای ملایم -->
                 <div class="bg-white/90 border border-gray-100 rounded-2xl divide-y divide-gray-100 shadow-xl">
@@ -503,7 +505,8 @@
             }
 
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">${menuTitle}</h2>
+                <!-- کاهش اندازه فونت از text-2xl به text-xl -->
+                <h2 class="text-xl font-extrabold text-gray-800 mb-2">${menuTitle}</h2>
                 <p class="text-sm text-gray-500 mb-6">متن مورد نظر برای ویرایش را انتخاب کنید:</p>
                 <div class="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-100 shadow-xl">
                     ${Object.entries(keys).map(([key, data]) => {
@@ -626,7 +629,8 @@
             }
 
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ویرایش: ${keyData.name}</h2>
+                <!-- کاهش اندازه فونت از text-2xl به text-xl -->
+                <h2 class="text-xl font-extrabold text-gray-800 mb-2">ویرایش: ${keyData.name}</h2>
 
                 ${markdownGuideHTML}
 
