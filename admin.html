@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>پنل مدیریت پشتیبانی</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Vazirmatn', sans-serif; background-color: #f7f9fc; color: #1a202c; }
@@ -25,19 +23,16 @@
 </head>
 <body class="h-screen overflow-hidden">
 
-    <!-- Loading View -->
     <div id="loading-view" class="flex items-center justify-center h-full">
         <p class="text-lg text-gray-600">در حال بارگذاری پنل مدیریت...</p>
     </div>
 
-    <!-- Error View -->
     <div id="error-view" class="hidden flex-col items-center justify-center h-full text-center p-4 text-gray-800">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         <h2 class="mt-4 text-xl font-bold">خطا در بارگذاری</h2>
         <p id="error-message" class="mt-2 text-gray-600"></p>
     </div>
 
-    <!-- Main Panel (Initially Hidden) -->
     <div id="main-panel" class="hidden flex flex-col h-full w-full">
         <main class="flex-1 flex flex-col h-full overflow-hidden">
             <header class="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200 flex-shrink-0">
@@ -81,17 +76,16 @@
     </div>
     
     <script>
-        const TICKETING_WORKER_URL = "https://ticketing.amiruserbot7.workers.dev/api"; 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAjBkdCe-kJK2VFfM3lSFyFiFNXElOCPSg",
-            databaseURL: "https://support-app-final-default-rtdb.asia-southeast1.firebasedatabase.app",
-        };
+        const WORKER_URL = "https://ticketing.amiruserbot7.workers.dev/api"; 
 
+        // --- GLOBAL STATE ---
         let storeHandle = null;
         let currentTicketId = null;
         let allTickets = {};
-        let db = null;
+        let ticketsPollingInterval = null;
+        let messagesPollingInterval = null;
         
+        // --- DOM ELEMENTS ---
         const DOMElements = {
             mainPanel: document.getElementById('main-panel'),
             loadingView: document.getElementById('loading-view'),
@@ -125,6 +119,17 @@
             DOMElements.errorView.classList.add('flex');
             DOMElements.errorMessage.textContent = message;
         }
+
+        async function apiFetch(endpoint, options = {}) {
+            const url = `${WORKER_URL}/${storeHandle}${endpoint}`;
+            const response = await fetch(url, options);
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || `HTTP Error: ${response.status}`);
+            }
+            return result.data;
+        }
         
         document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -135,59 +140,60 @@
                 return;
             }
             
-            DOMElements.loadingView.style.display = 'none';
             initializeApp();
         });
 
         function initializeApp() {
+            DOMElements.loadingView.style.display = 'none';
+            DOMElements.mainPanel.classList.remove('hidden');
+            DOMElements.mainPanel.classList.add('flex');
+            DOMElements.panelTitle.textContent = `پنل مدیریت: ${storeHandle}`;
+
+            startPollingTickets();
+
+            DOMElements.replyForm.addEventListener('submit', handleReplySubmit);
+            DOMElements.statusSelect.addEventListener('change', handleStatusChange);
+            DOMElements.searchBox.addEventListener('input', () => renderTicketsList(allTickets));
+        }
+
+        async function fetchAdminTickets() {
             try {
-                firebase.initializeApp(firebaseConfig);
-                db = firebase.database();
-
-                DOMElements.mainPanel.classList.remove('hidden');
-                DOMElements.mainPanel.classList.add('flex');
-                DOMElements.panelTitle.textContent = `پنل مدیریت: ${storeHandle}`;
-
-                const ticketsRef = db.ref(`stores/${storeHandle}/data/tickets`);
-                ticketsRef.on('value', (snapshot) => {
-                    allTickets = snapshot.val() || {};
-                    applyFilters();
-                }, (error) => {
-                    if (error.code === 'PERMISSION_DENIED') {
-                        showError('خطای دسترسی به دیتابیس. لطفا از صحیح بودن قوانین امنیتی (Rules) در کنسول Firebase اطمینان حاصل کنید. دسترسی برای خواندن اطلاعات تیکت‌ها مجاز نیست.');
-                    } else {
-                        showError(`خطا در اتصال به دیتابیس: ${error.message}`);
-                    }
-                });
-
-                DOMElements.replyForm.addEventListener('submit', handleReplySubmit);
-                DOMElements.statusSelect.addEventListener('change', handleStatusChange);
-                DOMElements.searchBox.addEventListener('input', applyFilters);
+                const ticketsData = await apiFetch('/admin/tickets');
+                allTickets = ticketsData;
+                renderTicketsList(allTickets);
             } catch (error) {
-                showError(`خطای کلی در راه‌اندازی برنامه: ${error.message}`);
+                console.error("Error fetching tickets:", error);
+                showError(`خطا در دریافت تیکت‌ها از سرور: ${error.message}`);
+                stopPollingTickets();
             }
         }
+
+        function startPollingTickets() {
+            fetchAdminTickets();
+            if (ticketsPollingInterval) clearInterval(ticketsPollingInterval);
+            ticketsPollingInterval = setInterval(fetchAdminTickets, 5000); // Poll every 5 seconds
+        }
+
+        function stopPollingTickets() {
+            if (ticketsPollingInterval) clearInterval(ticketsPollingInterval);
+        }
         
-        function applyFilters() {
+        function renderTicketsList(tickets) {
             const searchTerm = DOMElements.searchBox.value.toLowerCase();
-            const filteredTickets = Object.keys(allTickets).filter(key => {
-                const ticket = allTickets[key];
+            const filteredTickets = Object.keys(tickets).filter(key => {
+                const ticket = tickets[key];
                 return (ticket.subject && ticket.subject.toLowerCase().includes(searchTerm)) || 
                        (ticket.user_name && ticket.user_name.toLowerCase().includes(searchTerm)) || 
                        (ticket.telegram_id && ticket.telegram_id.toString().includes(searchTerm));
-            }).reduce((obj, key) => { obj[key] = allTickets[key]; return obj; }, {});
-            renderTicketsList(filteredTickets);
-        }
+            }).reduce((obj, key) => { obj[key] = { id: key, ...tickets[key] }; return obj; }, {});
 
-        function renderTicketsList(tickets) {
             DOMElements.ticketsListContainer.innerHTML = '';
-            if (Object.keys(tickets).length === 0) {
+            if (Object.keys(filteredTickets).length === 0) {
                  DOMElements.ticketsListContainer.innerHTML = `<p class="p-4 text-center text-gray-500">هیچ تیکتی یافت نشد.</p>`;
                  return;
             }
 
-            const sorted = Object.keys(tickets).map(key => ({ id: key, ...tickets[key] }))
-                               .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const sorted = Object.values(filteredTickets).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             
             sorted.forEach(ticket => {
                 const statusInfo = statusMap[ticket.status] || {text: ticket.status, className: 'bg-gray-200'};
@@ -209,9 +215,17 @@
             });
         }
 
-        function openConversation(ticketId) {
+        async function openConversation(ticketId) {
+            if (currentTicketId === ticketId) return;
             currentTicketId = ticketId;
-            db.ref(`stores/${storeHandle}/data/tickets/${ticketId}`).update({ admin_unread: false });
+            
+            if(allTickets[ticketId]?.admin_unread) {
+                 apiFetch(`/admin/tickets/${ticketId}`, { 
+                    method: 'PATCH', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ admin_unread: false }) 
+                }).catch(err => console.error("Failed to mark as read:", err));
+            }
 
             document.querySelectorAll('.ticket-list-item').forEach(el => el.classList.toggle('active', el.dataset.ticketId === ticketId));
             DOMElements.welcomeMessage.style.display = 'none';
@@ -222,21 +236,43 @@
             DOMElements.ticketUserId.textContent = `کاربر: ${ticketData.user_name || ticketData.telegram_id}`;
             DOMElements.statusSelect.value = ticketData.status;
 
-            const messagesRef = db.ref(`stores/${storeHandle}/data/messages/${ticketId}`).orderByChild('created_at');
-            messagesRef.on('value', (snapshot) => {
-                const messagesData = snapshot.val();
-                DOMElements.messagesContainer.innerHTML = '';
-                if (messagesData) {
-                    Object.values(messagesData).forEach(msg => {
-                        const isUser = msg.sender === 'user';
-                        const el = document.createElement('div');
-                        el.className = `flex items-start gap-3 ${isUser ? 'justify-start' : 'justify-end'}`;
-                        el.innerHTML = `<div class="p-3 max-w-md ${isUser ? 'message-user' : 'message-admin'}"><p class="text-sm">${msg.text}</p></div>`;
-                        DOMElements.messagesContainer.appendChild(el);
-                    });
-                }
-                DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
-            });
+            startPollingMessages(ticketId);
+        }
+
+        async function fetchAdminMessages(ticketId) {
+            if (currentTicketId !== ticketId) return; // Stop polling if conversation changed
+            try {
+                const messagesData = await apiFetch(`/admin/messages/${ticketId}`);
+                renderMessages(messagesData);
+            } catch (error) {
+                console.error(`Error fetching messages for ticket ${ticketId}:`, error);
+                stopPollingMessages();
+            }
+        }
+
+        function renderMessages(messagesData) {
+            DOMElements.messagesContainer.innerHTML = '';
+            if (messagesData) {
+                const sortedMessages = Object.values(messagesData).sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+                sortedMessages.forEach(msg => {
+                    const isUser = msg.sender === 'user';
+                    const el = document.createElement('div');
+                    el.className = `flex items-start gap-3 ${isUser ? 'justify-start' : 'justify-end'}`;
+                    el.innerHTML = `<div class="p-3 max-w-md ${isUser ? 'message-user' : 'message-admin'}"><p class="text-sm">${msg.text}</p></div>`;
+                    DOMElements.messagesContainer.appendChild(el);
+                });
+            }
+            DOMElements.messagesContainer.scrollTop = DOMElements.messagesContainer.scrollHeight;
+        }
+
+        function startPollingMessages(ticketId) {
+            fetchAdminMessages(ticketId);
+            if (messagesPollingInterval) clearInterval(messagesPollingInterval);
+            messagesPollingInterval = setInterval(() => fetchAdminMessages(ticketId), 3000);
+        }
+
+        function stopPollingMessages() {
+             if (messagesPollingInterval) clearInterval(messagesPollingInterval);
         }
         
         async function handleReplySubmit(e) {
@@ -247,20 +283,29 @@
 
             DOMElements.replyInput.value = '';
             
-            await fetch(`${TICKETING_WORKER_URL}/${storeHandle}/messages`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticket_id: currentTicketId, sender: 'admin', text: text, source: 'human' }),
-            });
+            try {
+                await apiFetch('/messages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticket_id: currentTicketId, sender: 'admin', text: text, source: 'human' }),
+                });
+                fetchAdminMessages(currentTicketId); // Fetch immediately after sending
+            } catch (error) {
+                showError(`خطا در ارسال پاسخ: ${error.message}`);
+            }
         }
         
         async function handleStatusChange() {
             if (!currentTicketId) return;
-            await fetch(`${TICKETING_WORKER_URL}/${storeHandle}/tickets/${currentTicketId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: DOMElements.statusSelect.value }),
-            });
+            try {
+                await apiFetch(`/tickets/${currentTicketId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: DOMElements.statusSelect.value }),
+                });
+            } catch (error) {
+                showError(`خطا در تغییر وضعیت: ${error.message}`);
+            }
         }
     </script>
 </body>
