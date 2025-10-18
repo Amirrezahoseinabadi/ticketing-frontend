@@ -3,95 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پنل مدیریت متون تلگرام</title>
-    <!-- بارگذاری Tailwind CSS -->
+    <title>مدیریت تیکت تل (Mini App)</title>
+    <!-- بارگذاری Tailwind CSS و Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- لود آیکون‌های Lucide برای ظاهر حرفه‌ای‌تر -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
     <style>
-        /* تنظیمات اصلی و فونت */
+        /* تنظیم فونت و تم اصلی */
         body {
             font-family: 'Inter', Tahoma, sans-serif;
-            background-color: #e5e7eb; /* رنگ خاکستری روشن ملایم */
+            background-color: #f3ffef; /* پس‌زمینه کمی روشن‌تر و مایل به سبز/آبی */
         }
-        /* شبیه‌سازی صفحه مینی‌اپ تلگرام */
+        /* شبیه‌سازی صفحه اپلیکیشن موبایل */
         #app-screen {
             min-height: 700px;
             max-width: 420px;
             margin: 2rem auto;
             background-color: #ffffff;
-            /* سایه تلگرامی */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); 
-            border-radius: 24px; /* گوشه‌های بسیار گرد */
+            /* سایه نرم‌تر و عمیق‌تر برای حس موبایل */
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+            border-radius: 28px; /* گوشه‌های گردتر */
             overflow: hidden;
             position: relative;
+            transition: all 0.4s ease-in-out;
+            border: 1px solid #e0e0e0;
         }
-        /* استایل منو آیتم‌ها شبیه به لیست‌های تلگرام */
+        /* سبک برای آیتم‌های منو */
         .menu-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0.8rem 1rem;
-            margin-bottom: 0.25rem; /* فاصله کم بین آیتم‌ها */
+            padding: 1.1rem 1.5rem; /* کمی پدینگ بیشتر */
+            border-bottom: 1px solid #f1f5f9;
             cursor: pointer;
-            transition: background-color 0.1s ease;
-            font-weight: 500;
-            border-radius: 12px;
+            transition: background-color 0.15s ease, transform 0.1s, box-shadow 0.1s;
         }
         .menu-item:hover {
-            background-color: #f3f4f6; /* هایلایت ملایم */
+            background-color: #fcfcfd;
+            transform: translateY(-2px); /* حرکت ظریف به بالا */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
-        /* سبک برای کارت‌های آمار با افکت عمق */
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+        /* سبک برای کارت‌های داشبورد */
         .metric-card {
-            background-color: #f9f9fb;
-            padding: 1rem;
-            border-radius: 16px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s;
+            background-color: #ffffff;
+            padding: 1.25rem;
+            border-radius: 18px; /* گوشه‌های گردتر از قبل */
+            /* سایه نرم و جذاب */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+            border: 1px solid #f0f0f0;
+            transition: all 0.3s;
         }
         .metric-card:hover {
-            transform: translateY(-2px);
+            box-shadow: 0 15px 20px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -4px rgba(0, 0, 0, 0.05);
+            border-color: #a5b4fc; /* رنگ آبی ملایم‌تر برای هاور */
         }
-        /* استایل هدر ثابت شبیه به نوار بالای تلگرام */
-        header {
-            background-color: #3876ee; /* آبی روشن و شیک */
-            background-image: linear-gradient(135deg, #007bff 0%, #3876ee 100%);
-            border-bottom-left-radius: 10px;
-            border-bottom-right-radius: 10px;
-            padding: 1rem 1.25rem;
+        /* سبک برای textarea با قابلیت بزرگ شدن خودکار */
+        .auto-resize-textarea {
+            overflow: hidden; 
+            resize: none; 
+            min-height: 120px;
+            height: auto;
         }
-        /* استایل سفارشی برای نمایش متن کج در جدول مارک‌داون */
-        .italic-example {
-            font-style: italic;
+
+        /* استایل سفارشی برای گرادیانت هدر */
+        .header-gradient {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         }
     </style>
 </head>
 <body>
 
     <div id="app-screen">
-        <!-- هدر ثابت -->
-        <header class="text-white flex items-center justify-between shadow-lg">
-            <h1 id="header-title" class="text-xl font-bold transition-all duration-300">پنل مدیریت ربات</h1>
+        <!-- هدر ثابت با گرادیانت -->
+        <header class="header-gradient text-white p-4 flex items-center shadow-2xl">
             <!-- آیکون بازگشت -->
-            <button id="back-button" class="text-white p-1 rounded-full hover:bg-white/20 transition duration-150 hidden">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right transform rotate-180"><path d="m9 18 6-6-6-6"/></svg>
+            <button id="back-button" class="text-white p-2 hover:bg-white/20 rounded-full transition duration-150 hidden">
+                <i data-lucide="chevron-right" class="h-6 w-6"></i>
             </button>
+            <h1 id="header-title" class="text-xl font-extrabold mr-4 flex-grow truncate">پنل مدیریت ربات</h1>
         </header>
 
         <!-- کانتینر اصلی محتوا -->
-        <div id="content" class="p-4 space-y-5">
+        <div id="content" class="p-4 space-y-4">
             <div id="loading-spinner" class="text-center p-8">
-                <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-blue-600 inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="mt-4 text-gray-600">در حال بارگذاری متون و آمار امن از سرور...</p>
+                <i data-lucide="loader-circle" class="animate-spin h-10 w-10 text-indigo-600 inline"></i>
+                <p class="mt-4 text-gray-600 font-semibold">در حال بارگذاری داده‌های اولیه...</p>
             </div>
         </div>
 
         <!-- پیام نمایش داده شده در پایین صفحه -->
-        <div id="message-box" class="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm p-3 bg-green-600 text-white text-center rounded-xl shadow-xl z-20 transition-all duration-300 translate-y-full">
+        <div id="message-box" class="fixed bottom-0 left-0 right-0 p-4 text-white text-center rounded-t-xl shadow-2xl z-20 hidden">
             عملیات با موفقیت انجام شد!
         </div>
     </div>
@@ -103,216 +108,239 @@
         const urlParams = new URLSearchParams(window.location.search);
         const STORE_HANDLE = urlParams.get('storeHandle'); 
         
-        // 2. آدرس پایه Worker API (تایید شده توسط کاربر)
+        // --- MOCK DATA FOR TESTING IN CANVAS ---
+        const MOCK_STORE_HANDLE = 'test-store-mock-dfdfdfd'; 
+        
+        const mockAppTexts = {
+            greetingTitle: "سلام مدیر عزیز! 👋 (آزمایشی)",
+            quickTipMessage: "💡 نکته: این متون برای تست در حالت آزمایشی بارگذاری شده‌اند.",
+            faqButtonText: "مشاهده سوالات متداول",
+            faqUrl: "https://mock.faq.com/",
+            navTickets: "تیکت‌ها",
+            navNewTicket: "تیکت جدید",
+            infoModalTitle: "راهنمای ارسال تیکت",
+            infoModalTip: "لطفا ابتدا صفحه سوالات متداول را بررسی کنید.",
+            closedTicketBanner: "این گفتگو توسط پشتیبانی بسته شده است.",
+            submitNewTicketBtn: "ارسال",
+            modalCloseBtn: "متوجه شدم",
+            userReplyNotification: "✅ *پشتیبانی فنی* به تیکت شما با موضوع *مشکل اتصال* پاسخ داد.\\n\\nبرای مشاهده پاسخ کلیک کنید.",
+            ticketClosedNotification: "🎫 تیکت شما با موضوع *پرداخت ناموفق* بسته شد.\\n\\nلطفا امتیاز دهید.",
+        };
+        
+        const mockAppStats = {
+            totalCount: '145',
+            totalActive: '4',
+            openCount: '3',
+            pendingCount: '1',
+            avgRating: '4.92',
+            ratingPercentage: '88.5',
+            ratedTicketsCount: 120,
+            avgFirstResponseTime: '3 ساعت و 15 دقیقه',
+            avgTimeToResolution: '1 روز و 5 ساعت',
+        };
+
+        // 2. آدرس پایه Worker API
         const WORKER_API_BASE_URL = 'https://ticketing.amiruserbot7.workers.dev'; 
+
+        // تابع برای ساخت عنوان داشبورد
+        const getDashboardTitle = (handle) => `داشبورد مدیریت (${handle || 'ناشناس'})`;
+
 
         // --- پایان تنظیمات ---
 
         const content = document.getElementById('content');
         const backButton = document.getElementById('back-button');
-        const messageBox = document.getElementById('message-box');
         const headerTitle = document.getElementById('header-title');
+        const messageBox = document.getElementById('message-box');
 
-        // تعریف ساختار تمامی کلیدهای متنی (باید با Worker/ticketing.js همگام باشد)
-        const CUSTOM_TEXT_STRUCTURE = {
-            MINI_APP_UI: {
-                title: "متن‌های رابط کاربری (Mini App)",
-                emoji: "📱",
-                keys: {
-                    greetingTitle: { name: "عنوان کارت خوش‌آمدگویی", desc: `متن اصلی کارت راهنما (مثلاً: سلام مشتری عزیز!)`, icon: "megaphone" },
-                    quickTipMessage: { name: "پیام نکته/راهنمای سریع", desc: `متن کوچک زیر عنوان در کارت راهنما (مثلاً: لطفا مشکل را با جزئیات بنویسید)`, icon: "lightbulb" },
-                    faqButtonText: { name: "متن دکمه سوالات متداول", desc: `متنی که روی دکمه مشاهده سوالات متداول نمایش داده می‌شود.`, icon: "help-circle" },
-                    faqUrl: { name: "لینک دکمه سوالات متداول", desc: `آدرس URL کامل (مثلاً: https://yourfaq.com) که دکمه راهنما به آن متصل می‌شود. (باید با https:// شروع شود)`, icon: "link-2" },
-                    navTickets: { name: "متن منوی 'تیکت‌ها'", desc: `متن آیکون تیکت‌ها در نوار پایین مینی‌اپ.`, icon: "ticket" },
-                    navNewTicket: { name: "متن منوی 'تیکت جدید'", desc: `متن آیکون ایجاد تیکت جدید در نوار پایین مینی‌اپ.`, icon: "plus-circle" },
-                    infoModalTitle: { name: "عنوان پنجره راهنمای تیکت", desc: `عنوان پنجره‌ای که قبل از ثبت تیکت جدید نمایش داده می‌شود.`, icon: "book-open" },
-                    infoModalTip: { name: "پیام داخل پنجره راهنمای تیکت", desc: `متن اصلی داخل پنجره راهنما قبل از ثبت تیکت.`, icon: "info" },
-                    closedTicketBanner: { name: "بنر تیکت بسته شده", desc: `متنی که در پایین یک تیکت بسته شده نمایش داده می‌شود.`, icon: "lock" },
-                    submitNewTicketBtn: { name: "متن دکمه ارسال تیکت", desc: `متنی که روی دکمه 'ارسال' تیکت جدید نمایش داده می‌شود.`, icon: "send" },
-                    modalCloseBtn: { name: "متن دکمه بستن پنجره‌ها", desc: `متن دکمه بستن پنجره‌های مودال.`, icon: "x-circle" },
-                }
-            },
-            USER_NOTIFICATIONS: {
-                title: "متن‌های اعلان ربات (کاربر)",
-                emoji: "📣",
-                keys: {
-                    userReplyNotification: { 
-                        name: "اعلان پاسخ ادمین به کاربر", 
-                        markdown: true, 
-                        icon: "bell",
-                        variables: ['{Department}', '{Subject}'],
-                        desc: `این پیام پس از پاسخ کارشناس، در چت کاربر نمایش داده می‌شود. از متغیرهای پویا و Markdown برای زیبایی استفاده کنید.`
-                    },
-                    ticketClosedNotification: { 
-                        name: "اعلان بسته شدن تیکت به کاربر", 
-                        markdown: true, 
-                        icon: "check-circle", 
-                        variables: ['{Subject}'],
-                        desc: `این پیام پس از بستن نهایی تیکت توسط کارشناس نمایش داده می‌شود و می‌تواند شامل درخواست امتیاز باشد.`
-                    },
-                }
-            }
-        };
-
-        const EMOJI_MAP = {
-            Dashboard: '📊',
-            MainMenu: '⚙️',
-            SubMenu_Texts: '📝',
-            EditScreen: '✍️'
-        };
-
-
+        // وضعیت‌های اصلی: Dashboard, MainMenu, SubMenu_MINIAPPUI, SubMenu_USERNOTIFICATIONS, EditScreen
         let currentState = 'Loading';
         const history = [];
-        let currentEditingKey = null; // کلید متنی که در حال ویرایش است
-        let currentMenuType = null; // نوع منو (MINI_APP_UI یا USER_NOTIFICATIONS)
         let appTexts = {}; // ذخیره متون دریافتی از Worker
-        let statsData = null; // NEW: ذخیره داده‌های آماری
+        let appStats = {}; // ذخیره آمار دریافتی از Worker
+        let currentEditKey = null; // کلید متنی که در حال ویرایش است
+        let successMessage = null; // برای نمایش پیام موفقیت در ناوبری
+
+        // ساختار ثابت متون برای استفاده در منوها (باید با Worker همگام باشد)
+        const CUSTOM_TEXT_KEYS = {
+            MINI_APP_UI: {
+                greetingTitle: { name: "عنوان خوش‌آمدگویی", icon: "user-check", desc: `متن اصلی کارت راهنما (مثلاً: سلام مشتری عزیز!)` },
+                quickTipMessage: { name: "پیام راهنمای سریع", icon: "lightbulb", desc: `متن کوچک زیر عنوان در کارت راهنما (مثلاً: لطفا مشکل را با جزئیات بنویسید)` },
+                faqButtonText: { name: "متن دکمه راهنما", icon: "help-circle", desc: `متنی که روی دکمه مشاهده سوالات متداول نمایش داده می‌شود.` },
+                faqUrl: { name: "لینک دکمه راهنما", icon: "link", desc: `آدرس URL کامل (باید با https:// شروع شود).`, isUrl: true }, // اضافه شدن isUrl
+                navTickets: { name: "منوی: تیکت‌ها", icon: "ticket", desc: `متن آیکون تیکت‌ها در نوار پایین مینی‌اپ.` },
+                navNewTicket: { name: "منوی: تیکت جدید", icon: "file-plus", desc: `متن آیکون ایجاد تیکت جدید در نوار پایین مینی‌اپ.` },
+                infoModalTitle: { name: "عنوان راهنمای تیکت", icon: "info", desc: `عنوان پنجره‌ای که قبل از ثبت تیکت جدید نمایش داده می‌شود.` },
+                infoModalTip: { name: "پیام راهنمای مودال", icon: "message-square-text", desc: `متن اصلی داخل پنجره راهنما قبل از ثبت تیکت.` },
+                closedTicketBanner: { name: "بنر تیکت بسته شده", icon: "lock", desc: `متنی که در پایین یک تیکت بسته شده نمایش داده می‌شود.` },
+                submitNewTicketBtn: { name: "متن دکمه ارسال", icon: "send", desc: `متنی که روی دکمه 'ارسال' تیکت جدید نمایش داده می‌شود.` },
+                modalCloseBtn: { name: "متن دکمه متوجه شدم", icon: "x-circle", desc: `متن دکمه بستن پنجره‌های مودال.` },
+            },
+            USER_NOTIFICATIONS: {
+                userReplyNotification: { name: "اعلان پاسخ ادمین", icon: "bell-plus", desc: `متنی که پس از پاسخ ادمین، برای کاربر ارسال می‌شود. این متن از متغیرهای پویا پشتیبانی می‌کند.` },
+                ticketClosedNotification: { name: "اعلان بسته شدن تیکت", icon: "bell-off", desc: `متنی که پس از بستن تیکت، برای کاربر ارسال می‌شود. این متن از متغیرهای پویا پشتیبانی می‌کند.` },
+            }
+        };
+
 
         // --- توابع کمکی ---
-
-        function updateHeader(title) {
-             headerTitle.textContent = title;
-        }
         
-        function showMessage(text, type = 'success') {
-            const isError = type === 'error';
-            messageBox.textContent = text;
-            messageBox.className = `fixed bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-sm p-3 text-white text-center rounded-xl shadow-xl z-20 transition-all duration-300 ${isError ? 'bg-red-600' : 'bg-green-600'} translate-y-0`;
-            
-            setTimeout(() => {
-                messageBox.classList.add('translate-y-full');
-            }, 3000);
-            setTimeout(() => {
-                messageBox.classList.remove('translate-y-full');
-                messageBox.classList.remove('bg-red-600', 'bg-green-600');
-            }, 3500);
+        // تابع برای تنظیم ارتفاع textarea بر اساس محتوا
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
         }
 
-        function navigateTo(newState, data = null, isBack = false) {
-            if (!isBack) {
-                // اگر صفحه فعلی EditScreen یا SubMenu_Texts باشد، داده‌های لازم را ذخیره کن
-                if (currentState === 'EditScreen') {
-                    history.push({ state: currentState, data: { key: currentEditingKey, type: currentMenuType } });
-                } else if (currentState === 'SubMenu_Texts') {
-                     history.push({ state: currentState, data: { key: null, type: currentMenuType } });
-                } else {
-                    // برای داشبورد و منو اصلی، فقط وضعیت را ذخیره کن
-                     history.push({ state: currentState, data: { key: null, type: null } });
+        function getFullKeyData(key) {
+            for (const menuType in CUSTOM_TEXT_KEYS) {
+                if (CUSTOM_TEXT_KEYS[menuType][key]) {
+                    return { type: menuType, key, ...CUSTOM_TEXT_KEYS[menuType][key] };
                 }
             }
-            
+            return null;
+        }
+
+        function showMessage(text, type = 'success', duration = 4000) {
+            messageBox.textContent = text;
+            // رنگ‌بندی پیام‌های موفقیت/خطا
+            messageBox.className = `fixed bottom-0 left-0 right-0 p-4 text-white text-center rounded-t-2xl shadow-2xl z-20 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, duration);
+        }
+
+        function navigateTo(newState, title = null, pushHistory = true) {
+            if (pushHistory && currentState !== 'Loading') {
+                history.push(currentState);
+            }
             currentState = newState;
             
-            if (newState === 'SubMenu_Texts') {
-                currentMenuType = data;
-                currentEditingKey = null;
-            } else if (newState === 'EditScreen') {
-                currentEditingKey = data;
-            } else if (newState === 'MainMenu' || newState === 'Dashboard') {
-                currentMenuType = null;
-                currentEditingKey = null;
-            }
-
+            const currentHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            const dashboardTitle = getDashboardTitle(currentHandle);
+            
+            headerTitle.textContent = title || dashboardTitle;
             render();
         }
 
         function handleBack() {
+            if (currentState.startsWith('EditScreen_')) {
+                // پاکسازی کلید ویرایش فعلی هنگام بازگشت از صفحه ویرایش
+                currentEditKey = null;
+            }
+
             if (history.length > 0) {
-                const lastHistory = history.pop();
-                currentState = lastHistory.state;
-                currentEditingKey = lastHistory.data.key;
-                currentMenuType = lastHistory.data.type;
-                render();
+                const previousState = history.pop();
+                
+                const currentHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+                const dashboardTitle = getDashboardTitle(currentHandle);
+                
+                // تعیین عنوان بر اساس حالت قبلی
+                let title = dashboardTitle;
+                if (previousState === 'MainMenu') {
+                    title = 'مدیریت متون';
+                } else if (previousState.startsWith('SubMenu_')) {
+                    const menuType = previousState.replace('SubMenu_', '');
+                    // اصلاح نام‌های منو برای مطابقت با CUSTOM_TEXT_KEYS
+                    title = menuType === 'MINI_APP_UI' ? 'متن‌های مینی‌اپ' : 'متن‌های اعلان ربات';
+                }
+                
+                currentState = previousState;
+                headerTitle.textContent = title;
+                render(false);
             } else {
-                navigateTo('Dashboard', null, true);
+                navigateTo('Dashboard', getDashboardTitle(STORE_HANDLE || MOCK_STORE_HANDLE), false); // اگر هیستوری خالی بود به داشبورد برگرد
             }
         }
 
         // --- Data Fetching (از Worker API) ---
 
         async function fetchStats() {
-            const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/stats`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error('API Worker failed to fetch stats.');
-                }
-                const result = await response.json();
-                return result.success ? result.data : null;
-            } catch (error) {
-                console.error("Error fetching stats:", error);
-                // بازگرداندن داده‌های صفر برای جلوگیری از کرش UI
-                return { 
-                    totalCount: 'N/A', 
-                    totalActive: 'N/A', 
-                    openCount: 'N/A', 
-                    closedCount: 'N/A', 
-                    avgRating: 'N/A', 
-                    ratingPercentage: 'N/A', 
-                    avgFirstResponseTime: 'N/A', 
-                    avgTimeToResolution: 'N/A',
-                    error: true
-                };
-            }
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            if (currentStoreHandle === MOCK_STORE_HANDLE) return mockAppStats; // MOCK MODE
+
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/stats`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch stats from Worker.');
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'Worker stats returned error.');
+            return result.data;
         }
 
-        async function fetchAppTextsOnly() {
-            const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/texts`;
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error('API Worker failed to fetch texts.');
-                }
-                const result = await response.json();
-                if (result.success && result.data) {
-                    return result.data;
-                } else {
-                    throw new Error(result.error || 'API Worker returned unsuccessful response.');
-                }
-            } catch (error) {
-                console.error("Error fetching app texts:", error);
-                showMessage(`❌ خطا در اتصال به Worker API: ${error.message}`, 'error');
-                return {};
-            }
+        async function fetchAppTexts() {
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            if (currentStoreHandle === MOCK_STORE_HANDLE) return mockAppTexts; // MOCK MODE
+
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/texts`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Worker failed to fetch texts.');
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'Worker texts returned error.');
+            return result.data;
         }
 
         async function fetchInitialData() {
-            if (!STORE_HANDLE) {
-                content.innerHTML = '<p class="text-red-600 p-4 font-bold">خطا: شناسه پلتفرم (storeHandle) در آدرس URL یافت نشد. (مانند: ?storeHandle=dfdfdfd)</p>';
-                return;
-            }
-            
-            // اجرای همزمان fetch texts و fetch stats
-            const [textsResult, statsResult] = await Promise.all([
-                fetchAppTextsOnly(),
-                fetchStats()
-            ]);
-            
-            if (textsResult) {
-                appTexts = textsResult;
-            }
-            if (statsResult) {
-                statsData = statsResult;
-            }
+            try {
+                // اگر STORE_HANDLE وجود نداشته باشد، به حالت Mock می رود
+                if (!STORE_HANDLE) {
+                    throw new Error("Missing STORE_HANDLE, loading mock data.");
+                }
 
+                const [textsData, statsData] = await Promise.all([
+                    fetchAppTexts(),
+                    fetchStats()
+                ]);
+
+                appTexts = textsData;
+                appStats = statsData;
+
+            } catch (error) {
+                console.warn(`Error in fetchInitialData: ${error.message}. Loading mock data...`);
+                appTexts = mockAppTexts;
+                appStats = mockAppStats;
+                if(error.message !== "Missing STORE_HANDLE, loading mock data."){
+                    showMessage(`❌ خطا در اتصال به API: ${error.message.substring(0, 50)}... بارگذاری داده آزمایشی.`, 'error');
+                }
+            }
             currentState = 'Dashboard';
             render();
         }
 
         // --- Data Persistence (از طریق Worker API) ---
-        async function handleSave(keyToSave) {
+        async function handleSave() {
             const saveButton = document.getElementById('save-button');
-            const editArea = document.getElementById('edit-area');
-            const newText = editArea.value;
+            const editElement = document.getElementById('edit-area');
+            const newText = editElement.value;
+
+            if (!currentEditKey) return;
+            const keyData = getFullKeyData(currentEditKey);
+
+            // Validation for URL fields
+            if (keyData.isUrl) {
+                if (!newText.startsWith('https://')) {
+                    showMessage('❌ لینک باید با https:// شروع شود.', 'error', 5000);
+                    return;
+                }
+            }
 
             saveButton.disabled = true;
-            saveButton.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3 inline text-white" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> در حال ذخیره...';
+            saveButton.innerHTML = '<i data-lucide="loader-circle" class="animate-spin h-5 w-5 inline mr-2"></i> در حال ذخیره...';
+            lucide.createIcons(); 
 
-            const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/texts`;
-            const payload = {
-                [keyToSave]: newText
-            };
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            
+            // اگر در حالت آزمایشی باشیم، فقط داده محلی را ذخیره می کنیم
+            if (currentStoreHandle === MOCK_STORE_HANDLE) {
+                appTexts[currentEditKey] = newText;
+                successMessage = `✅ متن "${keyData.name}" با موفقیت در حالت آزمایشی ذخیره شد!`;
+                
+                navigateTo(`SubMenu_${keyData.type}`, 'مدیریت متون');
+                return;
+            }
+
+            // عملیات واقعی ذخیره
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/texts`;
+            const payload = { [currentEditKey]: newText };
 
             try {
                 const response = await fetch(url, {
@@ -324,10 +352,10 @@
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    // به‌روزرسانی محلی برای نمایش فوری
-                    appTexts[keyToSave] = newText; 
-                    showMessage("✅ متن با موفقیت ذخیره و اعمال شد!");
-                    navigateTo('SubMenu_Texts', currentMenuType); // بازگشت به زیرمنوی مربوطه
+                    appTexts[currentEditKey] = newText; 
+                    successMessage = `✅ متن "${keyData.name}" با موفقیت ذخیره و اعمال شد!`;
+                    
+                    navigateTo(`SubMenu_${keyData.type}`, 'مدیریت متون');
                 } else {
                     throw new Error(result.error || 'خطا در Worker API هنگام ذخیره.');
                 }
@@ -336,7 +364,8 @@
                 showMessage(`❌ خطا در ذخیره متن: ${error.message}`, 'error');
             } finally {
                 saveButton.disabled = false;
-                saveButton.textContent = 'ذخیره و اعمال تغییرات';
+                saveButton.innerHTML = '<i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره و اعمال تغییرات';
+                lucide.createIcons();
             }
         }
 
@@ -346,241 +375,290 @@
         // =================================================================
 
         function renderDashboard() {
-            updateHeader(`${EMOJI_MAP.Dashboard} داشبورد مدیریت`);
             backButton.classList.add('hidden');
+            const currentHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            headerTitle.textContent = getDashboardTitle(currentHandle);
+            const stats = appStats;
+
+            if (successMessage) {
+                showMessage(successMessage);
+                successMessage = null;
+            }
             
-            const s = statsData || { 
-                totalCount: 'N/A', 
-                totalActive: 'N/A', 
-                openCount: 'N/A', 
-                closedCount: 'N/A', 
-                avgRating: 'N/A', 
-                ratingPercentage: 'N/A', 
-                avgFirstResponseTime: 'N/A', 
-                avgTimeToResolution: 'N/A',
-                error: true
-            };
+            const ratingPercent = parseFloat(stats.ratingPercentage || '0');
+            const progressBarColor = ratingPercent >= 90 ? 'bg-green-500' : 
+                                     ratingPercent >= 75 ? 'bg-yellow-500' : 'bg-red-500';
 
-            // ساختار کامل گزارش آماری
-            const fullReport = `
-                <div class="space-y-4 text-sm text-gray-700">
-                    <h4 class="font-bold text-lg text-indigo-700">✨ خلاصه حجم کاری</h4>
-                    <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-                        <p class="flex justify-between border-b border-dashed pb-1"><span>🎫 کل تیکت‌ها:</span> <span class="font-extrabold">${s.totalCount}</span></p>
-                        <p class="flex justify-between border-b border-dashed pb-1"><span>🟢 تیکت‌های فعال:</span> <span class="font-extrabold text-red-600">${s.totalActive}</span></p>
-                        <p class="flex justify-between"><span>🔥 تیکت‌های باز:</span> <span class="font-extrabold text-orange-600">${s.openCount}</span></p>
-                        <p class="flex justify-between"><span>🔒 تیکت‌های بسته:</span> <span class="font-extrabold text-gray-500">${s.closedCount}</span></p>
-                    </div>
-                    
-                    <h4 class="font-bold text-lg text-indigo-700 pt-4 border-t border-dashed mt-4">⏱️ سرعت و کارایی تیم</h4>
-                    <div class="grid grid-cols-1 gap-y-2">
-                        <p class="flex justify-between border-b border-dashed pb-1"><span>🚀 میانگین اولین پاسخ:</span> <span class="font-extrabold">${s.avgFirstResponseTime}</span></p>
-                        <p class="flex justify-between"><span>⏳ میانگین زمان حل و فصل:</span> <span class="font-extrabold">${s.avgTimeToResolution}</span></p>
-                    </div>
-
-                    <h4 class="font-bold text-lg text-indigo-700 pt-4 border-t border-dashed mt-4">⭐ کیفیت خدمات و رضایت</h4>
-                    <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-                        <p class="flex justify-between border-b border-dashed pb-1"><span>🏆 میانگین امتیاز:</span> <span class="font-extrabold text-green-600">${s.avgRating} / 5.00</span></p>
-                        <p class="flex justify-between border-b border-dashed pb-1"><span>% نرخ امتیازدهی:</span> <span class="font-extrabold">${s.ratingPercentage}%</span></p>
-                        <p class="col-span-2 text-xs text-gray-500 mt-1">*(آمار واقعی از دیتابیس دریافت شده است)*</p>
-                    </div>
-                </div>
-            `;
-            
-            // پیام خطا در صورت عدم دریافت آمار
-            const errorBanner = s.error ? `
-                <div class="p-3 bg-red-50 border-l-4 border-red-400 rounded-xl shadow-inner mb-4">
-                    <p class="text-sm font-semibold text-red-700">⚠️ خطا در بارگذاری آمار:</p>
-                    <p class="text-xs text-red-600 mt-1">Worker API آمار را برنگرداند. لطفاً از اتصال و فعال بودن API /api/${STORE_HANDLE}/stats مطمئن شوید.</p>
-                </div>
-            ` : '';
-
+            const metricCards = [
+                { title: "کل تیکت‌ها", value: stats.totalCount || '0', icon: "ticket", color: "text-indigo-600", desc: "تعداد کل تیکت‌های ثبت شده." },
+                { title: "تیکت‌های فعال", value: stats.totalActive || '0', icon: "inbox", color: "text-red-600", desc: "باز و در انتظار پاسخ ادمین." },
+                { title: "امتیاز میانگین", value: `${stats.avgRating || 'N/A'} / 5.00`, icon: "star", color: "text-yellow-600", desc: `بر اساس ${stats.ratedTicketsCount || 0} امتیاز ثبت شده.` },
+                { title: "میانگین پاسخ", value: stats.avgFirstResponseTime || 'N/A', icon: "clock-3", color: "text-green-600", desc: "زمان متوسط اولین پاسخگویی." },
+            ];
 
             content.innerHTML = `
-                <div class="space-y-4">
-                    <div class="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-xl shadow-inner">
-                        <p class="text-sm font-semibold text-blue-700">به پنل حرفه‌ای تیکت تل خوش آمدید! 👋</p>
-                        <p class="text-xs text-blue-600 mt-1">از این بخش می‌توانید عملکرد کلی سیستم را مشاهده و متون را شخصی‌سازی کنید.</p>
+                <div class="space-y-6">
+                    <!-- کارت اصلی اطلاعات و سرعت -->
+                    <div class="text-sm text-center text-gray-500 bg-gray-100 p-2 rounded-lg mb-4">
+                        <i data-lucide="store" class="h-4 w-4 inline mr-1 text-indigo-500"></i>
+                        شناسه فروشگاه (Store Handle): <span class="font-bold text-gray-700">${currentHandle}</span>
+                    </div>
+
+                    <h2 class="text-2xl font-extrabold text-gray-800 border-b pb-3 mb-4">گزارش عملکرد فروشگاه</h2>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        ${metricCards.map(card => `
+                            <div class="metric-card hover:shadow-indigo-100/50">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h3 class="text-sm font-semibold text-gray-500">${card.title}</h3>
+                                    <i data-lucide="${card.icon}" class="${card.color} h-6 w-6"></i>
+                                </div>
+                                <!-- اندازه اعداد از text-3xl به text-2xl کاهش یافت -->
+                                <p class="text-2xl font-extrabold text-gray-900">${card.value}</p>
+                                <p class="text-xs text-gray-400 mt-1 truncate">${card.desc}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <!-- بخش سرعت و نوار پیشرفت جدید -->
+                    <div class="metric-card bg-purple-50 border-purple-200 border-dashed hover:shadow-purple-100/50">
+                        <h3 class="text-lg font-bold text-purple-700 mb-4 flex items-center">
+                            <i data-lucide="zap" class="h-5 w-5 ml-2"></i> شاخص‌های کلیدی عملکرد (KPI)
+                        </h3>
+                        
+                        <div class="space-y-3">
+                            <p class="flex justify-between text-sm">
+                                <span class="text-gray-600">زمان حل نهایی تیکت:</span>
+                                <span class="font-bold text-gray-800">${stats.avgTimeToResolution || 'N/A'}</span>
+                            </p>
+
+                            <!-- نوار پیشرفت ویژوالایزر امتیاز -->
+                            <div>
+                                <p class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-600">درصد رضایت کاربران (امتیازدهی):</span>
+                                    <span class="font-bold text-gray-800">${stats.ratingPercentage || '0.0'}%</span>
+                                </p>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                    <div class="${progressBarColor} h-2.5 rounded-full transition-all duration-500" style="width: ${ratingPercent > 100 ? 100 : ratingPercent}%;"></div>
+                                </div>
+                            </div>
+
+                        </div>
                     </div>
                     
-                    ${errorBanner}
-
-                    <div class="metric-card p-4 bg-white">
-                        <h3 class="text-xl font-extrabold text-gray-900 mb-4">گزارش عملکرد پشتیبانی</h3>
-                        ${fullReport}
-                    </div>
-                </div>
-
-                <div class="pt-6">
-                    <button onclick="navigateTo('MainMenu')" class="w-full bg-blue-600 text-white py-3 rounded-xl shadow-lg hover:bg-blue-700 transition duration-200 font-bold flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-edit-3 ml-2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                        شروع شخصی‌سازی متون
+                    <!-- دکمه اصلی با استایل برجسته -->
+                    <button onclick="navigateTo('MainMenu', 'مدیریت متون')" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-4 mt-6 rounded-2xl shadow-xl shadow-indigo-400/50 hover:from-indigo-700 hover:to-purple-700 transition duration-300 font-bold flex items-center justify-center text-lg">
+                        <i data-lucide="settings" class="h-6 w-6 ml-2"></i> مدیریت متون و تنظیمات
                     </button>
                 </div>
             `;
+            lucide.createIcons();
         }
 
         function renderMainMenu() {
-            updateHeader(`${EMOJI_MAP.MainMenu} تنظیمات متون`);
             backButton.classList.remove('hidden');
+            headerTitle.textContent = 'مدیریت متون';
+            
+            if (successMessage) {
+                showMessage(successMessage);
+                successMessage = null;
+            }
+
             content.innerHTML = `
-                <div class="space-y-4">
-                    <p class="text-sm text-gray-600">متون کلیدی که ظاهر مینی اپ و اعلان‌های کاربر را می‌سازند، از اینجا مدیریت کنید. تغییرات بلافاصله اعمال می‌شوند.</p>
-                    
-                    <div class="bg-white border border-gray-200 rounded-xl shadow-md divide-y divide-gray-100">
-                        <div class="menu-item" onclick="navigateTo('SubMenu_Texts', 'MINI_APP_UI')">
-                            <span class="flex items-center text-gray-800">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-grid text-blue-500 ml-3"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="3" x2="21" y1="15" y2="15"/><line x1="9" x2="9" y1="3" y2="21"/><line x1="15" x2="15" y1="3" y2="21"/></svg>
-                                <span class="font-bold">${CUSTOM_TEXT_STRUCTURE.MINI_APP_UI.title}</span>
-                            </span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left text-gray-400"><path d="m15 18-6-6 6-6"/></svg>
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">شخصی‌سازی محتوا</h2>
+                <p class="text-sm text-gray-500 mb-6">متون کلیدی مینی اپ و اعلان‌های ارسال شده به کاربران را ویرایش کنید.</p>
+                <!-- استفاده از bg-white/90 برای حس شیشه‌ای ملایم -->
+                <div class="bg-white/90 border border-gray-100 rounded-2xl divide-y divide-gray-100 shadow-xl">
+                    <div class="menu-item" onclick="navigateTo('SubMenu_MINI_APP_UI', 'متن‌های مینی‌اپ')">
+                        <span class="flex items-center font-medium text-gray-800">
+                            <i data-lucide="smartphone" class="h-5 w-5 ml-3 text-indigo-600"></i>
+                            متن‌های مینی‌اپ (رابط کاربری)
+                        </span>
+                        <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
+                    </div>
+                    <div class="menu-item" onclick="navigateTo('SubMenu_USER_NOTIFICATIONS', 'متن‌های اعلان ربات')">
+                        <span class="flex items-center font-medium text-gray-800">
+                            <i data-lucide="bell" class="h-5 w-5 ml-3 text-orange-600"></i>
+                            متن‌های اعلان کاربر (ربات)
+                        </span>
+                        <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
+                    </div>
+                    <div class="menu-item font-bold text-gray-600 hover:bg-transparent" onclick="navigateTo('Dashboard', getDashboardTitle(STORE_HANDLE || MOCK_STORE_HANDLE))">
+                        <span class="flex items-center">
+                            <i data-lucide="layout-dashboard" class="h-5 w-5 ml-3 text-gray-400"></i>
+                            بازگشت به داشبورد
+                        </span>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function renderSubMenu_Texts(state) {
+            backButton.classList.remove('hidden');
+            const menuType = state.replace('SubMenu_', ''); // MINI_APP_UI or USER_NOTIFICATIONS
+            const keys = CUSTOM_TEXT_KEYS[menuType];
+            const menuTitle = menuType === 'MINI_APP_UI' ? "متن‌های رابط کاربری مینی‌اپ" : "متن‌های اعلان ربات کاربر";
+            
+            headerTitle.textContent = menuTitle;
+
+            if (successMessage) {
+                showMessage(successMessage);
+                successMessage = null;
+            }
+
+            content.innerHTML = `
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">${menuTitle}</h2>
+                <p class="text-sm text-gray-500 mb-6">متن مورد نظر برای ویرایش را انتخاب کنید:</p>
+                <div class="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-100 shadow-xl">
+                    ${Object.entries(keys).map(([key, data]) => {
+                        const menuIcon = data.icon || 'file-text';
+                        const iconColor = menuType === 'MINI_APP_UI' ? 'text-indigo-500' : 'text-orange-500';
+                        return `
+                            <div class="menu-item" onclick="navigateTo('EditScreen_${key}', 'ویرایش: ${data.name}')">
+                                <span class="flex items-center text-gray-800">
+                                    <i data-lucide="${menuIcon}" class="h-5 w-5 ml-3 ${iconColor}"></i>
+                                    ${data.name}
+                                </span>
+                                <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
+                            </div>
+                        `;
+                    }).join('')}
+                    <div class="menu-item font-bold text-indigo-600 hover:bg-transparent" onclick="navigateTo('MainMenu', 'مدیریت متون')">
+                        <span class="flex items-center">
+                            <i data-lucide="undo-2" class="h-5 w-5 ml-3"></i>
+                            بازگشت به منوی اصلی
+                        </span>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function renderEditScreen(state) {
+            backButton.classList.remove('hidden');
+            currentEditKey = state.replace('EditScreen_', '');
+            const keyData = getFullKeyData(currentEditKey);
+
+            if (!keyData) {
+                content.innerHTML = `<p class="text-red-600 p-4 font-bold">خطا: کلید متنی نامعتبر است.</p>`;
+                return;
+            }
+
+            headerTitle.textContent = `ویرایش: ${keyData.name}`;
+
+            const isNotification = keyData.type === 'USER_NOTIFICATIONS';
+            const isUrlField = keyData.isUrl;
+
+            // جایگزینی \n با دو فاصله برای نمایش بهتر در textarea
+            const currentText = (appTexts[currentEditKey] || keyData.defaultText || "متن پیش‌فرض موجود نیست.").replace(/\\n/g, '\n');
+            
+            let markdownGuideHTML = '';
+            let inputElement;
+
+            if (isNotification) {
+                // راهنمای پیشرفته برای Notification Texts
+                markdownGuideHTML = `
+                    <div class="bg-blue-50 border-r-4 border-blue-400 p-4 mb-4 rounded-xl text-sm text-gray-700 shadow-inner">
+                        <p class="font-bold text-blue-700 flex items-center mb-2"><i data-lucide="code" class="h-5 w-5 ml-2"></i> راهنمای حرفه‌ای Markdown و متغیرها</p>
+                        
+                        <!-- جدول Markdown -->
+                        <div class="bg-white border rounded-lg overflow-hidden mt-3">
+                            <table class="w-full text-right text-xs">
+                                <thead class="bg-gray-100 font-semibold text-gray-600">
+                                    <tr>
+                                        <th class="p-2 border-b">سینتکس</th>
+                                        <th class="p-2 border-b">توضیح</th>
+                                        <th class="p-2 border-b">نمونه خروجی</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="p-2 border-b font-mono">**متن**</td>
+                                        <td class="p-2 border-b">متن بولد</td>
+                                        <td class="p-2 border-b font-bold">متن ضخیم</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="p-2 border-b font-mono">*متن*</td>
+                                        <td class="p-2 border-b">متن کج</td>
+                                        <td class="p-2 border-b italic">متن کج</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="p-2 border-b font-mono">\`کد\`</td>
+                                        <td class="p-2 border-b">نوشتن کد یا ID</td>
+                                        <td class="p-2 border-b font-mono text-sm bg-gray-100 rounded">کد</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                         
-                        <div class="menu-item" onclick="navigateTo('SubMenu_Texts', 'USER_NOTIFICATIONS')">
-                            <span class="flex items-center text-gray-800">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text text-purple-500 ml-3"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7h4"/><path d="M8 7h.01"/><path d="M8 11h8"/></svg>
-                                <span class="font-bold">${CUSTOM_TEXT_STRUCTURE.USER_NOTIFICATIONS.title}</span>
-                            </span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left text-gray-400"><path d="m15 18-6-6 6-6"/></svg>
-                        </div>
-
-                    </div>
-                    
-                    <div class="p-3 text-sm text-gray-500">
-                        <p>💡 برای بازگشت به داشبورد، از دکمه "بازگشت" در بالای صفحه استفاده کنید.</p>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderSubMenu_Texts() {
-            updateHeader(`${EMOJI_MAP.SubMenu_Texts} ${currentMenuType === 'MINI_APP_UI' ? 'متون رابط کاربری' : 'متون اعلان ربات'}`);
-            backButton.classList.remove('hidden');
-            const menuType = currentMenuType;
-            const menuData = CUSTOM_TEXT_STRUCTURE[menuType];
-
-            if (!menuData) {
-                content.innerHTML = '<p class="text-red-600 p-4 font-bold">خطا: نوع منو نامعتبر است.</p>';
-                return;
-            }
-
-            const itemsHtml = Object.keys(menuData.keys).map(key => {
-                const item = menuData.keys[key];
-                // استفاده از Lucide Icon
-                const iconHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-${item.icon || 'file-text'} text-gray-500 ml-3"></svg>`;
-                
-                return `
-                    <div class="menu-item" onclick="navigateTo('EditScreen', '${key}')">
-                        <span class="flex items-center text-gray-800">
-                            ${iconHtml}
-                            ${item.name}
-                        </span>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left text-gray-400"><path d="m15 18-6-6 6-6"/></svg>
+                        <!-- متغیرهای پویا -->
+                        <p class="font-bold text-blue-700 mt-4 mb-1 flex items-center"><i data-lucide="variable" class="h-5 w-5 ml-2"></i> متغیرهای پویا (Dynamic Variables)</p>
+                        <p class="mb-2">برای نمایش اطلاعات متغیر تیکت، **دقیقاً** از متغیرهای زیر استفاده کنید (حساس به حروف بزرگ و کوچک):</p>
+                        <ul class="list-disc pr-5 space-y-1 font-mono text-xs">
+                            <li><code>{Subject}</code>: موضوع تیکت</li>
+                            <li><code>{Department}</code>: نام دپارتمان</li>
+                        </ul>
                     </div>
                 `;
-            }).join('');
-
-            content.innerHTML = `
-                <div class="space-y-4">
-                    <p class="text-sm text-gray-600">از لیست زیر، متنی که می‌خواهید ویرایش کنید را انتخاب نمایید:</p>
-                    
-                    <div class="bg-white border border-gray-200 rounded-xl shadow-md divide-y divide-gray-100">
-                        ${itemsHtml}
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderEditScreen() {
-            updateHeader(`${EMOJI_MAP.EditScreen} ویرایش متن`);
-            backButton.classList.remove('hidden');
-            const key = currentEditingKey;
-            const menuType = currentMenuType;
-
-            const menuData = CUSTOM_TEXT_STRUCTURE[menuType];
-            const item = menuData.keys[key];
-
-            if (!item) {
-                content.innerHTML = '<p class="text-red-600 p-4 font-bold">خطا: کلید متنی مورد نظر برای ویرایش یافت نشد.</p>';
-                return;
+            } else {
+                 // راهنمای ساده برای UI Texts - توضیحات به داخل کادر زرد رنگ منتقل شد.
+                 // keyData.desc در اینجا همان متن توضیحات است.
+                 const description = keyData.desc || 'توضیحات خاصی برای این متن موجود نیست. لطفاً آن را ساده و مختصر نگه دارید.';
+                 markdownGuideHTML = `
+                     <div class="bg-yellow-50 border-r-4 border-yellow-400 p-3 mb-4 rounded-xl text-sm text-gray-700 flex items-start shadow-inner">
+                         <i data-lucide="alert-triangle" class="h-5 w-5 ml-2 text-yellow-700 flex-shrink-0 mt-0.5"></i>
+                         <div>
+                             <span class="font-bold text-yellow-700 ml-1">راهنمای متن:</span>
+                             <span>${description}</span>
+                         </div>
+                     </div>
+                   `;
             }
 
-            // اگر متنی دریافت نشده باشد، از یک متن موقت استفاده می‌شود
-            const currentText = appTexts[key] || `متن پیش‌فرض برای ${item.name} در دیتابیس موجود نیست.`;
-            
-            // توضیحات پیشرفته برای Markdown
-            const markdownHint = item.markdown ? `
-                <div class="bg-indigo-50 border-r-4 border-indigo-400 p-3 mb-4 rounded-lg text-sm text-gray-700 space-y-2">
-                    <p class="font-bold flex items-center text-indigo-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-code-2 ml-2"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>
-                        راهنمای تخصصی ویرایش Markdown
-                    </p>
-                    <table class="w-full text-xs text-right border-collapse">
-                        <thead>
-                            <tr class="bg-indigo-100 border-b">
-                                <th class="p-1 font-semibold text-center">نمونه خروجی</th>
-                                <th class="p-1 font-semibold text-center">سینتکس</th>
-                                <th class="p-1 font-semibold text-right">توضیح</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="border-b">
-                                <td class="p-1 font-bold text-center">متن ضخیم</td>
-                                <td class="p-1 font-mono text-left text-center">**متن**</td>
-                                <td class="p-1">متن بولد (Bold)</td>
-                            </tr>
-                            <tr class="border-b">
-                                <td class="p-1 italic-example text-center">متن کج</td>
-                                <td class="p-1 font-mono text-left text-center">*متن*</td>
-                                <td class="p-1">متن کج (Italic)</td>
-                            </tr>
-                            <tr>
-                                <td class="p-1 font-mono text-xs bg-gray-200 rounded inline-block px-1 text-center">code</td>
-                                <td class="p-1 font-mono text-left text-center">\`متن\`</td>
-                                <td class="p-1">کد یا شناسه (Monospace)</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    ${item.variables && item.variables.length > 0 ? `
-                        <div class="pt-2 border-t border-indigo-200 mt-2">
-                            <p class="font-bold text-sm text-indigo-700">متغیرهای پویا (Dynamic Variables):</p>
-                            <p class="text-xs">برای نمایش اطلاعات متغیر تیکت، **دقیقاً** از متغیرهای زیر استفاده کنید. (حساس به حروف بزرگ و کوچک):</p>
-                            <ul class="list-disc pr-5 mt-1 space-y-0.5">
-                                ${item.variables.map(v => `<li class="font-mono text-xs text-green-700">${v}</li>`).join('')}
-                            </ul>
-                        </div>
-                    ` : ''}
-                </div>
-            ` : '';
-            
+            if (isUrlField) {
+                // فیلد تک‌خطی برای URL
+                inputElement = `
+                    <!-- اندازه فونت ورودی به text-sm کاهش یافت -->
+                    <input id="edit-area" type="url" value="${currentText.replace(/\n/g, '')}" class="w-full p-4 border border-gray-300 rounded-xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="مثلاً: https://yourdomain.com/faq">
+                `;
+            } else {
+                // فیلد چندخطی با قابلیت بزرگ شدن خودکار
+                inputElement = `
+                    <!-- اندازه فونت ورودی به text-sm کاهش یافت -->
+                    <textarea id="edit-area" rows="4" class="auto-resize-textarea w-full p-4 border border-gray-300 rounded-xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="متن جدید خود را اینجا وارد کنید...">${currentText}</textarea>
+                `;
+            }
 
             content.innerHTML = `
-                <div class="space-y-4">
-                    <h2 class="text-2xl font-extrabold text-gray-800">${item.name}</h2>
-                    
-                    <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700">
-                        <p class="font-bold text-base text-gray-800">توضیح کلید:</p>
-                        <p class="mt-1">${item.desc}</p>
-                    </div>
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ویرایش: ${keyData.name}</h2>
 
-                    ${markdownHint}
+                ${markdownGuideHTML}
 
-                    <!-- ناحیه ویرایش متن -->
-                    <textarea id="edit-area" rows="${item.markdown ? '12' : '8'}" class="w-full p-4 border border-gray-300 rounded-xl shadow-inner focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm bg-white" placeholder="متن خود را اینجا وارد کنید...">${currentText}</textarea>
+                <!-- ناحیه ویرایش متن/ورودی -->
+                ${inputElement}
 
-                    <!-- دکمه‌های عملیات -->
-                    <div class="flex justify-between space-x-3 mt-4">
-                        <button onclick="navigateTo('SubMenu_Texts', currentMenuType)" class="flex-grow flex items-center justify-center px-4 py-3 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300 transition duration-150 font-semibold shadow-md">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x ml-2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                            لغو و بازگشت
-                        </button>
-                        <button id="save-button" onclick="handleSave('${key}')" class="flex-grow flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition duration-150 font-semibold shadow-xl">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save ml-2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                            ذخیره و اعمال تغییرات
-                        </button>
-                    </div>
+                <!-- دکمه‌های عملیات -->
+                <div class="flex justify-end space-x-3 mt-4" dir="ltr">
+                    <button onclick="handleBack()" class="px-5 py-3 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300 transition duration-150 font-semibold shadow-md hover:shadow-lg">
+                        <i data-lucide="x-circle" class="h-5 w-5 inline ml-1"></i> لغو (بازگشت)
+                    </button>
+                    <!-- دکمه ذخیره با گرادیانت و سایه قوی‌تر -->
+                    <button id="save-button" onclick="handleSave()" class="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition duration-150 font-semibold shadow-lg shadow-indigo-400/50">
+                        <i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره و اعمال تغییرات
+                    </button>
                 </div>
             `;
+            lucide.createIcons();
+            
+            // اگر فیلد textarea است، قابلیت بزرگ شدن خودکار را اضافه کن
+            const editArea = document.getElementById('edit-area');
+            if (editArea && !isUrlField) {
+                // اعمال resize اولیه
+                autoResize(editArea); 
+                // افزودن event listener برای resize هنگام تایپ
+                editArea.addEventListener('input', () => autoResize(editArea));
+            }
         }
 
 
@@ -589,42 +667,29 @@
         function render() {
             if (currentState === 'Loading') {
                 content.innerHTML = document.getElementById('loading-spinner').outerHTML;
+                lucide.createIcons(); // حتماً آیکون لودر را ایجاد کند
                 return;
             }
 
             content.classList.add('transition', 'duration-300', 'opacity-0');
             setTimeout(() => {
-                // پاک کردن و رندر مجدد محتوا
-                content.innerHTML = '';
-                switch (currentState) {
-                    case 'Dashboard':
-                        renderDashboard();
-                        break;
-                    case 'MainMenu':
-                        renderMainMenu();
-                        break;
-                    case 'SubMenu_Texts':
-                        renderSubMenu_Texts();
-                        break;
-                    case 'EditScreen':
-                        renderEditScreen();
-                        break;
-                    default:
-                        renderDashboard();
+                
+                if (currentState === 'Dashboard') {
+                    renderDashboard();
+                } else if (currentState === 'MainMenu') {
+                    renderMainMenu();
+                } else if (currentState.startsWith('SubMenu_')) {
+                    renderSubMenu_Texts(currentState);
+                } else if (currentState.startsWith('EditScreen_')) {
+                    renderEditScreen(currentState);
+                } else {
+                    renderDashboard();
                 }
-                // اطمینان از نمایش آیکون‌ها بعد از رندر شدن
-                if (typeof lucide !== 'undefined') {
-                    lucide.createIcons();
-                }
+                
+                backButton.classList[history.length > 0 ? 'remove' : 'add']('hidden');
+                
                 content.classList.remove('opacity-0');
             }, 50);
-            
-            // مدیریت نمایش دکمه بازگشت
-            if (currentState === 'Dashboard') {
-                backButton.classList.add('hidden');
-            } else {
-                backButton.classList.remove('hidden');
-            }
         }
 
         // رویدادهای اصلی
@@ -632,7 +697,12 @@
 
         // شروع اپلیکیشن: ابتدا داده‌ها را از Worker دریافت کن
         fetchInitialData();
-
+    </script>
+    <script>
+        // آیکون‌ها را در بارگذاری اولیه ایجاد می‌کند
+        window.onload = function() {
+            lucide.createIcons();
+        }
     </script>
 </body>
 </html>
