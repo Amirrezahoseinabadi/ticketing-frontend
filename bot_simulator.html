@@ -61,6 +61,10 @@
             border-bottom-right-radius: 10px;
             padding: 1rem 1.25rem;
         }
+        /* استایل سفارشی برای نمایش متن کج در جدول مارک‌داون */
+        .italic-example {
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -82,7 +86,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <p class="mt-4 text-gray-600">در حال بارگذاری متون امن از سرور...</p>
+                <p class="mt-4 text-gray-600">در حال بارگذاری متون و آمار امن از سرور...</p>
             </div>
         </div>
 
@@ -158,9 +162,10 @@
 
         let currentState = 'Loading';
         const history = [];
-        let currentEditingKey = null; // کلید متنی که در حال ویرایش است
-        let currentMenuType = null; // نوع منو (MINI_APP_UI یا USER_NOTIFICATIONS)
-        let appTexts = {}; // ذخیره متون دریافتی از Worker
+        let currentEditingKey = null; 
+        let currentMenuType = null;
+        let appTexts = {}; 
+        let statsData = null; // NEW: ذخیره داده‌های آماری
 
         // --- توابع کمکی ---
 
@@ -223,31 +228,73 @@
         }
 
         // --- Data Fetching (از Worker API) ---
-        async function fetchAppTexts() {
-            if (!STORE_HANDLE) {
-                content.innerHTML = '<p class="text-red-600 p-4 font-bold">خطا: شناسه پلتفرم (storeHandle) در آدرس URL یافت نشد. (مانند: ?storeHandle=dfdfdfd)</p>';
-                return;
-            }
 
-            const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/texts`;
-            
+        async function fetchStats() {
+            // NOTE: فرض بر وجود API جدید در Worker است
+            const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/stats`;
             try {
                 const response = await fetch(url);
                 if (!response.ok) {
-                    throw new Error('API Worker failed to fetch texts. Check WORKER_API_BASE_URL.');
+                    throw new Error('API Worker failed to fetch stats.');
                 }
                 const result = await response.json();
-                
+                return result.success ? result.data : null;
+            } catch (error) {
+                console.error("Error fetching stats:", error);
+                // بازگرداندن داده‌های صفر برای جلوگیری از کرش UI
+                return { 
+                    totalCount: 'N/A', 
+                    totalActive: 'N/A', 
+                    openCount: 'N/A', 
+                    closedCount: 'N/A', 
+                    avgRating: 'N/A', 
+                    ratingPercentage: 'N/A', 
+                    avgFirstResponseTime: 'N/A', 
+                    avgTimeToResolution: 'N/A',
+                    error: true
+                };
+            }
+        }
+
+        async function fetchAppTextsOnly() {
+            const url = `${WORKER_API_BASE_URL}/api/${STORE_HANDLE}/texts`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('API Worker failed to fetch texts.');
+                }
+                const result = await response.json();
                 if (result.success && result.data) {
-                    appTexts = result.data;
-                    console.log("App Texts loaded from Worker:", appTexts);
+                    return result.data;
                 } else {
                     throw new Error(result.error || 'API Worker returned unsuccessful response.');
                 }
             } catch (error) {
                 console.error("Error fetching app texts:", error);
                 showMessage(`❌ خطا در اتصال به Worker API: ${error.message}`, 'error');
+                return {};
             }
+        }
+
+        async function fetchInitialData() {
+            if (!STORE_HANDLE) {
+                content.innerHTML = '<p class="text-red-600 p-4 font-bold">خطا: شناسه پلتفرم (storeHandle) در آدرس URL یافت نشد. (مانند: ?storeHandle=dfdfdfd)</p>';
+                return;
+            }
+            
+            // اجرای همزمان fetch texts و fetch stats
+            const [textsResult, statsResult] = await Promise.all([
+                fetchAppTextsOnly(),
+                fetchStats()
+            ]);
+            
+            if (textsResult) {
+                appTexts = textsResult;
+            }
+            if (statsResult) {
+                statsData = statsResult;
+            }
+
             currentState = 'Dashboard';
             render();
         }
@@ -300,51 +347,66 @@
         function renderDashboard() {
             updateHeader(`${EMOJI_MAP.Dashboard} داشبورد مدیریت`);
             backButton.classList.add('hidden');
+            
+            const s = statsData || { 
+                totalCount: 'N/A', 
+                totalActive: 'N/A', 
+                openCount: 'N/A', 
+                closedCount: 'N/A', 
+                avgRating: 'N/A', 
+                ratingPercentage: 'N/A', 
+                avgFirstResponseTime: 'N/A', 
+                avgTimeToResolution: 'N/A',
+                error: true
+            };
+
+            // ساختار کامل گزارش آماری
+            const fullReport = `
+                <div class="space-y-4 text-sm text-gray-700">
+                    <h4 class="font-bold text-lg text-indigo-700">✨ خلاصه حجم کاری</h4>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                        <p class="flex justify-between border-b border-dashed pb-1"><span>🎫 کل تیکت‌ها:</span> <span class="font-extrabold">${s.totalCount}</span></p>
+                        <p class="flex justify-between border-b border-dashed pb-1"><span>🟢 تیکت‌های فعال:</span> <span class="font-extrabold text-red-600">${s.totalActive}</span></p>
+                        <p class="flex justify-between"><span>🔥 تیکت‌های باز:</span> <span class="font-extrabold text-orange-600">${s.openCount}</span></p>
+                        <p class="flex justify-between"><span>🔒 تیکت‌های بسته:</span> <span class="font-extrabold text-gray-500">${s.closedCount}</span></p>
+                    </div>
+                    
+                    <h4 class="font-bold text-lg text-indigo-700 pt-4 border-t border-dashed mt-4">⏱️ سرعت و کارایی تیم</h4>
+                    <div class="grid grid-cols-1 gap-y-2">
+                        <p class="flex justify-between border-b border-dashed pb-1"><span>🚀 میانگین اولین پاسخ:</span> <span class="font-extrabold">${s.avgFirstResponseTime}</span></p>
+                        <p class="flex justify-between"><span>⏳ میانگین زمان حل و فصل:</span> <span class="font-extrabold">${s.avgTimeToResolution}</span></p>
+                    </div>
+
+                    <h4 class="font-bold text-lg text-indigo-700 pt-4 border-t border-dashed mt-4">⭐ کیفیت خدمات و رضایت</h4>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                        <p class="flex justify-between border-b border-dashed pb-1"><span>🏆 میانگین امتیاز:</span> <span class="font-extrabold text-green-600">${s.avgRating} / 5.00</span></p>
+                        <p class="flex justify-between border-b border-dashed pb-1"><span>% نرخ امتیازدهی:</span> <span class="font-extrabold">${s.ratingPercentage}%</span></p>
+                        <p class="col-span-2 text-xs text-gray-500 mt-1">*(آمار واقعی از دیتابیس دریافت شده است)*</p>
+                    </div>
+                </div>
+            `;
+            
+            // پیام خطا در صورت عدم دریافت آمار
+            const errorBanner = s.error ? `
+                <div class="p-3 bg-red-50 border-l-4 border-red-400 rounded-xl shadow-inner mb-4">
+                    <p class="text-sm font-semibold text-red-700">⚠️ خطا در بارگذاری آمار:</p>
+                    <p class="text-xs text-red-600 mt-1">Worker API آمار را برنگرداند. لطفاً از اتصال و فعال بودن API /api/${STORE_HANDLE}/stats مطمئن شوید.</p>
+                </div>
+            ` : '';
+
+
             content.innerHTML = `
                 <div class="space-y-4">
                     <div class="p-4 bg-blue-50 border-l-4 border-blue-400 rounded-xl shadow-inner">
                         <p class="text-sm font-semibold text-blue-700">به پنل حرفه‌ای تیکت تل خوش آمدید! 👋</p>
                         <p class="text-xs text-blue-600 mt-1">از این بخش می‌توانید عملکرد کلی سیستم را مشاهده و متون را شخصی‌سازی کنید.</p>
                     </div>
-
-                    <h3 class="text-lg font-bold text-gray-800 pt-2 border-b-2 border-dashed pb-1">آمار کلی عملکرد</h3>
                     
-                    <div class="grid grid-cols-2 gap-3">
-                        <!-- کارت ۱: تعداد کل تیکت‌ها -->
-                        <div class="metric-card bg-white">
-                            <div class="flex items-center space-x-2 justify-end" dir="ltr">
-                                <span class="font-bold text-lg text-gray-900">145</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-inbox text-blue-500"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-1">تعداد کل تیکت‌ها</p>
-                        </div>
-                        
-                        <!-- کارت ۲: تیکت‌های فعال -->
-                        <div class="metric-card bg-white">
-                            <div class="flex items-center space-x-2 justify-end" dir="ltr">
-                                <span class="font-bold text-lg text-red-600">4</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bell-ring text-red-500"><path d="M12 20a4 4 0 0 0 4-4V7a4 4 0 0 0-8 0v9a4 4 0 0 0 4 4Z"/><path d="M21.2 3.6c-1.3-.8-2.5-1.2-4.2-1.2H7c-1.7 0-2.9.4-4.2 1.2a.5.5 0 0 0 0 .8c.7.4 1.5.8 2.5 1.1h13.4c1.1-.3 1.9-.7 2.5-1.1a.5.5 0 0 0 0-.8Z"/></svg>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-1">تیکت‌های فعال (در انتظار)</p>
-                        </div>
-                        
-                        <!-- کارت ۳: میانگین امتیاز -->
-                        <div class="metric-card bg-white">
-                            <div class="flex items-center space-x-2 justify-end" dir="ltr">
-                                <span class="font-bold text-lg text-green-600">4.92</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star text-yellow-500"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-1">میانگین امتیاز (از ۵)</p>
-                        </div>
+                    ${errorBanner}
 
-                        <!-- کارت ۴: نرخ امتیازدهی -->
-                        <div class="metric-card bg-white">
-                            <div class="flex items-center space-x-2 justify-end" dir="ltr">
-                                <span class="font-bold text-lg text-gray-900">88.5%</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-percent text-purple-500"><line x1="19" x2="5" y1="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-1">نرخ امتیازدهی</p>
-                        </div>
+                    <div class="metric-card p-4 bg-white">
+                        <h3 class="text-xl font-extrabold text-gray-900 mb-4">گزارش عملکرد پشتیبانی</h3>
+                        ${fullReport}
                     </div>
                 </div>
 
@@ -455,27 +517,31 @@
                     <table class="w-full text-xs text-right border-collapse">
                         <thead>
                             <tr class="bg-indigo-100 border-b">
-                                <th class="p-1 font-semibold">توضیح</th>
+                                <th class="p-1 font-semibold">نمونه خروجی</th>
                                 <th class="p-1 font-semibold">سینتکس</th>
+                                <th class="p-1 font-semibold">توضیح</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr class="border-b">
-                                <td class="p-1">متن بولد (Bold)</td>
+                                <td class="p-1 font-bold">متن ضخیم</td>
                                 <td class="p-1 font-mono text-left">**متن**</td>
+                                <td class="p-1">متن بولد (Bold)</td>
                             </tr>
                             <tr class="border-b">
-                                <td class="p-1">متن کج (Italic)</td>
+                                <td class="p-1 italic-example">متن کج</td>
                                 <td class="p-1 font-mono text-left">*متن*</td>
+                                <td class="p-1">متن کج (Italic)</td>
                             </tr>
                             <tr>
-                                <td class="p-1">کد یا شناسه (Monospace)</td>
+                                <td class="p-1 font-mono text-xs bg-gray-200 rounded inline-block px-1">code</td>
                                 <td class="p-1 font-mono text-left">\`متن\`</td>
+                                <td class="p-1">کد یا شناسه (Monospace)</td>
                             </tr>
                         </tbody>
                     </table>
                     ${item.variables && item.variables.length > 0 ? `
-                        <div class="pt-2 border-t border-indigo-200">
+                        <div class="pt-2 border-t border-indigo-200 mt-2">
                             <p class="font-bold text-sm text-indigo-700">متغیرهای پویا (Dynamic Variables):</p>
                             <p class="text-xs">برای نمایش اطلاعات متغیر تیکت، **دقیقاً** از متغیرهای زیر استفاده کنید. (حساس به حروف بزرگ و کوچک):</p>
                             <ul class="list-disc pr-5 mt-1 space-y-0.5">
@@ -490,10 +556,7 @@
             content.innerHTML = `
                 <div class="space-y-4">
                     <h2 class="text-2xl font-extrabold text-gray-800">${item.name}</h2>
-                    <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
-                        <p class="font-bold">شناسه کلید (Database ID):</p>
-                        <p class="font-mono text-xs mt-1 bg-gray-100 p-1 rounded inline-block">\`${key}\`</p>
-                    </div>
+                    <!-- بخش شناسه کلید حذف شد -->
 
                     ${markdownHint}
 
@@ -563,7 +626,7 @@
         backButton.addEventListener('click', handleBack);
 
         // شروع اپلیکیشن: ابتدا داده‌ها را از Worker دریافت کن
-        fetchAppTexts();
+        fetchInitialData();
 
     </script>
 </body>
