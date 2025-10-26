@@ -417,14 +417,56 @@
 
         // [جدید] تابع واکشی تیکت‌ها
         async function fetchTickets() {
-            // [اصلاح شد] همیشه داده‌های آزمایشی را برمی‌گرداند تا زمانی که API واقعی آماده شود
-            return mockAppTickets;
+            // [اصلاح شد] اکنون داده‌های واقعی را واکشی می‌کند
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            if (currentStoreHandle === MOCK_STORE_HANDLE) {
+                 console.log("Fetching mock tickets");
+                 return mockAppTickets;
+            }
+
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/tickets`; // فرض بر این است که این endpoint تیکت‌ها است
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch tickets from Worker.');
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error || 'Worker tickets returned error.');
+                return result.data || []; // انتظار می‌رود داده‌ها آرایه‌ای از تیکت‌ها باشند
+            } catch (error) {
+                console.error("Error fetching real tickets:", error.message);
+                showMessage(`❌ خطا در واکشی لیست تیکت‌ها: ${error.message}.`, 'error');
+                return []; // بازگشت آرایه خالی در صورت خطا
+            }
         }
 
         // [جدید] تابع واکشی داده‌های نمودار
         async function fetchChartData() {
-            // [اصلاح شد] همیشه داده‌های آزمایشی را برمی‌گرداند
-            return mockChartData;
+            // [اصلاح شد] اکنون داده‌های واقعی را واکشی می‌کند
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+             if (currentStoreHandle === MOCK_STORE_HANDLE) {
+                console.log("Fetching mock chart data");
+                return mockChartData;
+             }
+            
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/chartdata`; // فرض بر این است که این endpoint داده‌های نمودار است
+             try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch chart data from Worker.');
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error || 'Worker chart data returned error.');
+                // اطمینان از اینکه ساختار داده با داده‌های آزمایشی مطابقت دارد
+                return {
+                    ratings: result.data.ratings || { labels: [], data: [] },
+                    volume: result.data.volume || { labels: [], data: [] }
+                };
+            } catch (error) {
+                console.error("Error fetching real chart data:", error.message);
+                showMessage(`❌ خطا در واکشی داده‌های نمودار: ${error.message}.`, 'error');
+                // بازگشت ساختار خالی در صورت خطا
+                return {
+                    ratings: { labels: [], data: [] },
+                    volume: { labels: [], data: [] }
+                };
+            }
         }
 
 
