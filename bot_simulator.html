@@ -73,10 +73,6 @@
         .header-gradient {
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         }
-         /* Style for the toggle switch */
-        #toggle-switch:checked + div + div.dot { transform: translateX(100%); }
-        #toggle-switch:checked + div { background-color: #4f46e5; /* Indigo color when checked */ }
-
     </style>
 </head>
 <body>
@@ -120,7 +116,7 @@
             quickTipMessage: "💡 نکته: این متون برای تست در حالت آزمایشی بارگذاری شده‌اند.",
             faqButtonText: "مشاهده سوالات متداول",
             faqUrl: "https://mock.faq.com/",
-            showFaqButton: "true", // MOCK NEW FIELD
+            faqButtonEnabled: "true", // <-- NEW MOCK KEY
             navTickets: "تیکت‌ها",
             navNewTicket: "تیکت جدید",
             infoModalTitle: "راهنمای ارسال تیکت",
@@ -166,16 +162,16 @@
         let currentEditKey = null; // کلید متنی که در حال ویرایش است
         let successMessage = null; // برای نمایش پیام موفقیت در ناوبری
 
-        // --- MODIFIED: Reverted CUSTOM_TEXT_KEYS structure for FAQ button ---
+        // ساختار ثابت متون برای استفاده در منوها (باید با Worker همگام باشد)
         const CUSTOM_TEXT_KEYS = {
             MINI_APP_UI: {
                 greetingTitle: { name: "عنوان خوش‌آمدگویی", icon: "user-check", desc: `متن اصلی کارت راهنما (مثلاً: سلام مشتری عزیز!)` },
                 quickTipMessage: { name: "پیام راهنمای سریع", icon: "lightbulb", desc: `متن کوچک زیر عنوان در کارت راهنما (مثلاً: لطفا مشکل را با جزئیات بنویسید)` },
-                // --- FAQ BUTTON FIELDS (Back to individual keys) ---
-                faqButtonText: { name: "متن دکمه راهنما (FAQ)", icon: "help-circle", desc: `متنی که روی دکمه مشاهده سوالات متداول نمایش داده می‌شود.` },
-                faqUrl: { name: "لینک دکمه راهنما (FAQ)", icon: "link", desc: `آدرس URL کامل (باید با https:// شروع شود). اگر خالی باشد دکمه غیرفعال می‌شود.`, isUrl: true }, 
-                showFaqButton: { name: "نمایش/حذف دکمه FAQ", icon: "toggle-right", desc: `برای حذف (مخفی کردن) کامل دکمه، مقدار "false" (دقیقا با حروف کوچک) را وارد کنید. هر مقدار دیگری (مثل "true" یا خالی) به معنی نمایش دکمه است.`, isBooleanString: true }, // isBooleanString indicates it expects 'true'/'false' strings
-                // --------------------------------------------------------
+                faqButtonText: { name: "متن دکمه راهنما", icon: "help-circle", desc: `متنی که روی دکمه مشاهده سوالات متداول نمایش داده می‌شود.` },
+                faqUrl: { name: "لینک دکمه راهنما", icon: "link", desc: `آدرس URL کامل (باید با https:// شروع شود).`, isUrl: true }, // اضافه شدن isUrl
+                // --- NEW KEY ---
+                faqButtonEnabled: { name: "وضعیت دکمه راهنما (FAQ)", icon: "toggle-right", desc: `روشن/خاموش کردن نمایش دکمه سوالات متداول در مینی اپ کاربر.`, isToggle: true },
+                
                 navTickets: { name: "منوی: تیکت‌ها", icon: "ticket", desc: `متن آیکون تیکت‌ها در نوار پایین مینی‌اپ.` },
                 navNewTicket: { name: "منوی: تیکت جدید", icon: "file-plus", desc: `متن آیکون ایجاد تیکت جدید در نوار پایین مینی‌اپ.` },
                 infoModalTitle: { name: "عنوان راهنمای تیکت", icon: "info", desc: `عنوان پنجره‌ای که قبل از ثبت تیکت جدید نمایش داده می‌شود.` },
@@ -318,29 +314,17 @@
         async function handleSave() {
             const saveButton = document.getElementById('save-button');
             const editElement = document.getElementById('edit-area');
-            let newText = editElement?.value; // Use optional chaining in case element doesn't exist (for boolean)
+            const newText = editElement.value;
 
             if (!currentEditKey) return;
             const keyData = getFullKeyData(currentEditKey);
-            
-             // Handle boolean string field
-            if (keyData.isBooleanString) {
-                const isChecked = document.getElementById('toggle-switch')?.checked;
-                newText = isChecked ? 'true' : 'false';
-            }
 
-
-            // Validation for URL fields (only if not empty)
-            if (keyData.isUrl && newText && !newText.startsWith('https://')) {
-                showMessage('❌ لینک باید با https:// شروع شود.', 'error', 5000);
-                return;
-            }
-            
-            // Allow empty URL or empty text for boolean string
-            if ((keyData.isUrl && newText === null) || (keyData.isBooleanString && newText === null)) {
-                // This condition should ideally not be met because newText is derived
-                console.error("Save attempt with null value for URL/Boolean");
-                return; 
+            // Validation for URL fields
+            if (keyData.isUrl) {
+                if (!newText.startsWith('https://')) {
+                    showMessage('❌ لینک باید با https:// شروع شود.', 'error', 5000);
+                    return;
+                }
             }
 
             saveButton.disabled = true;
@@ -354,7 +338,7 @@
                 appTexts[currentEditKey] = newText;
                 successMessage = `✅ متن "${keyData.name}" با موفقیت در حالت آزمایشی ذخیره شد!`;
                 
-                navigateTo(`SubMenu_${keyData.type}`, keyData.type === 'MINI_APP_UI' ? 'متن‌های مینی‌اپ' : 'متن‌های اعلان ربات'); // Update title on navigate back
+                navigateTo(`SubMenu_${keyData.type}`, 'مدیریت متون');
                 return;
             }
 
@@ -375,7 +359,7 @@
                     appTexts[currentEditKey] = newText; 
                     successMessage = `✅ متن "${keyData.name}" با موفقیت ذخیره و اعمال شد!`;
                     
-                     navigateTo(`SubMenu_${keyData.type}`, keyData.type === 'MINI_APP_UI' ? 'متن‌های مینی‌اپ' : 'متن‌های اعلان ربات'); // Update title on navigate back
+                    navigateTo(`SubMenu_${keyData.type}`, 'مدیریت متون');
                 } else {
                     throw new Error(result.error || 'خطا در Worker API هنگام ذخیره.');
                 }
@@ -386,6 +370,56 @@
                 saveButton.disabled = false;
                 saveButton.innerHTML = '<i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره و اعمال تغییرات';
                 lucide.createIcons();
+            }
+        }
+
+        // --- NEW FUNCTION for saving toggle switches ---
+        async function handleToggleSave(key, newValue) {
+            const keyData = getFullKeyData(key);
+            if (!keyData) {
+                showMessage('❌ خطای داخلی: کلید مورد نظر یافت نشد.', 'error');
+                return;
+            }
+
+            const newValueString = String(newValue); // Convert boolean to string "true" or "false"
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+
+            // Show loading state on the toggle itself (optional, but good UX)
+            // For simplicity, we'll just show a global message.
+            showMessage('در حال ذخیره تغییرات...', 'success', 2000);
+
+            // If in mock mode, just update local state and re-render
+            if (currentStoreHandle === MOCK_STORE_HANDLE) {
+                appTexts[key] = newValueString;
+                successMessage = `✅ وضعیت "${keyData.name}" با موفقیت در حالت آزمایشی ذخیره شد!`;
+                render(); // Re-render the current submenu
+                return;
+            }
+
+            // Real API call
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/texts`;
+            const payload = { [key]: newValueString };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    appTexts[key] = newValueString; // Update local state
+                    successMessage = `✅ وضعیت "${keyData.name}" با موفقیت ذخیره شد!`;
+                    render(); // Re-render the current submenu to show the new toggle state
+                } else {
+                    throw new Error(result.error || 'خطا در Worker API هنگام ذخیره.');
+                }
+            } catch (error) {
+                console.error("Error saving toggle via Worker:", error);
+                showMessage(`❌ خطا در ذخیره وضعیت: ${error.message}`, 'error');
+                render(); // Re-render to reset any loading state
             }
         }
 
@@ -533,21 +567,38 @@
                         const menuIcon = data.icon || 'file-text';
                         const iconColor = menuType === 'MINI_APP_UI' ? 'text-indigo-500' : 'text-orange-500';
                         
-                        // نمایش وضعیت برای دکمه FAQ
-                        let statusBadge = '';
-                        if (key === 'showFaqButton') {
-                             // Check the string value 'false'
-                            const isShowing = appTexts.showFaqButton !== 'false';
-                            const badgeColor = isShowing ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-                            statusBadge = `<span class="text-xs font-medium px-2 py-0.5 rounded-full ${badgeColor} ml-2">${isShowing ? 'فعال' : 'حذف شده'}</span>`;
+                        // --- NEW LOGIC FOR TOGGLE ---
+                        if (data.isToggle) {
+                            // Get current value. Default to "true" if not set.
+                            const isEnabled = appTexts[key] !== "false"; 
+                            const toggleIcon = isEnabled ? 'toggle-right' : 'toggle-left';
+                            const toggleColor = isEnabled ? 'text-green-500' : 'text-gray-400';
+                            const toggleBg = isEnabled ? 'bg-green-50 hover:bg-green-100' : 'bg-gray-50 hover:bg-gray-100';
+                            
+                            return `
+                                <div class="menu-item justify-between ${toggleBg}" onclick="handleToggleSave('${key}', ${!isEnabled})">
+                                    <span class="flex items-center text-gray-800">
+                                        <i data-lucide="${menuIcon}" class="h-5 w-5 ml-3 ${iconColor}"></i>
+                                        ${data.name}
+                                    </span>
+                                    <!-- Toggle Switch UI -->
+                                    <div class="flex items-center space-x-2 space-x-reverse cursor-pointer">
+                                        <span class="text-sm font-medium ${isEnabled ? 'text-green-600' : 'text-gray-500'}">
+                                            ${isEnabled ? 'روشن' : 'خاموش'}
+                                        </span>
+                                        <i data-lucide="${toggleIcon}" class="h-6 w-6 ${toggleColor} transition-colors"></i>
+                                    </div>
+                                </div>
+                            `;
                         }
+                        // --- END NEW LOGIC ---
 
+                        // --- Original logic for text items ---
                         return `
                             <div class="menu-item" onclick="navigateTo('EditScreen_${key}', 'ویرایش: ${data.name}')">
                                 <span class="flex items-center text-gray-800">
                                     <i data-lucide="${menuIcon}" class="h-5 w-5 ml-3 ${iconColor}"></i>
                                     ${data.name}
-                                    ${statusBadge}
                                 </span>
                                 <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
                             </div>
@@ -578,92 +629,86 @@
 
             const isNotification = keyData.type === 'USER_NOTIFICATIONS';
             const isUrlField = keyData.isUrl;
-            // NEW: Check for boolean string field
-            const isBooleanStringField = keyData.isBooleanString; 
 
-            // Handle potential undefined text and replace \n
-            const currentText = (appTexts[currentEditKey] || keyData.defaultText || "").replace(/\\n/g, '\n');
+            // جایگزینی \n با دو فاصله برای نمایش بهتر در textarea
+            const currentText = (appTexts[currentEditKey] || keyData.defaultText || "متن پیش‌فرض موجود نیست.").replace(/\\n/g, '\n');
             
             let markdownGuideHTML = '';
             let inputElement;
 
             if (isNotification) {
-                // راهنمای پیشرفته برای Notification Texts (Unchanged)
-                 markdownGuideHTML = `
+                // راهنمای پیشرفته برای Notification Texts
+                markdownGuideHTML = `
                     <div class="bg-blue-50 border-r-4 border-blue-400 p-4 mb-4 rounded-xl text-sm text-gray-700 shadow-inner">
                         <p class="font-bold text-blue-700 flex items-center mb-2"><i data-lucide="code" class="h-5 w-5 ml-2"></i> راهنمای حرفه‌ای Markdown و متغیرها</p>
+                        
+                        <!-- جدول Markdown -->
                         <div class="bg-white border rounded-lg overflow-hidden mt-3">
                             <table class="w-full text-right text-xs">
-                                <thead class="bg-gray-100 font-semibold text-gray-600"><tr><th class="p-2 border-b">سینتکس</th><th class="p-2 border-b">توضیح</th><th class="p-2 border-b">نمونه خروجی</th></tr></thead>
+                                <thead class="bg-gray-100 font-semibold text-gray-600">
+                                    <tr>
+                                        <th class="p-2 border-b">سینتکس</th>
+                                        <th class="p-2 border-b">توضیح</th>
+                                        <th class="p-2 border-b">نمونه خروجی</th>
+                                    </tr>
+                                </thead>
                                 <tbody>
-                                    <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">**متن**</td><td class="p-2 border-b">متن بولد</td><td class="p-2 border-b font-bold">متن ضخیم</td></tr>
-                                    <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">*متن*</td><td class="p-2 border-b">متن کج</td><td class="p-2 border-b italic">متن کج</td></tr>
-                                    <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">\`کد\`</td><td class="p-2 border-b">نوشتن کد یا ID</td><td class="p-2 border-b font-mono text-sm bg-gray-100 rounded">کد</td></tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="p-2 border-b font-mono">**متن**</td>
+                                        <td class="p-2 border-b">متن بولد</td>
+                                        <td class="p-2 border-b font-bold">متن ضخیم</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="p-2 border-b font-mono">*متن*</td>
+                                        <td class="p-2 border-b">متن کج</td>
+                                        <td class="p-2 border-b italic">متن کج</td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="p-2 border-b font-mono">\`کد\`</td>
+                                        <td class="p-2 border-b">نوشتن کد یا ID</td>
+                                        <td class="p-2 border-b font-mono text-sm bg-gray-100 rounded">کد</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
+                        
+                        <!-- متغیرهای پویا -->
                         <p class="font-bold text-blue-700 mt-4 mb-1 flex items-center"><i data-lucide="variable" class="h-5 w-5 ml-2"></i> متغیرهای پویا (Dynamic Variables)</p>
                         <p class="mb-2">برای نمایش اطلاعات متغیر تیکت، **دقیقاً** از متغیرهای زیر استفاده کنید (حساس به حروف بزرگ و کوچک):</p>
-                        <ul class="list-disc pr-5 space-y-1 font-mono text-xs"><li><code>{Subject}</code>: موضوع تیکت</li><li><code>{Department}</code>: نام دپارتمان</li></ul>
-                    </div>`;
-            } else {
-                 // راهنمای ساده برای UI Texts (Unchanged)
-                 const description = keyData.desc || 'توضیحات خاصی برای این متن موجود نیست. لطفاً آن را ساده و مختصر نگه دارید.';
-                 markdownGuideHTML = `<div class="bg-yellow-50 border-r-4 border-yellow-400 p-3 mb-4 rounded-xl text-sm text-gray-700 flex items-start shadow-inner"><i data-lucide="alert-triangle" class="h-5 w-5 ml-2 text-yellow-700 flex-shrink-0 mt-0.5"></i><div><span class="font-bold text-yellow-700 ml-1">راهنمای متن:</span><span>${description}</span></div></div>`;
-            }
-
-            // --- MODIFIED: Input Element Logic ---
-            if (isBooleanStringField) {
-                 // Check the string value 'false'
-                const isChecked = currentText !== 'false'; 
-                inputElement = `
-                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
-                        <span class="text-gray-800 font-semibold">${keyData.name}</span>
-                        <label for="toggle-switch" class="flex items-center cursor-pointer">
-                            <div class="relative">
-                                <input type="checkbox" id="toggle-switch" class="sr-only" ${isChecked ? 'checked' : ''}>
-                                <div class="block bg-gray-400 w-14 h-8 rounded-full transition-colors duration-300"></div>
-                                <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform duration-300 transform"></div>
-                            </div>
-                            <div class="ml-3 text-gray-700 font-medium">
-                                ${isChecked ? 'فعال (نمایش داده می‌شود)' : 'غیرفعال (حذف می‌شود)'}
-                            </div>
-                        </label>
+                        <ul class="list-disc pr-5 space-y-1 font-mono text-xs">
+                            <li><code>{Subject}</code>: موضوع تیکت</li>
+                            <li><code>{Department}</code>: نام دپارتمان</li>
+                        </ul>
                     </div>
                 `;
-                 // Add event listener setup after rendering
-                 setTimeout(() => { // Use timeout to ensure element exists
-                    const switchToggle = document.getElementById('toggle-switch');
-                    const switchText = document.querySelector('label[for="toggle-switch"] .ml-3');
-                    const dot = switchToggle?.parentElement?.querySelector('.dot');
-                    const track = switchToggle?.parentElement?.querySelector('.block');
-
-                    // Function to update visual state
-                    const updateSwitchVisuals = (checked) => {
-                        if (dot) dot.style.transform = checked ? 'translateX(100%)' : 'translateX(0)';
-                        if (track) track.style.backgroundColor = checked ? '#4f46e5' : '#9ca3af'; // Indigo / Gray
-                        if (switchText) switchText.textContent = checked ? 'فعال (نمایش داده می‌شود)' : 'غیرفعال (حذف می‌شود)';
-                    };
-
-                    if (switchToggle) {
-                         // Initialize visual state
-                        updateSwitchVisuals(switchToggle.checked); 
-                        
-                        switchToggle.addEventListener('change', () => {
-                            updateSwitchVisuals(switchToggle.checked);
-                        });
-                    }
-                }, 0);
-
-            } else if (isUrlField) {
-                // فیلد تک‌خطی برای URL (Unchanged)
-                inputElement = `<input id="edit-area" type="url" value="${currentText.replace(/\n/g, '')}" class="w-full p-4 border border-gray-300 rounded-xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="مثلاً: https://yourdomain.com/faq">`;
             } else {
-                // فیلد چندخطی با قابلیت بزرگ شدن خودکار (Unchanged)
-                inputElement = `<textarea id="edit-area" rows="4" class="auto-resize-textarea w-full p-4 border border-gray-300 rounded-xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="متن جدید خود را اینجا وارد کنید...">${currentText}</textarea>`;
+                 // راهنمای ساده برای UI Texts - توضیحات به داخل کادر زرد رنگ منتقل شد.
+                 // keyData.desc در اینجا همان متن توضیحات است.
+                 const description = keyData.desc || 'توضیحات خاصی برای این متن موجود نیست. لطفاً آن را ساده و مختصر نگه دارید.';
+                 markdownGuideHTML = `
+                     <div class="bg-yellow-50 border-r-4 border-yellow-400 p-3 mb-4 rounded-xl text-sm text-gray-700 flex items-start shadow-inner">
+                         <i data-lucide="alert-triangle" class="h-5 w-5 ml-2 text-yellow-700 flex-shrink-0 mt-0.5"></i>
+                         <div>
+                             <span class="font-bold text-yellow-700 ml-1">راهنمای متن:</span>
+                             <span>${description}</span>
+                         </div>
+                     </div>
+                   `;
             }
-            // --- END MODIFIED ---
 
+            if (isUrlField) {
+                // فیلد تک‌خطی برای URL
+                inputElement = `
+                    <!-- اندازه فونت ورودی به text-sm کاهش یافت -->
+                    <input id="edit-area" type="url" value="${currentText.replace(/\n/g, '')}" class="w-full p-4 border border-gray-300 rounded-xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="مثلاً: https://yourdomain.com/faq">
+                `;
+            } else {
+                // فیلد چندخطی با قابلیت بزرگ شدن خودکار
+                inputElement = `
+                    <!-- اندازه فونت ورودی به text-sm کاهش یافت -->
+                    <textarea id="edit-area" rows="4" class="auto-resize-textarea w-full p-4 border border-gray-300 rounded-xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="متن جدید خود را اینجا وارد کنید...">${currentText}</textarea>
+                `;
+            }
 
             content.innerHTML = `
                 <!-- کاهش اندازه فونت از text-2xl به text-xl -->
@@ -687,10 +732,12 @@
             `;
             lucide.createIcons();
             
-            // اگر فیلد textarea است، قابلیت بزرگ شدن خودکار را اضافه کن (Unchanged)
+            // اگر فیلد textarea است، قابلیت بزرگ شدن خودکار را اضافه کن
             const editArea = document.getElementById('edit-area');
-             if (editArea && editArea.tagName === 'TEXTAREA') {
+            if (editArea && !isUrlField) {
+                // اعمال resize اولیه
                 autoResize(editArea); 
+                // افزودن event listener برای resize هنگام تایپ
                 editArea.addEventListener('input', () => autoResize(editArea));
             }
         }
@@ -717,7 +764,7 @@
                 } else if (currentState.startsWith('EditScreen_')) {
                     renderEditScreen(currentState);
                 } else {
-                    renderDashboard(); // Fallback to dashboard
+                    renderDashboard();
                 }
                 
                 backButton.classList[history.length > 0 ? 'remove' : 'add']('hidden');
@@ -740,4 +787,3 @@
     </script>
 </body>
 </html>
-
