@@ -73,6 +73,52 @@
         .header-gradient {
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         }
+
+        /* (جدید) استایل برای Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px; /* کاهش عرض */
+            height: 28px; /* کاهش ارتفاع */
+            flex-shrink: 0; /* جلوگیری از کوچک شدن در فلکس */
+        }
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 28px; /* گرد کردن کامل */
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px; /* کاهش اندازه دایره */
+            width: 20px; /* کاهش اندازه دایره */
+            left: 4px; /* تنظیم موقعیت */
+            bottom: 4px; /* تنظیم موقعیت */
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #4f46e5; /* رنگ آبی ایندیگو */
+        }
+        input:checked + .slider:before {
+            -webkit-transform: translateX(22px); /* تنظیم فاصله حرکت */
+            -ms-transform: translateX(22px);
+            transform: translateX(22px);
+        }
     </style>
 </head>
 <body>
@@ -116,7 +162,7 @@
             quickTipMessage: "💡 نکته: این متون برای تست در حالت آزمایشی بارگذاری شده‌اند.",
             faqButtonText: "مشاهده سوالات متداول",
             faqUrl: "https://mock.faq.com/",
-            faqButtonEnabled: "true", // <-- NEW MOCK KEY
+            faqButtonEnabled: true, // (جدید)
             navTickets: "تیکت‌ها",
             navNewTicket: "تیکت جدید",
             infoModalTitle: "راهنمای ارسال تیکت",
@@ -168,10 +214,8 @@
                 greetingTitle: { name: "عنوان خوش‌آمدگویی", icon: "user-check", desc: `متن اصلی کارت راهنما (مثلاً: سلام مشتری عزیز!)` },
                 quickTipMessage: { name: "پیام راهنمای سریع", icon: "lightbulb", desc: `متن کوچک زیر عنوان در کارت راهنما (مثلاً: لطفا مشکل را با جزئیات بنویسید)` },
                 faqButtonText: { name: "متن دکمه راهنما", icon: "help-circle", desc: `متنی که روی دکمه مشاهده سوالات متداول نمایش داده می‌شود.` },
-                faqUrl: { name: "لینک دکمه راهنما", icon: "link", desc: `آدرس URL کامل (باید با https:// شروع شود).`, isUrl: true }, // اضافه شدن isUrl
-                // --- NEW KEY ---
-                faqButtonEnabled: { name: "وضعیت دکمه راهنما (FAQ)", icon: "toggle-right", desc: `روشن/خاموش کردن نمایش دکمه سوالات متداول در مینی اپ کاربر.`, isToggle: true },
-                
+                faqUrl: { name: "لینک دکمه راهنما", icon: "link", desc: `آدرس URL کامل (باید با https:// شروع شود).`, isUrl: true },
+                faqButtonEnabled: { name: "فعال‌سازی دکمه راهنما", icon: "toggle-right", desc: `اگر فعال باشد، دکمه 'مشاهده سوالات متداول' به کاربر نمایش داده می‌شود.`, isToggle: true }, // (جدید)
                 navTickets: { name: "منوی: تیکت‌ها", icon: "ticket", desc: `متن آیکون تیکت‌ها در نوار پایین مینی‌اپ.` },
                 navNewTicket: { name: "منوی: تیکت جدید", icon: "file-plus", desc: `متن آیکون ایجاد تیکت جدید در نوار پایین مینی‌اپ.` },
                 infoModalTitle: { name: "عنوان راهنمای تیکت", icon: "info", desc: `عنوان پنجره‌ای که قبل از ثبت تیکت جدید نمایش داده می‌شود.` },
@@ -306,11 +350,78 @@
                     showMessage(`❌ خطا در اتصال به API: ${error.message.substring(0, 50)}... بارگذاری داده آزمایشی.`, 'error');
                 }
             }
+            
+            // (جدید) اطمینان از مقادیر boolean در appTexts
+            if (appTexts.faqButtonEnabled === null || typeof appTexts.faqButtonEnabled === 'undefined') {
+                appTexts.faqButtonEnabled = true; // مقدار پیش‌فرض
+            }
+
             currentState = 'Dashboard';
             render();
         }
 
         // --- Data Persistence (از طریق Worker API) ---
+        
+        // (جدید) تابع برای ذخیره تنظیمات Toggle
+        async function handleToggleSave(key, element) {
+            const newValue = element.checked;
+            const keyData = getFullKeyData(key);
+
+            // نمایش موقت لودینگ روی خود toggle
+            element.disabled = true;
+            const parentDiv = element.closest('.menu-item');
+            if(parentDiv) parentDiv.style.opacity = '0.5';
+
+            // آیکون را به‌روزرسانی می‌کند
+            const iconEl = parentDiv.querySelector('i[data-lucide]');
+            if(iconEl) iconEl.setAttribute('data-lucide', newValue ? 'toggle-right' : 'toggle-left');
+            lucide.createIcons();
+
+
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+
+            // اگر در حالت آزمایشی باشیم
+            if (currentStoreHandle === MOCK_STORE_HANDLE) {
+                appTexts[key] = newValue;
+                showMessage(`✅ تنظیم "${keyData.name}" در حالت آزمایشی ذخیره شد!`, 'success');
+                element.disabled = false;
+                if(parentDiv) parentDiv.style.opacity = '1';
+                return;
+            }
+
+            // عملیات واقعی ذخیره
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/texts`;
+            const payload = { [key]: newValue }; // ارسال به صورت boolean
+
+            try {
+                const response = await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    appTexts[key] = newValue; // به‌روزرسانی وضعیت محلی
+                    showMessage(`✅ تنظیم "${keyData.name}" با موفقیت ذخیره شد!`, 'success');
+                } else {
+                    throw new Error(result.error || 'خطا در Worker API هنگام ذخیره.');
+                }
+            } catch (error) {
+                console.error("Error saving toggle via Worker:", error);
+                showMessage(`❌ خطا در ذخیره تنظیم: ${error.message}`, 'error');
+                // بازگرداندن toggle به حالت قبلی در صورت خطا
+                element.checked = !newValue;
+                if(iconEl) iconEl.setAttribute('data-lucide', !newValue ? 'toggle-right' : 'toggle-left');
+                lucide.createIcons();
+            } finally {
+                element.disabled = false;
+                if(parentDiv) parentDiv.style.opacity = '1';
+            }
+        }
+
+
         async function handleSave() {
             const saveButton = document.getElementById('save-button');
             const editElement = document.getElementById('edit-area');
@@ -370,56 +481,6 @@
                 saveButton.disabled = false;
                 saveButton.innerHTML = '<i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره و اعمال تغییرات';
                 lucide.createIcons();
-            }
-        }
-
-        // --- NEW FUNCTION for saving toggle switches ---
-        async function handleToggleSave(key, newValue) {
-            const keyData = getFullKeyData(key);
-            if (!keyData) {
-                showMessage('❌ خطای داخلی: کلید مورد نظر یافت نشد.', 'error');
-                return;
-            }
-
-            const newValueString = String(newValue); // Convert boolean to string "true" or "false"
-            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
-
-            // Show loading state on the toggle itself (optional, but good UX)
-            // For simplicity, we'll just show a global message.
-            showMessage('در حال ذخیره تغییرات...', 'success', 2000);
-
-            // If in mock mode, just update local state and re-render
-            if (currentStoreHandle === MOCK_STORE_HANDLE) {
-                appTexts[key] = newValueString;
-                successMessage = `✅ وضعیت "${keyData.name}" با موفقیت در حالت آزمایشی ذخیره شد!`;
-                render(); // Re-render the current submenu
-                return;
-            }
-
-            // Real API call
-            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/texts`;
-            const payload = { [key]: newValueString };
-
-            try {
-                const response = await fetch(url, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    appTexts[key] = newValueString; // Update local state
-                    successMessage = `✅ وضعیت "${keyData.name}" با موفقیت ذخیره شد!`;
-                    render(); // Re-render the current submenu to show the new toggle state
-                } else {
-                    throw new Error(result.error || 'خطا در Worker API هنگام ذخیره.');
-                }
-            } catch (error) {
-                console.error("Error saving toggle via Worker:", error);
-                showMessage(`❌ خطا در ذخیره وضعیت: ${error.message}`, 'error');
-                render(); // Re-render to reset any loading state
             }
         }
 
@@ -561,39 +622,33 @@
             content.innerHTML = `
                 <!-- کاهش اندازه فونت از text-2xl به text-xl -->
                 <h2 class="text-xl font-extrabold text-gray-800 mb-2">${menuTitle}</h2>
-                <p class="text-sm text-gray-500 mb-6">متن مورد نظر برای ویرایش را انتخاب کنید:</p>
+                <p class="text-sm text-gray-500 mb-6">آیتم مورد نظر برای ویرایش را انتخاب کنید:</p>
                 <div class="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-100 shadow-xl">
                     ${Object.entries(keys).map(([key, data]) => {
-                        const menuIcon = data.icon || 'file-text';
                         const iconColor = menuType === 'MINI_APP_UI' ? 'text-indigo-500' : 'text-orange-500';
-                        
-                        // --- NEW LOGIC FOR TOGGLE ---
+
+                        // (جدید) بررسی اگر آیتم Toggle است
                         if (data.isToggle) {
-                            // Get current value. Default to "true" if not set.
-                            const isEnabled = appTexts[key] !== "false"; 
-                            const toggleIcon = isEnabled ? 'toggle-right' : 'toggle-left';
-                            const toggleColor = isEnabled ? 'text-green-500' : 'text-gray-400';
-                            const toggleBg = isEnabled ? 'bg-green-50 hover:bg-green-100' : 'bg-gray-50 hover:bg-gray-100';
+                            // اطمینان از اینکه مقدار boolean است (مقدار پیش‌فرض true اگر تعریف نشده باشد)
+                            const isChecked = (appTexts[key] === null || typeof appTexts[key] === 'undefined') ? true : appTexts[key];
+                            const menuIcon = isChecked ? 'toggle-right' : 'toggle-left';
                             
                             return `
-                                <div class="menu-item justify-between ${toggleBg}" onclick="handleToggleSave('${key}', ${!isEnabled})">
-                                    <span class="flex items-center text-gray-800">
+                                <div class="menu-item" style="cursor: default;">
+                                    <span class="flex items-center text-gray-800 flex-grow">
                                         <i data-lucide="${menuIcon}" class="h-5 w-5 ml-3 ${iconColor}"></i>
                                         ${data.name}
                                     </span>
-                                    <!-- Toggle Switch UI -->
-                                    <div class="flex items-center space-x-2 space-x-reverse cursor-pointer">
-                                        <span class="text-sm font-medium ${isEnabled ? 'text-green-600' : 'text-gray-500'}">
-                                            ${isEnabled ? 'روشن' : 'خاموش'}
-                                        </span>
-                                        <i data-lucide="${toggleIcon}" class="h-6 w-6 ${toggleColor} transition-colors"></i>
-                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" onchange="handleToggleSave('${key}', this)" ${isChecked ? 'checked' : ''}>
+                                        <span class="slider"></span>
+                                    </label>
                                 </div>
                             `;
                         }
-                        // --- END NEW LOGIC ---
 
-                        // --- Original logic for text items ---
+                        // (قدیمی) اگر آیتم متنی است
+                        const menuIcon = data.icon || 'file-text';
                         return `
                             <div class="menu-item" onclick="navigateTo('EditScreen_${key}', 'ویرایش: ${data.name}')">
                                 <span class="flex items-center text-gray-800">
@@ -624,6 +679,14 @@
                 content.innerHTML = `<p class="text-red-600 p-4 font-bold">خطا: کلید متنی نامعتبر است.</p>`;
                 return;
             }
+            
+            // (جدید) اگر به اشتباه آیتم toggle به اینجا هدایت شد، برگرد
+            if (keyData.isToggle) {
+                console.warn("Edit screen called for a toggle item. Redirecting back.");
+                handleBack();
+                return;
+            }
+
 
             headerTitle.textContent = `ویرایش: ${keyData.name}`;
 
