@@ -161,14 +161,30 @@
         // --- تنظیمات مهم (WORKER & STORE) ---
         // ... (کد قبلی) ...
         const urlParams = new URLSearchParams(window.location.search);
-        const STORE_HANDLE = urlParams.get('storeHandle'); 
-        const MOCK_STORE_HANDLE = 'test-store-mock-dfdfdfd'; 
-        
+        const STORE_HANDLE = urlParams.get('storeHandle');
+        const MOCK_STORE_HANDLE = 'test-store-mock-dfdfdfd';
+
+        // [جدید] اضافه کردن departmentMap در اینجا
+        const departmentMap = {
+            general: 'سوالات متفرقه',
+            technical: 'پشتیبانی فنی',
+            sales: 'بخش فروش',
+            marketing: 'بازاریابی',
+            ideas: 'ایده ها و پیشنهادات',
+        };
+        // [جدید] اضافه کردن statusMap در اینجا (برای استفاده احتمالی در آینده)
+        const statusMap = {
+            open: 'باز (در حال بررسی)',
+            closed: 'بسته شده',
+            pending_user_reply: 'در انتظار پاسخ شما',
+        };
+
+
         // --- MOCK DATA ---
         const mockAppTexts = {
             greetingTitle: "سلام مدیر عزیز! 👋 (آزمایشی)",
             quickTipMessage: "💡 نکته: این متون برای تست در حالت آزمایشی بارگذاری شده‌اند.",
-            faqButtonEnabled: "true", 
+            faqButtonEnabled: "true",
             faqButtonText: "مشاهده سوالات متداول",
             faqUrl: "https://mock.faq.com/",
             navTickets: "تیکت‌ها",
@@ -195,17 +211,17 @@
 
         // [جدید] داده‌های آزمایشی برای لیست تیکت‌ها
         const mockAppTickets = [
-            { id: 'T1001', subject: 'مشکل در اتصال به سرور', user: 'کاربر ۱۲۳', status: 'open', department: 'فنی', lastUpdate: '۵ دقیقه پیش', messages: [
-                { sender: 'user', text: 'سلام، من نمی‌توانم به سرور متصل شوم.' },
-                { sender: 'admin', text: 'سلام، لطفاً لحظاتی صبر کنید تا بررسی کنیم.' },
-                { sender: 'user', text: 'هنوز منتظرم. لطفاً سریع‌تر.' },
+            { id: 'T1001', subject: 'مشکل در اتصال به سرور', user_name: 'کاربر ۱۲۳', status: 'open', department: 'technical', created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), messages: [ // استفاده از user_name و technical
+                { sender: 'user', text: 'سلام، من نمی‌توانم به سرور متصل شوم.', created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString() },
+                { sender: 'admin', text: 'سلام، لطفاً لحظاتی صبر کنید تا بررسی کنیم.', created_at: new Date(Date.now() - 4 * 60 * 1000).toISOString() },
+                { sender: 'user', text: 'هنوز منتظرم. لطفاً سریع‌تر.', created_at: new Date(Date.now() - 3 * 60 * 1000).toISOString() },
             ]},
-            { id: 'T1002', subject: 'سوال در مورد تعرفه', user: 'کاربر ۴۵۶', status: 'open', department: 'فروش', lastUpdate: '۱ ساعت پیش', messages: [
-                { sender: 'user', text: 'سلام، تعرفه پلن حرفه‌ای چقدر است؟' },
+            { id: 'T1002', subject: 'سوال در مورد تعرفه', user_name: 'کاربر ۴۵۶', status: 'open', department: 'sales', created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(), messages: [ // استفاده از user_name و sales
+                { sender: 'user', text: 'سلام، تعرفه پلن حرفه‌ای چقدر است؟', created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString() },
             ]},
-            { id: 'T1003', subject: 'گزارش باگ', user: 'کاربر ۷۸۹', status: 'closed', department: 'فنی', lastUpdate: '۲ روز پیش', messages: [
-                { sender: 'user', text: 'دکمه خروج کار نمی‌کند.' },
-                { sender: 'admin', text: 'ممنون از گزارش شما، در نسخه بعدی رفع خواهد شد. تیکت بسته شد.' },
+            { id: 'T1003', subject: 'گزارش باگ', user_name: 'کاربر ۷۸۹', status: 'closed', department: 'technical', created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), messages: [ // استفاده از user_name و technical
+                { sender: 'user', text: 'دکمه خروج کار نمی‌کند.', created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
+                { sender: 'admin', text: 'ممنون از گزارش شما، در نسخه بعدی رفع خواهد شد. تیکت بسته شد.', created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
             ]},
         ];
 
@@ -221,7 +237,7 @@
             }
         };
 
-        const WORKER_API_BASE_URL = 'https://ticketing.amiruserbot7.workers.dev'; 
+        const WORKER_API_BASE_URL = 'https://ticketing.amiruserbot7.workers.dev';
         const getDashboardTitle = (handle) => `داشبورد (${handle || 'ناشناس'})`;
 
         // --- پایان تنظیمات ---
@@ -236,13 +252,13 @@
 
         let currentState = 'Dashboard-Loading';
         const history = [];
-        let appTexts = {}; 
-        let appStats = {}; 
+        let appTexts = {};
+        let appStats = {};
         let appTickets = []; // [جدید] اکنون به درستی یک آرایه خواهد بود
         let chartData = {};  // [جدید]
         let currentTicketListFilter = 'open'; // [جدید]
-        let currentEditKey = null; 
-        let successMessage = null; 
+        let currentEditKey = null;
+        let successMessage = null;
 
         // [جدید] متغیرهای چارت‌ها برای جلوگیری از رندر تکراری
         let ratingChartInstance = null;
@@ -254,7 +270,7 @@
                 quickTipMessage: { name: "پیام راهنمای سریع", icon: "lightbulb", desc: `متن کوچک زیر عنوان در کارت راهنما (مثلاً: لطفا مشکل را با جزئیات بنویسید)` },
                 faqButtonEnabled: { name: "وضعیت دکمه راهنما", icon: "toggle-right", desc: `دکمه سوالات متداول را در مینی‌اپ فعال یا غیرفعال کنید.`, isBoolean: true },
                 faqButtonText: { name: "متن دکمه راهنما", icon: "help-circle", desc: `متنی که روی دکمه مشاهده سوالات متداول نمایش داده می‌شود.` },
-                faqUrl: { name: "لینک دکمه راهنما", icon: "link", desc: `آدرس URL کامل (باید با https:// شروع شود).`, isUrl: true }, 
+                faqUrl: { name: "لینک دکمه راهنما", icon: "link", desc: `آدرس URL کامل (باید با https:// شروع شود).`, isUrl: true },
                 navTickets: { name: "منوی: تیکت‌ها", icon: "ticket", desc: `متن آیکون تیکت‌ها در نوار پایین مینی‌اپ.` },
                 navNewTicket: { name: "منوی: تیکت جدید", icon: "file-plus", desc: `متن آیکون ایجاد تیکت جدید در نوار پایین مینی‌اپ.` },
                 infoModalTitle: { name: "عنوان راهنمای تیکت", icon: "info", desc: `عنوان پنجره‌ای که قبل از ثبت تیکت جدید نمایش داده می‌شود.` },
@@ -270,7 +286,7 @@
         };
 
         // --- توابع کمکی ---
-        
+
         function autoResize(el) {
             el.style.height = 'auto';
             el.style.height = (el.scrollHeight) + 'px';
@@ -287,11 +303,11 @@
         function showMessage(text, type = 'success', duration = 4000) {
             messageBox.textContent = text;
             messageBox.className = `fixed bottom-24 left-4 right-4 p-4 text-white text-center rounded-2xl shadow-2xl z-20 transform transition-all duration-300 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
-            
+
             setTimeout(() => {
                 messageBox.classList.remove('hidden', 'translate-y-10', 'opacity-0');
             }, 10);
-            
+
             setTimeout(() => {
                 messageBox.classList.add('translate-y-10', 'opacity-0');
                 setTimeout(() => messageBox.classList.add('hidden'), 300);
@@ -302,7 +318,7 @@
         function showReplyContainer(show) {
             const bodyPadding = show ? '180px' : '100px'; // فضا برای نوار پایین + فیلد پاسخ
             document.body.style.paddingBottom = bodyPadding;
-            
+
             if(show) {
                 replyContainer.classList.remove('translate-y-full');
             } else {
@@ -317,7 +333,7 @@
                 item.classList.remove('active', 'text-indigo-600');
                 item.classList.add('text-gray-500');
             });
-            
+
             let activeItem;
             if (state === 'Dashboard' || state === 'Dashboard-Loading') {
                 activeItem = document.getElementById('nav-dashboard');
@@ -326,7 +342,7 @@
             } else if (state === 'MainMenu' || state.startsWith('SubMenu_') || state.startsWith('EditScreen_')) {
                 activeItem = document.getElementById('nav-settings');
             }
-            
+
             if (activeItem) {
                 activeItem.classList.add('active', 'text-indigo-600');
                 activeItem.classList.remove('text-gray-500');
@@ -339,12 +355,12 @@
                 history.push(currentState);
             }
             currentState = newState;
-            
+
             const currentHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
             const dashboardTitle = getDashboardTitle(currentHandle);
-            
+
             headerTitle.textContent = title || dashboardTitle;
-            updateFooterNav(newState); 
+            updateFooterNav(newState);
 
             // [جدید] نمایش/پنهان کردن فیلد پاسخ بر اساس صفحه
             if (currentState.startsWith('TicketView_')) {
@@ -352,9 +368,9 @@
             } else {
                 showReplyContainer(false);
             }
-            
+
             render();
-            window.scrollTo(0, 0); 
+            window.scrollTo(0, 0);
         }
 
         // [به‌روزرسانی] تابع بازگشت
@@ -369,10 +385,10 @@
 
             if (history.length > 0) {
                 const previousState = history.pop();
-                
+
                 const currentHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
                 const dashboardTitle = getDashboardTitle(currentHandle);
-                
+
                 let title = dashboardTitle;
                 if (previousState === 'MainMenu') title = 'مدیریت متون';
                 if (previousState === 'TicketsList') title = 'لیست تیکت‌ها'; // [جدید]
@@ -380,10 +396,10 @@
                     const menuType = previousState.replace('SubMenu_', '');
                     title = menuType === 'MINI_APP_UI' ? 'متن‌های مینی‌اپ' : 'متن‌های اعلان ربات';
                 }
-                
+
                 currentState = previousState;
                 headerTitle.textContent = title;
-                updateFooterNav(previousState); 
+                updateFooterNav(previousState);
                 render(false);
                 window.scrollTo(0, 0);
             } else {
@@ -394,7 +410,7 @@
         // --- Data Fetching (از Worker API) ---
         async function fetchStats() {
             const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
-            if (currentStoreHandle === MOCK_STORE_HANDLE) return mockAppStats; 
+            if (currentStoreHandle === MOCK_STORE_HANDLE) return mockAppStats;
 
             const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/stats`;
             const response = await fetch(url);
@@ -405,7 +421,7 @@
         }
         async function fetchAppTexts() {
             const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
-            if (currentStoreHandle === MOCK_STORE_HANDLE) return mockAppTexts; 
+            if (currentStoreHandle === MOCK_STORE_HANDLE) return mockAppTexts;
 
             const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/texts`;
             const response = await fetch(url);
@@ -441,7 +457,7 @@
                         ...ticketsObject[key]
                     };
                 });
-                
+
                 console.log("Fetched and converted tickets:", ticketsArray); // برای دیباگ
                 return ticketsArray; // بازگشت آرایه اصلاح شده
                 // -----------------------------------------------------------------
@@ -461,7 +477,7 @@
                  console.log("Fetching mock chart data");
                  return mockChartData;
              }
-            
+
             const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/chartdata`; // فرض بر این است که این endpoint داده‌های نمودار است
              try {
                 const response = await fetch(url);
@@ -498,8 +514,8 @@
                     console.warn("Missing STORE_HANDLE, loading mock data.");
                     appTexts = mockAppTexts;
                     appStats = mockAppStats;
-                    appTickets = mockAppTickets; 
-                    chartData = mockChartData;   
+                    appTickets = mockAppTickets;
+                    chartData = mockChartData;
                 } else {
                      // [جدید] واکشی تمام داده‌ها به صورت موازی
                     const [textsData, statsData, ticketsData, chartApiData] = await Promise.all([
@@ -512,20 +528,20 @@
                     appTexts = textsData;
                     appStats = statsData;
                     appTickets = ticketsData; // اکنون ticketsData یک آرایه است
-                    chartData = chartApiData;   
+                    chartData = chartApiData;
                 }
 
             } catch (error) {
                 console.error(`Error in fetchInitialData: ${error.message}. Loading mock data as fallback...`);
                 appTexts = mockAppTexts;
                 appStats = mockAppStats;
-                appTickets = mockAppTickets; 
-                chartData = mockChartData;   
+                appTickets = mockAppTickets;
+                chartData = mockChartData;
                 showMessage(`❌ خطا در اتصال به API: ${error.message.substring(0, 50)}... بارگذاری داده آزمایشی.`, 'error');
             }
-            
+
             currentState = 'Dashboard';
-            updateFooterNav('Dashboard'); 
+            updateFooterNav('Dashboard');
             render();
         }
 
@@ -533,7 +549,7 @@
         async function handleSave() {
             const saveButton = document.getElementById('save-button');
             const editElement = document.getElementById('edit-area');
-            const newText = editElement.value; 
+            const newText = editElement.value;
 
             if (!currentEditKey) return;
             const keyData = getFullKeyData(currentEditKey);
@@ -547,14 +563,14 @@
 
             saveButton.disabled = true;
             saveButton.innerHTML = '<i data-lucide="loader-circle" class="animate-spin h-5 w-5 inline mr-2"></i> در حال ذخیره...';
-            lucide.createIcons(); 
+            lucide.createIcons();
 
             const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
-            
+
             if (currentStoreHandle === MOCK_STORE_HANDLE) {
                 appTexts[currentEditKey] = newText;
                 successMessage = `✅ تنظیم "${keyData.name}" با موفقیت در حالت آزمایشی ذخیره شد!`;
-                
+
                 navigateTo(`SubMenu_${keyData.type}`, 'مدیریت متون');
                 return;
             }
@@ -568,13 +584,13 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                
+
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    appTexts[currentEditKey] = newText; 
+                    appTexts[currentEditKey] = newText;
                     successMessage = `✅ تنظیم "${keyData.name}" با موفقیت ذخیره و اعمال شد!`;
-                    
+
                     navigateTo(`SubMenu_${keyData.type}`, 'مدیریت متون');
                 } else {
                     throw new Error(result.error || 'خطا در Worker API هنگام ذخیره.');
@@ -602,7 +618,7 @@
             content.innerHTML = `
                 <div class="space-y-4 animate-pulse">
                     <h2 class="text-2xl font-extrabold text-gray-800 border-b pb-2 mb-3">گزارش عملکرد</h2>
-                    
+
                     <!-- Skeleton for Metric Cards -->
                     <div class="grid grid-cols-2 gap-3">
                         <div class="skeleton-pulse h-24"></div>
@@ -613,7 +629,7 @@
 
                     <!-- [جدید] Skeleton for KPI Card (بزرگتر برای نمودارها) -->
                     <div class="skeleton-pulse w-full h-80"></div>
-                    
+
                     <!-- Skeleton for Button -->
                     <div class="skeleton-pulse w-full h-16 mt-3"></div>
                 </div>
@@ -634,7 +650,7 @@
                 successMessage = null;
             }
             const ratingPercent = parseFloat(stats.ratingPercentage || '0');
-            const progressBarColor = ratingPercent >= 90 ? 'bg-green-500' : 
+            const progressBarColor = ratingPercent >= 90 ? 'bg-green-500' :
                                        ratingPercent >= 75 ? 'bg-yellow-500' : 'bg-red-500';
 
 
@@ -647,9 +663,9 @@
 
             content.innerHTML = `
                 <div class="space-y-4">
-                    
+
                     <h2 class="text-2xl font-extrabold text-gray-800 border-b pb-2 mb-3 fade-in-up" style="animation-delay: 100ms;">گزارش عملکرد</h2>
-                    
+
                     <div class="grid grid-cols-2 gap-3">
                         ${metricCards.map((card, index) => `
                             <div class="metric-card fade-in-up" style="animation-delay: ${150 + index * 50}ms;">
@@ -698,14 +714,14 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <button onclick="navigateTo('MainMenu', 'مدیریت متون')" class="w-full bg-white text-gray-900 py-4 mt-3 rounded-2xl shadow-lg hover:shadow-xl transition duration-300 font-bold flex items-center justify-center text-base btn-press fade-in-up" style="animation-delay: 400ms;">
                         <i data-lucide="settings" class="h-6 w-6 ml-2 text-indigo-600"></i>
                         مدیریت متون و تنظیمات
                     </button>
                 </div>
             `;
-            
+
             // [جدید] رندر کردن نمودارها پس از رندر HTML
             // [اصلاح شد] تاخیر کوتاه برای اطمینان از رندر شدن canvas
             setTimeout(() => {
@@ -718,7 +734,7 @@
         function renderTicketsList() {
             backButton.classList.add('hidden'); // صفحه اصلی تب تیکت‌ها دکمه بازگشت ندارد
             headerTitle.textContent = 'لیست تیکت‌ها';
-            
+
             if (successMessage) {
                 showMessage(successMessage);
                 successMessage = null;
@@ -747,14 +763,14 @@
                         ${filteredTickets.length > 0 ? filteredTickets.map((ticket, index) => `
                             <div class="bg-white rounded-2xl shadow-lg p-4 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: ${50 + index * 50}ms;" onclick="navigateTo('TicketView_${ticket.id}', '${ticket.subject}')">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="font-bold text-gray-800 text-base truncate">${ticket.subject}</span>
-                                    <!-- [اصلاح شد] نمایش زمان ایجاد یا آپدیت (اگر وجود دارد) -->
-                                    <span class="text-xs font-semibold text-gray-500">${ticket.lastUpdate || new Date(ticket.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }) || ''}</span>
+                                    <span class="font-bold text-gray-800 text-base truncate">${ticket.subject || 'بدون موضوع'}</span>
+                                    <!-- [اصلاح شد] نمایش زمان ایجاد با فرمت بهتر -->
+                                    <span class="text-xs font-semibold text-gray-500">${new Date(ticket.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }) || ''}</span>
                                 </div>
                                 <div class="flex items-center justify-between text-sm">
                                      <!-- [اصلاح شد] نمایش user_name اگر وجود دارد -->
-                                    <span class="text-gray-600">${ticket.user_name || ticket.user || 'کاربر ناشناس'}</span>
-                                    <!-- [اصلاح شد] نگاشت department به نام فارسی و استایل بهتر -->
+                                    <span class="text-gray-600">${ticket.user_name || 'کاربر ناشناس'}</span>
+                                    <!-- [اصلاح شد] استفاده از departmentMap تعریف شده در همین فایل -->
                                      <span class="text-xs font-semibold ${
                                         ticket.department === 'technical' ? 'bg-blue-100 text-blue-700' :
                                         ticket.department === 'sales' ? 'bg-green-100 text-green-700' :
@@ -762,7 +778,7 @@
                                         ticket.department === 'ideas' ? 'bg-yellow-100 text-yellow-700' :
                                         'bg-gray-100 text-gray-700' // Default for general or unknown
                                     } px-2 py-0.5 rounded-full">${
-                                        departmentMap[ticket.department] || ticket.department || 'عمومی'
+                                        departmentMap[ticket.department] || ticket.department || 'عمومی' // استفاده از departmentMap
                                     }</span>
                                 </div>
                             </div>
@@ -782,7 +798,7 @@
             currentTicketListFilter = status;
             render(); // رندر مجدد صفحه تیکت‌ها
         }
-        
+
         // [جدید] تابع رندر صفحه مشاهده تیکت
         function renderTicketView(state) {
             backButton.classList.remove('hidden'); // نمایش دکمه بازگشت
@@ -796,25 +812,28 @@
             }
 
             headerTitle.textContent = ticket.subject;
-            
+
              // [اصلاح مهم] واکشی پیام‌های واقعی برای تیکت
              // ما دیگر به ticket.messages در آبجکت اصلی تکیه نمی‌کنیم
              // تابع fetchMessagesForTicket مسئول آپدیت UI خواهد بود
              fetchMessagesForTicket(ticketId);
 
              // نمایش موقت لودر یا پیام "در حال بارگذاری پیام‌ها..."
+             // [اصلاح شد] استفاده از departmentMap
              content.innerHTML = `
                  <div class="space-y-4 fade-in-up" style="padding-bottom: 80px;">
                      <!-- اطلاعات تیکت -->
                      <div class="bg-white rounded-2xl shadow-lg p-4 text-sm">
-                          <p><strong>کاربر:</strong> ${ticket.user_name || ticket.user || 'کاربر ناشناس'}</p>
+                          <p><strong>کاربر:</strong> ${ticket.user_name || 'کاربر ناشناس'}</p>
                           <p><strong>دپارتمان:</strong> ${departmentMap[ticket.department] || ticket.department || 'عمومی'}</p>
-                          <p><strong>وضعیت:</strong> ${ticket.status === 'open' ? 'باز' : 'بسته'}</p>
+                          <p><strong>وضعیت:</strong> ${statusMap[ticket.status] || ticket.status || 'نامشخص'}</p>
                      </div>
                      <!-- لودر پیام‌ها -->
-                     <div id="messages-container" class="text-center text-gray-500 pt-5">
-                         <i data-lucide="loader-circle" class="animate-spin h-8 w-8 mx-auto text-indigo-600"></i>
-                         <p>در حال بارگذاری پیام‌ها...</p>
+                     <div id="messages-container" class="space-y-3">
+                         <div class="text-center text-gray-500 pt-5">
+                            <i data-lucide="loader-circle" class="animate-spin h-8 w-8 mx-auto text-indigo-600"></i>
+                            <p>در حال بارگذاری پیام‌ها...</p>
+                         </div>
                      </div>
                  </div>
              `;
@@ -835,6 +854,10 @@
                 const messages = ticket?.messages || [];
                 renderMessages(messages, messagesContainer); // رندر پیام‌های mock
                 lucide.createIcons(); // رندر آیکون‌ها اگر در پیام‌ها استفاده شود
+                // اسکرول به پایین بعد از رندر پیام‌های mock
+                 setTimeout(() => {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                 }, 0);
                 return;
             }
             // --- پایان حالت آزمایشی ---
@@ -862,6 +885,12 @@
             } finally {
                  // اطمینان از رندر شدن آیکون‌ها حتی در صورت خطا
                  lucide.createIcons();
+                 // اسکرول به پایین بعد از رندر یا خطا
+                 setTimeout(() => {
+                    if (messagesContainer) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                 }, 0);
             }
         }
 
@@ -880,17 +909,15 @@
                         ${
                             // [جدید] نمایش Placeholder برای تصاویر
                             msg.type === 'image_placeholder'
-                            ? `<span class="italic text-gray-400">${msg.text}</span>`
-                            : msg.text // نمایش متن معمولی
+                            ? `<span class="italic text-gray-500">${msg.text}</span>` // متن placeholder کمی تیره‌تر
+                            : msg.text.replace(/\n/g, '<br>') // نمایش متن معمولی با حفظ خطوط جدید
                          }
                          <!-- [جدید] نمایش زمان ارسال پیام -->
                          <div class="text-xs ${msg.sender === 'admin' ? 'text-indigo-200' : 'text-gray-400'} mt-1 text-left">${new Date(msg.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                 </div>
             `).join('');
-
-             // اسکرول به آخرین پیام
-             containerElement.scrollTop = containerElement.scrollHeight;
+            // اسکرول به آخرین پیام در اینجا لازم نیست چون در fetchMessagesForTicket انجام می‌شود
          }
 
 
@@ -898,7 +925,7 @@
         function renderMainMenu() {
             backButton.classList.remove('hidden');
             headerTitle.textContent = 'مدیریت متون';
-            
+
             if (successMessage) {
                 showMessage(successMessage);
                 successMessage = null;
@@ -907,7 +934,7 @@
             content.innerHTML = `
                 <h2 class="text-2xl font-extrabold text-gray-800 mb-2 fade-in-up">شخصی‌سازی محتوا</h2>
                 <p class="text-sm text-gray-500 mb-6 fade-in-up" style="animation-delay: 50ms;">متون کلیدی مینی اپ و اعلان‌های ربات را ویرایش کنید.</p>
-                
+
                 <div class="space-y-4">
                     <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: 100ms;" onclick="navigateTo('SubMenu_MINI_APP_UI', 'متن‌های مینی‌اپ')">
                         <div class="flex items-center justify-between">
@@ -935,10 +962,10 @@
         }
         function renderSubMenu_Texts(state) {
             backButton.classList.remove('hidden');
-            const menuType = state.replace('SubMenu_', ''); 
+            const menuType = state.replace('SubMenu_', '');
             const keys = CUSTOM_TEXT_KEYS[menuType];
             const menuTitle = menuType === 'MINI_APP_UI' ? "متن‌های مینی‌اپ" : "متن‌های اعلان ربات";
-            
+
             headerTitle.textContent = menuTitle;
 
             if (successMessage) {
@@ -949,12 +976,12 @@
             content.innerHTML = `
                 <h2 class="text-2xl font-extrabold text-gray-800 mb-2 fade-in-up">${menuTitle}</h2>
                 <p class="text-sm text-gray-500 mb-6 fade-in-up" style="animation-delay: 50ms;">متن مورد نظر برای ویرایش را انتخاب کنید:</p>
-                
+
                 <div class="space-y-4">
                     ${Object.entries(keys).map(([key, data], index) => {
                         const menuIcon = data.icon || 'file-text';
                         const iconColor = menuType === 'MINI_APP_UI' ? 'text-indigo-500' : 'text-orange-500';
-                        
+
                         let additionalInfo = '';
                         if (data.isBoolean) {
                             const currentValue = (appTexts[key] === "true" || typeof appTexts[key] === 'undefined'); // Default to true if undefined
@@ -996,11 +1023,11 @@
 
             const isNotification = keyData.type === 'USER_NOTIFICATIONS';
             const isUrlField = keyData.isUrl;
-            const isBooleanField = keyData.isBoolean; 
+            const isBooleanField = keyData.isBoolean;
 
             // Default text handling improved: Use empty string if no default specified
-            const currentText = (appTexts[currentEditKey] ?? keyData.defaultText ?? "").replace(/\\n/g, '\n'); 
-            
+            const currentText = (appTexts[currentEditKey] ?? keyData.defaultText ?? "").replace(/\\n/g, '\n');
+
             let markdownGuideHTML = '';
             let inputElement;
 
@@ -1043,7 +1070,7 @@
                     <input id="edit-area" type="url" value="${currentText.replace(/\n/g, '')}" class="w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="مثلاً: https://yourdomain.com/faq">
                 `;
             } else if (isBooleanField) {
-                const currentValue = (appTexts[currentEditKey] || "true"); 
+                const currentValue = (appTexts[currentEditKey] || "true");
                 inputElement = `
                     <select id="edit-area" class="w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm bg-white">
                         <option value="true" ${currentValue === "true" ? 'selected' : ''}>فعال (نمایش داده شود)</option>
@@ -1075,10 +1102,10 @@
                     </button>
                 </div>
             `;
-            
+
             const editArea = document.getElementById('edit-area');
-            if (editArea && !isUrlField && !isBooleanField) { 
-                autoResize(editArea); 
+            if (editArea && !isUrlField && !isBooleanField) {
+                autoResize(editArea);
                 editArea.addEventListener('input', () => autoResize(editArea));
             }
         }
@@ -1090,7 +1117,7 @@
             // [اصلاح شد] بررسی می‌کند که آیا بوم و داده‌ها قبل از رندر وجود دارند یا خیر
             if (!ctx || !chartData || !chartData.ratings) {
                 console.warn('Rating chart canvas or data not ready.');
-                return; 
+                return;
             }
 
             // از بین بردن نمودار قبلی اگر وجود داشت
@@ -1212,7 +1239,7 @@
             }
 
             setTimeout(() => {
-                
+
                 if (currentState === 'Dashboard-Loading') {
                     renderDashboardSkeleton();
                 } else if (currentState === 'Dashboard') {
@@ -1230,18 +1257,18 @@
                 } else {
                     renderDashboard(); // Fallback
                 }
-                
+
                 backButton.classList[history.length > 0 ? 'remove' : 'add']('hidden');
                 updateFooterNav(currentState);
 
                 content.classList.remove('opacity-0');
-                
+
                 // [اصلاح شد] فراخوانی createIcons در همه رندرها به جز لودینگ
                 if (currentState !== 'Dashboard-Loading') {
                     lucide.createIcons();
                 }
 
-            }, 50); 
+            }, 50);
         }
 
         // رویدادهای اصلی
