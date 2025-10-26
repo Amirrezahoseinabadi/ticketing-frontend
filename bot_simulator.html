@@ -417,26 +417,14 @@
 
         // [جدید] تابع واکشی تیکت‌ها
         async function fetchTickets() {
-            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
-            if (currentStoreHandle === MOCK_STORE_HANDLE) return mockAppTickets; 
-
-            // TODO: آدرس API واقعی خود را جایگزین کنید
-            // const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/tickets`;
-            // const response = await fetch(url);
-            // ... (Error handling)
-            // return result.data;
-            return []; // بازگشت لیست خالی در حالت غیرآزمایشی
+            // [اصلاح شد] همیشه داده‌های آزمایشی را برمی‌گرداند تا زمانی که API واقعی آماده شود
+            return mockAppTickets;
         }
 
         // [جدید] تابع واکشی داده‌های نمودار
         async function fetchChartData() {
-            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
-            if (currentStoreHandle === MOCK_STORE_HANDLE) return mockChartData; 
-
-            // TODO: آدرس API واقعی خود را جایگزین کنید
-            // const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/charts`;
-            // ...
-            return { ratings: { labels: [], data: [] }, volume: { labels: [], data: [] } };
+            // [اصلاح شد] همیشه داده‌های آزمایشی را برمی‌گرداند
+            return mockChartData;
         }
 
 
@@ -446,32 +434,37 @@
             render();
 
             try {
-                if (!STORE_HANDLE) {
-                    throw new Error("Missing STORE_HANDLE, loading mock data.");
+                // [اصلاح شد] دیگر در صورت نبودن STORE_HANDLE خطا نمی‌دهد، فقط به حالت آزمایشی می‌رود
+                const isMockMode = !STORE_HANDLE;
+
+                if (isMockMode) {
+                    console.warn("Missing STORE_HANDLE, loading mock data.");
+                    appTexts = mockAppTexts;
+                    appStats = mockAppStats;
+                    appTickets = mockAppTickets; 
+                    chartData = mockChartData;   
+                } else {
+                     // [جدید] واکشی تمام داده‌ها به صورت موازی
+                    const [textsData, statsData, ticketsData, chartApiData] = await Promise.all([
+                        fetchAppTexts(),
+                        fetchStats(),
+                        fetchTickets(),
+                        fetchChartData()
+                    ]);
+
+                    appTexts = textsData;
+                    appStats = statsData;
+                    appTickets = ticketsData; 
+                    chartData = chartApiData;   
                 }
-
-                // [جدید] واکشی تمام داده‌ها به صورت موازی
-                const [textsData, statsData, ticketsData, chartApiData] = await Promise.all([
-                    fetchAppTexts(),
-                    fetchStats(),
-                    fetchTickets(),
-                    fetchChartData()
-                ]);
-
-                appTexts = textsData;
-                appStats = statsData;
-                appTickets = ticketsData; // [جدید]
-                chartData = chartApiData;   // [جدید]
 
             } catch (error) {
-                console.warn(`Error in fetchInitialData: ${error.message}. Loading mock data...`);
+                console.error(`Error in fetchInitialData: ${error.message}. Loading mock data as fallback...`);
                 appTexts = mockAppTexts;
                 appStats = mockAppStats;
-                appTickets = mockAppTickets; // [جدید]
-                chartData = mockChartData;   // [جدید]
-                if(error.message !== "Missing STORE_HANDLE, loading mock data."){
-                    showMessage(`❌ خطا در اتصال به API: ${error.message.substring(0, 50)}... بارگذاری داده آزمایشی.`, 'error');
-                }
+                appTickets = mockAppTickets; 
+                chartData = mockChartData;   
+                showMessage(`❌ خطا در اتصال به API: ${error.message.substring(0, 50)}... بارگذاری داده آزمایشی.`, 'error');
             }
             
             currentState = 'Dashboard';
@@ -655,11 +648,13 @@
                     </button>
                 </div>
             `;
-            lucide.createIcons();
             
             // [جدید] رندر کردن نمودارها پس از رندر HTML
-            initRatingChart();
-            initVolumeChart();
+            // [اصلاح شد] تاخیر کوتاه برای اطمینان از رندر شدن canvas
+            setTimeout(() => {
+                initRatingChart();
+                initVolumeChart();
+            }, 100);
         }
 
         // [جدید] تابع رندر لیست تیکت‌ها
@@ -708,7 +703,6 @@
                     </div>
                 </div>
             `;
-            lucide.createIcons();
         }
 
         // [جدید] تابع برای تغییر فیلتر تیکت‌ها
@@ -751,7 +745,6 @@
                     </div>
                 </div>
             `;
-            lucide.createIcons();
         }
 
 
@@ -792,7 +785,6 @@
                     </div>
                 </div>
             `;
-            lucide.createIcons();
         }
         function renderSubMenu_Texts(state) {
             backButton.classList.remove('hidden');
@@ -842,7 +834,6 @@
                     }).join('')}
                 </div>
             `;
-            lucide.createIcons();
         }
         function renderEditScreen(state) {
             backButton.classList.remove('hidden');
@@ -936,7 +927,6 @@
                     </button>
                 </div>
             `;
-            lucide.createIcons();
             
             const editArea = document.getElementById('edit-area');
             if (editArea && !isUrlField && !isBooleanField) { 
@@ -949,7 +939,11 @@
 
         function initRatingChart() {
             const ctx = document.getElementById('ratingChart');
-            if (!ctx || !chartData.ratings) return;
+            // [اصلاح شد] بررسی می‌کند که آیا بوم و داده‌ها قبل از رندر وجود دارند یا خیر
+            if (!ctx || !chartData || !chartData.ratings) {
+                console.warn('Rating chart canvas or data not ready.');
+                return; 
+            }
 
             // از بین بردن نمودار قبلی اگر وجود داشت
             if (ratingChartInstance) {
@@ -993,7 +987,11 @@
 
         function initVolumeChart() {
             const ctx = document.getElementById('volumeChart');
-            if (!ctx || !chartData.volume) return;
+            // [اصلاح شد] بررسی می‌کند که آیا بوم و داده‌ها قبل از رندر وجود دارند یا خیر
+            if (!ctx || !chartData || !chartData.volume) {
+                 console.warn('Volume chart canvas or data not ready.');
+                return;
+            }
 
             if (volumeChartInstance) {
                 volumeChartInstance.destroy();
@@ -1053,6 +1051,18 @@
         function render() {
             content.classList.add('transition-all', 'duration-200', 'opacity-0');
 
+            // [اصلاح شد] اطمینان از پاک شدن نمودارهای قبلی
+            if (currentState !== 'Dashboard') {
+                 if (ratingChartInstance) {
+                    ratingChartInstance.destroy();
+                    ratingChartInstance = null;
+                 }
+                if (volumeChartInstance) {
+                    volumeChartInstance.destroy();
+                    volumeChartInstance = null;
+                }
+            }
+
             setTimeout(() => {
                 
                 if (currentState === 'Dashboard-Loading') {
@@ -1078,6 +1088,7 @@
 
                 content.classList.remove('opacity-0');
                 
+                // [اصلاح شد] فراخوانی createIcons در همه رندرها به جز لودینگ
                 if (currentState !== 'Dashboard-Loading') {
                     lucide.createIcons();
                 }
@@ -1101,5 +1112,4 @@
     </script>
 </body>
 </html>
-
 
