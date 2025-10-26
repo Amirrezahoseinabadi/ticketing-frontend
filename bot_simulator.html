@@ -849,15 +849,23 @@
             const messagesContainer = document.getElementById('messages-container');
             // اطمینان از اینکه در صفحه درست هستیم و کانتینر وجود دارد
             if (!messagesContainer || currentState !== `TicketView_${ticketId}`) {
-                console.log("Not rendering messages - wrong state or container not found");
+                console.log("Not fetching/rendering messages - wrong state or container not found for ticket:", ticketId); // Log reason for not fetching
                 return;
             }
+
+            // [جدید] نمایش مجدد لودر قبل از هر بار واکشی
+            messagesContainer.innerHTML = `
+                <div class="text-center text-gray-500 pt-5">
+                    <i data-lucide="loader-circle" class="animate-spin h-8 w-8 mx-auto text-indigo-600"></i>
+                    <p>در حال بارگذاری پیام‌ها...</p>
+                 </div>`;
+            lucide.createIcons(); // رندر آیکون لودر
 
             const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
 
             // --- حالت آزمایشی ---
             if (currentStoreHandle === MOCK_STORE_HANDLE) {
-                console.log("Mock mode: Loading messages from mock ticket object.");
+                console.log("Mock mode: Loading messages from mock ticket object for ticket:", ticketId);
                 const ticket = mockAppTickets.find(t => t.id === ticketId);
                 // اطمینان از اینکه پیام‌ها وجود دارند قبل از رندر
                 const messages = ticket?.messages?.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) || [];
@@ -866,6 +874,7 @@
                 // اسکرول به پایین بعد از رندر پیام‌های mock
                  setTimeout(() => {
                     if (messagesContainer) { // Double check container exists
+                      console.log("Scrolling mock messages to bottom");
                       messagesContainer.scrollTop = messagesContainer.scrollHeight;
                     }
                  }, 50); // Small delay to ensure DOM update
@@ -894,6 +903,7 @@
                 console.error("Error fetching messages:", error.message);
                 showMessage(`❌ خطا در واکشی پیام‌ها: ${error.message}.`, 'error');
                  if (messagesContainer) {
+                    // [اصلاح شد] نمایش پیام خطا در کانتینر
                     messagesContainer.innerHTML = `<p class="text-red-600 p-4 font-bold text-center">خطا در بارگذاری پیام‌ها.</p>`;
                  }
             } finally {
@@ -902,7 +912,7 @@
                  // اسکرول به پایین بعد از رندر یا خطا
                  setTimeout(() => {
                     if (messagesContainer) {
-                        console.log("Scrolling messages container to bottom"); // Log scroll attempt
+                        console.log("Scrolling messages container to bottom after fetch/render"); // Log scroll attempt
                         messagesContainer.scrollTop = messagesContainer.scrollHeight;
                     }
                  }, 50); // Small delay for DOM update
@@ -921,8 +931,11 @@
                  containerElement.innerHTML = `<p class="text-gray-500 text-center pt-5">هنوز پیامی رد و بدل نشده است.</p>`;
                  return;
              }
-             // Ensure text exists and replace newlines
-            const sanitizeText = (text = '') => text.replace(/\n/g, '<br>');
+             // Ensure text exists and replace newlines - Escape HTML for safety
+            const sanitizeText = (text = '') => {
+                 const escapedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                 return escapedText.replace(/\n/g, '<br>');
+            }
 
             containerElement.innerHTML = messagesArray.map(msg => `
                 <div class="flex ${msg.sender === 'admin' ? 'justify-start' : 'justify-end'} fade-in-up" style="animation-delay: ${messagesArray.indexOf(msg) * 30}ms"> <!-- Simple animation -->
