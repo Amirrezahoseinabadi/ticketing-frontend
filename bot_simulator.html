@@ -42,6 +42,15 @@
             height: auto;
         }
 
+        /* [اصلاح شد] استایل برای فیلد پاسخ */
+        .reply-textarea-auto {
+            overflow-y: hidden; /* جلوگیری از نمایش اسکرول در حالت عادی */
+            resize: none; 
+            min-height: 48px; /* ارتفاع دکمه ارسال */
+            max-height: 150px; /* حداکثر ارتفاع قبل از اسکرول شدن */
+        }
+
+
         .nav-item.active {
             color: #4f46e5; /* رنگ اصلی اپ (Indigo) */
         }
@@ -138,11 +147,12 @@
 
         <!-- [جدید] فیلد ارسال پاسخ در صفحه تیکت (خارج از محتوا برای چسبیدن به پایین) -->
         <div id="reply-container" class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-20 transform translate-y-full transition-transform duration-300">
-            <div class="flex items-center space-x-3" dir="ltr">
-                <button id="send-reply-btn" class="bg-indigo-600 text-white p-3 rounded-full btn-press shadow-lg shadow-indigo-300">
+            <!-- [اصلاح شد] چینش برای ارسال پیام -->
+            <div class="flex items-end space-x-3" dir="ltr">
+                <button id="send-reply-btn" class="bg-indigo-600 text-white p-3 h-12 w-12 rounded-full btn-press shadow-lg shadow-indigo-300 flex-shrink-0">
                     <i data-lucide="send" class="h-6 w-6"></i>
                 </button>
-                <textarea id="reply-textarea" rows="1" class="w-full p-3 border border-gray-300 rounded-2xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="پاسخ خود را بنویسید..." style="resize: none;"></textarea>
+                <textarea id="reply-textarea" rows="1" class="reply-textarea-auto w-full p-3 border border-gray-300 rounded-2xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="پاسخ خود را بنویسید..."></textarea>
             </div>
         </div>
 
@@ -262,6 +272,7 @@
         // [جدید] کانتینر و فیلد پاسخ
         const replyContainer = document.getElementById('reply-container');
         const replyTextarea = document.getElementById('reply-textarea');
+        const sendReplyBtn = document.getElementById('send-reply-btn'); // [جدید] دکمه ارسال
 
         let currentState = 'Dashboard-Loading';
         const history = [];
@@ -270,6 +281,7 @@
         let appTickets = []; // [جدید] اکنون به درستی یک آرایه خواهد بود
         let chartData = {};  // [جدید]
         let currentTicketListFilter = 'open'; // [جدید]
+        let currentTicketId = null; // [جدید] برای نگهداری شناسه تیکت فعلی
         let currentEditKey = null;
         let successMessage = null;
 
@@ -301,9 +313,27 @@
         // --- توابع کمکی ---
 
         function autoResize(el) {
-            el.style.height = 'auto';
-            el.style.height = (el.scrollHeight) + 'px';
+            // [اصلاح شد] برای textarea با کلاس reply-textarea-auto
+            if (el.classList.contains('reply-textarea-auto')) {
+                el.style.height = 'auto'; // ریست کردن ارتفاع
+                // محاسبه ارتفاع محتوا، اما محدود به max-height
+                let newHeight = el.scrollHeight;
+                const maxHeight = 150; // باید با max-height در CSS یکی باشد
+                
+                if (newHeight > maxHeight) {
+                    el.style.height = maxHeight + 'px';
+                    el.style.overflowY = 'auto'; // نمایش اسکرول در صورت نیاز
+                } else {
+                    el.style.height = newHeight + 'px';
+                    el.style.overflowY = 'hidden'; // مخفی کردن اسکرول
+                }
+            } else if (el.classList.contains('auto-resize-textarea')) {
+                // منطق قبلی برای textarea در صفحه ویرایش
+                el.style.height = 'auto';
+                el.style.height = (el.scrollHeight) + 'px';
+            }
         }
+
 
         function getFullKeyData(key) {
             for (const menuType in CUSTOM_TEXT_KEYS) {
@@ -329,13 +359,19 @@
 
         // [جدید] نمایش یا پنهان کردن فیلد پاسخ
         function showReplyContainer(show) {
-            const bodyPadding = show ? '180px' : '100px'; // فضا برای نوار پایین + فیلد پاسخ
-            document.body.style.paddingBottom = bodyPadding;
-
-            if(show) {
+            // [اصلاح شد] ارتفاع فیلد پاسخ متغیر است، بنابراین padding-bottom را بر اساس ارتفاع واقعی آن تنظیم می‌کنیم
+            if (show) {
                 replyContainer.classList.remove('translate-y-full');
+                // تاخیر کوتاه برای محاسبه ارتفاع
+                setTimeout(() => {
+                    const replyHeight = replyContainer.offsetHeight;
+                    // 80px (نوار پایین) + ارتفاع فیلد پاسخ + 16px (کمی فاصله)
+                    const totalPadding = 80 + replyHeight + 16; 
+                    document.body.style.paddingBottom = `${totalPadding}px`;
+                }, 100); 
             } else {
                 replyContainer.classList.add('translate-y-full');
+                document.body.style.paddingBottom = '100px'; // بازگشت به حالت پیش‌فرض
             }
         }
 
@@ -380,6 +416,7 @@
                 showReplyContainer(true);
             } else {
                 showReplyContainer(false);
+                currentTicketId = null; // [جدید] پاک کردن شناسه تیکت هنگام خروج از صفحه
             }
 
             render();
@@ -394,6 +431,7 @@
             // [جدید] پنهان کردن فیلد پاسخ هنگام بازگشت
             if (currentState.startsWith('TicketView_')) {
                  showReplyContainer(false);
+                 currentTicketId = null; // [جدید] پاک کردن شناسه تیکت
             }
 
             if (history.length > 0) {
@@ -618,6 +656,76 @@
             }
         }
 
+        // [جدید] تابع ارسال پاسخ ادمین به ورکر
+        async function sendAdminReplyToWorker(ticketId, text) {
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            
+            // --- حالت آزمایشی ---
+            if (currentStoreHandle === MOCK_STORE_HANDLE) {
+                console.log(`Mock Send Reply: Ticket ${ticketId}, Text: ${text}`);
+                // اضافه کردن پیام به داده‌های آزمایشی
+                const ticket = mockAppTickets.find(t => t.id === ticketId);
+                if (ticket) {
+                    if (!ticket.messages) ticket.messages = [];
+                    ticket.messages.push({
+                        sender: 'admin',
+                        text: text,
+                        created_at: new Date().toISOString()
+                    });
+                }
+                // ریست کردن فیلد
+                replyTextarea.value = '';
+                autoResize(replyTextarea); // ریست کردن ارتفاع
+                // رفرش کردن پیام‌ها
+                fetchMessagesForTicket(ticketId);
+                showMessage('✅ (آزمایشی) پاسخ شما ثبت شد.');
+                return;
+            }
+            // --- پایان حالت آزمایشی ---
+
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/messages`;
+            const payload = {
+                ticket_id: ticketId,
+                sender: 'admin',
+                text: text,
+                source: 'miniapp' // مشخص کردن منبع
+            };
+
+            // غیرفعال کردن دکمه هنگام ارسال
+            sendReplyBtn.disabled = true;
+            sendReplyBtn.innerHTML = '<i data-lucide="loader-circle" class="animate-spin h-6 w-6"></i>';
+            lucide.createIcons();
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'خطا در ارسال پیام.');
+                }
+
+                // موفقیت
+                replyTextarea.value = ''; // پاک کردن فیلد
+                autoResize(replyTextarea); // ریست کردن ارتفاع
+                fetchMessagesForTicket(ticketId); // رفرش کردن چت
+                showMessage('✅ پاسخ شما با موفقیت ارسال شد.');
+
+            } catch (error) {
+                console.error("Error sending admin reply:", error);
+                showMessage(`❌ خطا: ${error.message}`, 'error');
+            } finally {
+                // فعال کردن مجدد دکمه
+                sendReplyBtn.disabled = false;
+                sendReplyBtn.innerHTML = '<i data-lucide="send" class="h-6 w-6"></i>';
+                lucide.createIcons();
+            }
+        }
+
+
         // =================================================================
         // RENDER FUNCTIONS (UI) - بازطراحی شده
         // =================================================================
@@ -816,6 +924,8 @@
         function renderTicketView(state) {
             backButton.classList.remove('hidden'); // نمایش دکمه بازگشت
             const ticketId = state.replace('TicketView_', '');
+            currentTicketId = ticketId; // [جدید] ذخیره شناسه تیکت فعلی
+
             // [اصلاح شد] اکنون appTickets یک آرایه است و .find() کار می‌کند
             const ticket = appTickets.find(t => t.id === ticketId);
 
@@ -826,11 +936,8 @@
 
             headerTitle.textContent = ticket.subject;
 
-             // [اصلاح شد] فراخوانی تابع واکشی پیام‌ها به صورت موقت غیرفعال شد
-             // fetchMessagesForTicket(ticketId);
-
-             // نمایش موقت لودر یا پیام "در حال بارگذاری پیام‌ها..."
              // [اصلاح شد] استفاده از departmentMap و statusMap
+             // [اصلاح شد] Placeholder "به زودی" با لودر واقعی جایگزین شد
              content.innerHTML = `
                  <div class="space-y-4 fade-in-up" style="padding-bottom: 80px;"> <!-- Add padding for reply box -->
                      <!-- اطلاعات تیکت -->
@@ -841,23 +948,25 @@
                      </div>
                      <!-- کانتینر پیام‌ها -->
                      <div id="messages-container" class="space-y-3">
-                         <!-- [اصلاح شد] پیام موقت جایگزین لودر شد -->
-                         <div class="text-center text-gray-600 pt-10 px-4 float-animation">
-                            <span class="text-3xl block mb-2">🚀</span>
-                            <p class="font-semibold text-lg text-indigo-700">به زودی...</p>
-                            <p class="text-sm">این بخش در دست توسعه است و به زودی فعال خواهد شد!</p>
+                         <!-- [اصلاح شد] لودر واقعی جایگزین شد -->
+                         <div class="text-center text-gray-500 pt-10">
+                            <i data-lucide="loader-circle" class="animate-spin h-8 w-8 mx-auto text-indigo-600"></i>
+                            <p>در حال بارگذاری پیام‌ها...</p>
                          </div>
                      </div>
                  </div>
              `;
-             // Make sure icons render even in loading state (though not strictly needed now)
+            
+             // [فعال شد] فراخوانی تابع واکشی پیام‌ها
+             fetchMessagesForTicket(ticketId);
+
+             // Make sure icons render
             lucide.createIcons();
         }
 
        // [جدید و اصلاح شده] تابع واکشی و رندر پیام‌ها برای یک تیکت خاص
-       // [اصلاح شد] این تابع موقتا غیر فعال است
+       // [فعال شد] این تابع اکنون فعال است
        async function fetchMessagesForTicket(ticketId) {
-            /*
             const messagesContainer = document.getElementById('messages-container');
             // اطمینان از اینکه در صفحه درست هستیم و کانتینر وجود دارد
             if (!messagesContainer || currentState !== `TicketView_${ticketId}`) {
@@ -865,13 +974,9 @@
                 return;
             }
 
-            // [جدید] نمایش مجدد لودر قبل از هر بار واکشی
-            messagesContainer.innerHTML = `
-                <div class="text-center text-gray-500 pt-5">
-                    <i data-lucide="loader-circle" class="animate-spin h-8 w-8 mx-auto text-indigo-600"></i>
-                    <p>در حال بارگذاری پیام‌ها...</p>
-                 </div>`;
-            lucide.createIcons(); // رندر آیکون لودر
+            // [جدید] نمایش مجدد لودر قبل از هر بار واکشی (این در renderTicketView انجام شد)
+            // messagesContainer.innerHTML = `... لودر ...`;
+            // lucide.createIcons(); // رندر آیکون لودر
 
             const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
 
@@ -887,7 +992,7 @@
                  setTimeout(() => {
                     if (messagesContainer) { // Double check container exists
                       console.log("Scrolling mock messages to bottom");
-                      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                      content.scrollTop = content.scrollHeight; // [اصلاح شد] اسکرول کانتینر اصلی محتوا
                     }
                  }, 50); // Small delay to ensure DOM update
                 return;
@@ -925,18 +1030,15 @@
                  setTimeout(() => {
                     if (messagesContainer) {
                         console.log("Scrolling messages container to bottom after fetch/render"); // Log scroll attempt
-                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        window.scrollTo(0, document.body.scrollHeight); // [اصلاح شد] اسکرول کل صفحه به پایین
                     }
                  }, 50); // Small delay for DOM update
             }
-            */
-            console.log("fetchMessagesForTicket is temporarily disabled."); // لاگ موقت
         }
 
         // [جدید] تابع کمکی برای رندر کردن آرایه پیام‌ها در DOM
-         // [اصلاح شد] این تابع موقتا غیر فعال است
+         // [فعال شد] این تابع اکنون فعال است
         function renderMessages(messagesArray, containerElement) {
-            /*
             console.log("Rendering messages:", messagesArray); // Log messages being rendered
             if (!containerElement) {
                  console.error("Cannot render messages: containerElement is null");
@@ -968,8 +1070,6 @@
                 </div>
             `).join('');
             console.log("Messages rendered to DOM"); // Confirm rendering
-            */
-            console.log("renderMessages is temporarily disabled."); // لاگ موقت
          }
 
 
@@ -1325,11 +1425,20 @@
 
         // رویدادهای اصلی
         backButton.addEventListener('click', handleBack);
+        
         // [جدید] تنظیم ارتفاع خودکار برای فیلد پاسخ
-        replyTextarea.addEventListener('input', () => {
-            replyTextarea.style.height = 'auto';
-            replyTextarea.style.height = (replyTextarea.scrollHeight) + 'px';
+        replyTextarea.addEventListener('input', () => autoResize(replyTextarea));
+
+        // [جدید] رویداد کلیک برای دکمه ارسال پاسخ
+        sendReplyBtn.addEventListener('click', () => {
+            const text = replyTextarea.value.trim();
+            if (text && currentTicketId) {
+                sendAdminReplyToWorker(currentTicketId, text);
+            } else if (!text) {
+                showMessage('❌ لطفا متن پاسخ را وارد کنید.', 'error');
+            }
         });
+
 
         // شروع اپلیکیشن
         fetchInitialData();
@@ -1339,4 +1448,3 @@
     </script>
 </body>
 </html>
-
