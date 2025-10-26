@@ -7,16 +7,32 @@
     <!-- بارگذاری Tailwind CSS و Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <!-- بارگذاری فونت‌ها -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- فونت‌های جدید: Vazirmatn برای فارسی و Inter برای انگلیسی -->
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        /* تنظیم فونت و تم اصلی */
+        /* تنظیم فونت و تم اصلی - شبیه به ویدیو */
         body {
-            /* استفاده از فونت وزیرمتن برای فارسی و Inter برای انگلیسی */
             font-family: 'Vazirmatn', 'Inter', Tahoma, sans-serif;
-            background-color: #f3f4f6; /* پس‌زمینه خاکستری بسیار روشن */
+            background-color: #f7f8fa; /* پس‌زمینه خاکستری بسیار روشن */
+            /* padding-bottom برای ایجاد فضا برای نوار ناوبری پایین */
+            padding-bottom: 100px;
+        }
+        
+        /* سبک برای کارت‌های داشبورد - شبیه‌سازی سبک ویدیو */
+        .metric-card {
+            background-color: #ffffff;
+            padding: 1.25rem;
+            border-radius: 20px; /* گوشه‌های بسیار گرد */
+            /* سایه نرم و عمیق‌تر شبیه ویدیو */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
+            border: none;
+            transition: all 0.3s;
+        }
+        .metric-card:hover {
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+            transform: translateY(-3px);
         }
         
         /* سبک برای textarea با قابلیت بزرگ شدن خودکار */
@@ -27,66 +43,55 @@
             height: auto;
         }
 
-        /* انیمیشن برای نمودار دایره‌ای */
-        @keyframes donut-chart-fill {
-            from { stroke-dashoffset: 100; }
-            to { stroke-dashoffset: var(--stroke-offset, 100); }
+        /* سبک برای آیتم فعال در نوار ناوبری پایین */
+        .nav-item.active {
+            color: #4f46e5; /* رنگ اصلی اپ (Indigo) */
         }
-        .donut-chart-fg {
-            animation: donut-chart-fill 1s ease-out forwards;
+        .nav-item.active span {
+             font-weight: 700;
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="antialiased">
 
-    <!-- شبیه‌سازی صفحه اپلیکیشن موبایل -->
-    <!-- 
-        تغییرات ظاهری:
-        - تمام صفحه در موبایل (h-screen)
-        - کارت شبیه‌ساز موبایل در دسکتاپ (md:h-[800px], md:rounded-2xl, md:shadow-xl)
-        - استفاده از flex-col برای تقسیم‌بندی هدر، محتوا و فوتر
-    -->
-    <div id="app-screen" class="w-full max-w-md mx-auto bg-white flex flex-col h-screen md:h-[800px] md:mt-8 md:mb-8 md:rounded-2xl md:shadow-xl overflow-hidden">
-        
-        <!-- 
-            هدر ثابت:
-            - حذف گرادیانت و استفاده از پس‌زمینه سفید
-            - اضافه کردن خط پایین (border-b) برای جداسازی
-            - تغییر رنگ متن به تیره
-        -->
-        <header class="bg-white border-b border-gray-200 p-4 flex items-center shadow-sm flex-shrink-0">
+    <!-- کانتینر اصلی اپلیکیشن -->
+    <div id="app-container">
+        <!-- هدر ثابت، ساده و سفید - شبیه به ویدیو -->
+        <header class="bg-white text-gray-900 p-4 flex items-center shadow-sm sticky top-0 z-10">
             <!-- آیکون بازگشت -->
-            <button id="back-button" class="text-gray-600 p-2 hover:bg-gray-100 rounded-full transition duration-150 hidden">
+            <button id="back-button" class="text-gray-700 p-2 hover:bg-gray-100 rounded-full transition duration-150 hidden">
                 <i data-lucide="chevron-right" class="h-6 w-6"></i>
             </button>
-            <h1 id="header-title" class="text-xl font-extrabold text-gray-900 mr-4 flex-grow truncate">پنل مدیریت ربات</h1>
+            <h1 id="header-title" class="text-lg font-extrabold mr-4 flex-grow truncate">پنل مدیریت ربات</h1>
+            <!-- می‌توانید آیکون‌هایی مثل خورشید (تم) در اینجا اضافه کنید -->
+            <!-- <i data-lucide="sun" class="h-6 w-6 text-gray-600"></i> -->
         </header>
 
-        <!-- 
-            کانتینر اصلی محتوا:
-            - flex-grow باعث می‌شود این بخش تمام فضای باقی‌مانده را بگیرد
-            - overflow-y-auto اسکرول داخلی را فقط برای این بخش فعال می‌کند
-        -->
-        <div id="content" class="flex-grow overflow-y-auto p-5 space-y-5 bg-gray-50/50">
-            <div id="loading-spinner" class="text-center p-8">
+        <!-- کانتینر اصلی محتوا (padding بیشتر برای فضای باز) -->
+        <div id="content" class="p-6 space-y-5">
+            <div id="loading-spinner" class="text-center p-8 mt-10">
                 <i data-lucide="loader-circle" class="animate-spin h-10 w-10 text-indigo-600 inline"></i>
                 <p class="mt-4 text-gray-600 font-semibold">در حال بارگذاری داده‌های اولیه...</p>
             </div>
         </div>
+    </div>
 
-        <!-- 
-            فوتر:
-            - این بخش برای دکمه‌های عملیاتی (مثل داشبورد و صفحه ویرایش) استفاده می‌شود
-            - به پایین صفحه می‌چسبد
-        -->
-        <footer id="app-footer" class="p-4 bg-white border-t border-gray-100 shadow-inner flex-shrink-0 hidden">
-            <!-- محتوای فوتر به صورت داینامیک اضافه می‌شود -->
-        </footer>
+    <!-- نوار ناوبری پایین صفحه - شبیه به ویدیو -->
+    <nav id="footer-nav" class="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-5px_20px_rgba(0,0,0,0.05)] rounded-t-3xl h-20 flex justify-around items-center z-10">
+        <button onclick="navigateTo('Dashboard', getDashboardTitle(STORE_HANDLE || MOCK_STORE_HANDLE))" id="nav-dashboard" class="nav-item flex flex-col items-center justify-center text-gray-500 w-full" data-page="Dashboard">
+            <i data-lucide="layout-dashboard" class="h-6 w-6"></i>
+            <span class="text-xs font-semibold mt-1">داشبورد</span>
+        </button>
+        <button onclick="navigateTo('MainMenu', 'مدیریت متون')" id="nav-settings" class="nav-item flex flex-col items-center justify-center text-gray-500 w-full" data-page="MainMenu">
+            <i data-lucide="settings" class="h-6 w-6"></i>
+            <span class="text-xs font-semibold mt-1">تنظیمات</span>
+        </button>
+    </nav>
 
-        <!-- پیام نمایش داده شده در پایین صفحه -->
-        <div id="message-box" class="fixed bottom-0 left-0 right-0 p-4 text-white text-center rounded-t-xl shadow-2xl z-20 hidden">
-            عملیات با موفقیت انجام شد!
-        </div>
+
+    <!-- پیام نمایش داده شده در پایین صفحه -->
+    <div id="message-box" class="fixed bottom-24 left-4 right-4 p-4 text-white text-center rounded-2xl shadow-2xl z-20 hidden transform transition-all duration-300 translate-y-10 opacity-0">
+        عملیات با موفقیت انجام شد!
     </div>
 
     <script>
@@ -132,13 +137,12 @@
         const WORKER_API_BASE_URL = 'https://ticketing.amiruserbot7.workers.dev'; 
 
         // تابع برای ساخت عنوان داشبورد
-        const getDashboardTitle = (handle) => `داشبورد مدیریت (${handle || 'ناشناس'})`;
+        const getDashboardTitle = (handle) => `داشبورد (${handle || 'ناشناس'})`;
 
 
         // --- پایان تنظیمات ---
 
         const content = document.getElementById('content');
-        const appFooter = document.getElementById('app-footer');
         const backButton = document.getElementById('back-button');
         const headerTitle = document.getElementById('header-title');
         const messageBox = document.getElementById('message-box');
@@ -192,12 +196,41 @@
 
         function showMessage(text, type = 'success', duration = 4000) {
             messageBox.textContent = text;
-            messageBox.className = `fixed bottom-0 left-0 right-0 p-4 text-white text-center rounded-t-2xl shadow-2xl z-20 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
-            messageBox.classList.remove('hidden');
+            messageBox.className = `fixed bottom-24 left-4 right-4 p-4 text-white text-center rounded-2xl shadow-2xl z-20 transform transition-all duration-300 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+            
+            // Animate in
             setTimeout(() => {
-                messageBox.classList.add('hidden');
+                messageBox.classList.remove('hidden', 'translate-y-10', 'opacity-0');
+            }, 10);
+            
+            // Animate out
+            setTimeout(() => {
+                messageBox.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => messageBox.classList.add('hidden'), 300);
             }, duration);
         }
+
+        // [جدید] تابع برای به‌روزرسانی نوار ناوبری پایین
+        function updateFooterNav(state) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active', 'text-indigo-600');
+                item.classList.add('text-gray-500');
+            });
+            
+            let activeItem;
+            if (state === 'Dashboard') {
+                activeItem = document.getElementById('nav-dashboard');
+            } else if (state === 'MainMenu' || state.startsWith('SubMenu_') || state.startsWith('EditScreen_')) {
+                // تمام صفحات مربوط به تنظیمات، آیکون تنظیمات را فعال می‌کنند
+                activeItem = document.getElementById('nav-settings');
+            }
+            
+            if (activeItem) {
+                activeItem.classList.add('active', 'text-indigo-600');
+                activeItem.classList.remove('text-gray-500');
+            }
+        }
+
 
         function navigateTo(newState, title = null, pushHistory = true) {
             if (pushHistory && currentState !== 'Loading') {
@@ -209,7 +242,9 @@
             const dashboardTitle = getDashboardTitle(currentHandle);
             
             headerTitle.textContent = title || dashboardTitle;
+            updateFooterNav(newState); // [جدید] به‌روزرسانی نوار پایین
             render();
+            window.scrollTo(0, 0); // اسکرول به بالای صفحه در هر ناوبری
         }
 
         function handleBack() {
@@ -233,9 +268,12 @@
                 
                 currentState = previousState;
                 headerTitle.textContent = title;
+                updateFooterNav(previousState); // [جدید] به‌روزرسانی نوار پایین
                 render(false);
+                window.scrollTo(0, 0);
             } else {
-                navigateTo('Dashboard', getDashboardTitle(STORE_HANDLE || MOCK_STORE_HANDLE), false); 
+                // اگر هیستوری خالی بود به داشبورد برگرد
+                navigateTo('Dashboard', getDashboardTitle(STORE_HANDLE || MOCK_STORE_HANDLE), false);
             }
         }
 
@@ -288,6 +326,7 @@
                 }
             }
             currentState = 'Dashboard';
+            updateFooterNav('Dashboard'); // [جدید] تنظیم حالت اولیه نوار پایین
             render();
         }
 
@@ -345,75 +384,19 @@
                 console.error("Error saving text via Worker:", error);
                 showMessage(`❌ خطا در ذخیره تنظیم: ${error.message}`, 'error');
             } finally {
-                // دکمه ذخیره در فوتر است و در ناوبری بعدی حذف می‌شود،
-                // اما اگر خطا رخ دهد، باید آن را به حالت اول برگردانیم.
-                if (document.getElementById('save-button')) {
-                    saveButton.disabled = false;
-                    saveButton.innerHTML = '<i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره و اعمال تغییرات';
-                    lucide.createIcons();
-                }
+                saveButton.disabled = false;
+                saveButton.innerHTML = '<i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره تغییرات';
+                lucide.createIcons();
             }
         }
 
 
         // =================================================================
-        // RENDER FUNCTIONS (UI)
+        // RENDER FUNCTIONS (UI) - بازطراحی شده
         // =================================================================
-
-        /**
-         * رندر نمودار دایره‌ای (Donut Chart)
-         * شبیه به چیزی که در ویدیو دیدیم
-         */
-        function renderDonutChart(percentage) {
-            const percent = Math.max(0, Math.min(100, parseFloat(percentage) || 0));
-            const radius = 52;
-            const circumference = 2 * Math.PI * radius; // 100
-            const offset = circumference - (percent / 100) * circumference; // 0
-
-            let strokeColor = "text-green-500"; // سبز برای امتیاز بالا
-            if (percent < 90) strokeColor = "text-yellow-500"; // زرد برای متوسط
-            if (percent < 75) strokeColor = "text-red-500"; // قرمز برای پایین
-
-            return `
-                <div class="relative flex items-center justify-center w-40 h-40 mx-auto">
-                    <svg class="w-full h-full" viewBox="0 0 120 120">
-                        <!-- پس‌زمینه (ترک) -->
-                        <circle
-                            class="text-gray-200"
-                            stroke-width="12"
-                            stroke="currentColor"
-                            fill="transparent"
-                            r="${radius}"
-                            cx="60"
-                            cy="60"
-                        />
-                        <!-- پیشرفت (fill) -->
-                        <circle
-                            class="donut-chart-fg ${strokeColor}"
-                            stroke-width="12"
-                            stroke-linecap="round"
-                            stroke="currentColor"
-                            fill="transparent"
-                            r="${radius}"
-                            cx="60"
-                            cy="60"
-                            transform="rotate(-90 60 60)"
-                            style="stroke-dasharray: ${circumference}; --stroke-offset: ${offset}; stroke-dashoffset: ${circumference};"
-                        />
-                    </svg>
-                    <!-- متن درصد در وسط -->
-                    <div class="absolute flex flex-col items-center justify-center">
-                        <span class="text-3xl font-extrabold text-gray-800">${percent.toFixed(0)}%</span>
-                        <span class="text-xs text-gray-500">رضایت</span>
-                    </div>
-                </div>
-            `;
-        }
 
         function renderDashboard() {
             backButton.classList.add('hidden');
-            appFooter.classList.remove('hidden'); // نمایش فوتر
-            
             const currentHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
             headerTitle.textContent = getDashboardTitle(currentHandle);
             const stats = appStats;
@@ -424,76 +407,72 @@
             }
             
             const ratingPercent = parseFloat(stats.ratingPercentage || '0');
+            const progressBarColor = ratingPercent >= 90 ? 'bg-green-500' : 
+                                     ratingPercent >= 75 ? 'bg-yellow-500' : 'bg-red-500';
 
-            // تعریف کارت‌های متریک
-            // تغییرات ظاهری: استفاده از bg-white، سایه نرم‌تر، و پدینگ بیشتر
             const metricCards = [
                 { title: "کل تیکت‌ها", value: stats.totalCount || '0', icon: "ticket", color: "text-indigo-600", desc: "تعداد کل تیکت‌های ثبت شده." },
-                { title: "تیکت‌های فعال", value: stats.totalActive || '0', icon: "inbox", color: "text-red-600", desc: "باز و در انتظار پاسخ." },
-                { title: "میانگین پاسخ", value: stats.avgFirstResponseTime || 'N/A', icon: "clock-3", color: "text-green-600", desc: "اولین پاسخگویی." },
-                { title: "زمان حل نهایی", value: stats.avgTimeToResolution || 'N/A', icon: "zap", color: "text-purple-600", desc: "زمان تا بستن تیکت." },
+                { title: "تیکت‌های فعال", value: stats.totalActive || '0', icon: "inbox", color: "text-red-600", desc: "باز و در انتظار پاسخ ادمین." },
+                { title: "امتیاز میانگین", value: `${stats.avgRating || 'N/A'} / 5.00`, icon: "star", color: "text-yellow-600", desc: `بر اساس ${stats.ratedTicketsCount || 0} امتیاز.` },
+                { title: "میانگین پاسخ", value: stats.avgFirstResponseTime || 'N/A', icon: "clock-3", color: "text-green-600", desc: "زمان متوسط اولین پاسخ." },
             ];
 
             content.innerHTML = `
-                <div class="space-y-5 pb-20"> <!-- اضافه کردن padding-bottom برای جلوگیری از همپوشانی با فوتر -->
+                <div class="space-y-6">
                     
                     <h2 class="text-2xl font-extrabold text-gray-800 border-b pb-3 mb-4">گزارش عملکرد</h2>
                     
-                    <!-- گرید کارت‌های متریک -->
                     <div class="grid grid-cols-2 gap-4">
                         ${metricCards.map(card => `
-                            <!-- 
-                                تغییر استایل کارت:
-                                - bg-white, rounded-2xl, shadow-sm, border
-                                - پدینگ بیشتر (p-5)
-                                - طراحی شبیه به ویدیو
-                            -->
-                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md hover:border-gray-200">
+                            <div class="metric-card">
                                 <div class="flex items-center justify-between mb-3">
                                     <h3 class="text-sm font-semibold text-gray-500">${card.title}</h3>
                                     <i data-lucide="${card.icon}" class="${card.color} h-6 w-6"></i>
                                 </div>
-                                <p class="text-3xl font-extrabold text-gray-900">${card.value}</p>
+                                <p class="text-2xl font-extrabold text-gray-900">${card.value}</p>
                                 <p class="text-xs text-gray-400 mt-1 truncate">${card.desc}</p>
                             </div>
                         `).join('')}
                     </div>
 
-                    <!-- 
-                        کارت نمودار رضایت کاربران:
-                        - این کارت شبیه به نمودار دایره‌ای در ویدیو است
-                    -->
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">شاخص رضایت کاربران</h3>
-                        ${renderDonutChart(ratingPercent)}
-                        <div class="flex justify-between text-sm mt-4 pt-4 border-t border-gray-100">
-                            <span class="text-gray-600">میانگین امتیاز:</span>
-                            <span class="font-bold text-yellow-600 flex items-center">
-                                <i data-lucide="star" class="h-4 w-4 ml-1 fill-current"></i>
-                                ${stats.avgRating || 'N/A'} / 5.00
-                            </span>
-                        </div>
-                        <div class="flex justify-between text-sm mt-2">
-                            <span class="text-gray-600">تعداد امتیازات:</span>
-                            <span class="font-bold text-gray-800">${stats.ratedTicketsCount || 0}</span>
+                    <!-- بخش سرعت و نوار پیشرفت - در یک کارت شیک -->
+                    <div class="metric-card bg-white">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                            <i data-lucide="zap" class="h-5 w-5 ml-2 text-purple-600"></i> شاخص‌های کلیدی (KPI)
+                        </h3>
+                        
+                        <div class="space-y-4">
+                            <p class="flex justify-between text-sm">
+                                <span class="text-gray-600">زمان حل نهایی تیکت:</span>
+                                <span class="font-bold text-gray-800">${stats.avgTimeToResolution || 'N/A'}</span>
+                            </p>
+
+                            <!-- نوار پیشرفت ویژوالایزر امتیاز -->
+                            <div>
+                                <p class="flex justify-between text-sm mb-1">
+                                    <span class="text-gray-600">درصد رضایت کاربران:</span>
+                                    <span class="font-bold text-gray-800">${stats.ratingPercentage || '0.0'}%</span>
+                                </p>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                    <div class="${progressBarColor} h-2.5 rounded-full transition-all duration-500" style="width: ${ratingPercent > 100 ? 100 : ratingPercent}%;"></div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
+                    
+                    <!-- دکمه مدیریت متون - بازطراحی شده شبیه دکمه‌های ویدیو -->
+                    <button onclick="navigateTo('MainMenu', 'مدیریت متون')" class="w-full bg-white text-gray-900 py-5 mt-4 rounded-2xl shadow-lg hover:shadow-xl transition duration-300 font-bold flex items-center justify-center text-base">
+                        <i data-lucide="settings" class="h-6 w-6 ml-2 text-indigo-600"></i>
+                        مدیریت متون و تنظیمات
+                    </button>
                 </div>
             `;
-            
-            // دکمه مدیریت در فوتر چسبان
-            appFooter.innerHTML = `
-                <button onclick="navigateTo('MainMenu', 'مدیریت متون')" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-2xl shadow-lg shadow-indigo-400/50 hover:from-indigo-700 hover:to-purple-700 transition duration-300 font-bold flex items-center justify-center text-base">
-                    <i data-lucide="settings" class="h-5 w-5 ml-2"></i> مدیریت متون و تنظیمات
-                </button>
-            `;
-
             lucide.createIcons();
         }
 
         function renderMainMenu() {
             backButton.classList.remove('hidden');
-            appFooter.classList.add('hidden'); // در این صفحه فوتر نداریم
             headerTitle.textContent = 'مدیریت متون';
             
             if (successMessage) {
@@ -503,33 +482,30 @@
 
             content.innerHTML = `
                 <h2 class="text-2xl font-extrabold text-gray-800 mb-2">شخصی‌سازی محتوا</h2>
-                <p class="text-sm text-gray-500 mb-6">متون کلیدی مینی اپ و اعلان‌های ارسال شده به کاربران را ویرایش کنید.</p>
+                <p class="text-sm text-gray-500 mb-6">متون کلیدی مینی اپ و اعلان‌های ربات را ویرایش کنید.</p>
                 
-                <!-- 
-                    تغییر استایل منو:
-                    - هر آیتم یک کارت جداگانه است (شبیه به ویدیو)
-                    - حذف `divide-y` و استفاده از `space-y-3`
-                -->
-                <div class="space-y-3 pb-16">
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between transition-all duration-150 hover:shadow-md hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer" onclick="navigateTo('SubMenu_MINI_APP_UI', 'متن‌های مینی‌اپ')">
-                        <span class="flex items-center font-medium text-gray-800">
-                            <i data-lucide="smartphone" class="h-5 w-5 ml-3 text-indigo-600"></i>
-                            متن‌های مینی‌اپ (رابط کاربری)
-                        </span>
-                        <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
+                <!-- منوی جدید کارتی - شبیه ویدیو -->
+                <div class="space-y-4">
+                    <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl" onclick="navigateTo('SubMenu_MINI_APP_UI', 'متن‌های مینی‌اپ')">
+                        <div class="flex items-center justify-between">
+                            <span class="flex items-center font-bold text-gray-800 text-base">
+                                <i data-lucide="smartphone" class="h-6 w-6 ml-3 text-indigo-600"></i>
+                                متن‌های مینی‌اپ
+                            </span>
+                            <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-2 pr-9">ویرایش رابط کاربری و پیام‌های داخل مینی‌اپ.</p>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between transition-all duration-150 hover:shadow-md hover:border-orange-300 hover:bg-orange-50/50 cursor-pointer" onclick="navigateTo('SubMenu_USER_NOTIFICATIONS', 'متن‌های اعلان ربات')">
-                        <span class="flex items-center font-medium text-gray-800">
-                            <i data-lucide="bell" class="h-5 w-5 ml-3 text-orange-600"></i>
-                            متن‌های اعلان کاربر (ربات)
-                        </span>
-                        <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
-                    </div>
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between transition-all duration-150 hover:shadow-md hover:border-gray-300 hover:bg-gray-50/50 cursor-pointer" onclick="navigateTo('Dashboard', getDashboardTitle(STORE_HANDLE || MOCK_STORE_HANDLE))">
-                        <span class="flex items-center font-medium text-gray-600">
-                            <i data-lucide="layout-dashboard" class="h-5 w-5 ml-3 text-gray-400"></i>
-                            بازگشت به داشبورد
-                        </span>
+
+                    <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl" onclick="navigateTo('SubMenu_USER_NOTIFICATIONS', 'متن‌های اعلان ربات')">
+                        <div class="flex items-center justify-between">
+                            <span class="flex items-center font-bold text-gray-800 text-base">
+                                <i data-lucide="bell" class="h-6 w-6 ml-3 text-orange-600"></i>
+                                متن‌های اعلان کاربر
+                            </span>
+                            <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-2 pr-9">ویرایش پیام‌هایی که ربات برای کاربران ارسال می‌کند.</p>
                     </div>
                 </div>
             `;
@@ -538,10 +514,9 @@
 
         function renderSubMenu_Texts(state) {
             backButton.classList.remove('hidden');
-            appFooter.classList.add('hidden'); // در این صفحه فوتر نداریم
-            const menuType = state.replace('SubMenu_', ''); 
+            const menuType = state.replace('SubMenu_', ''); // MINI_APP_UI or USER_NOTIFICATIONS
             const keys = CUSTOM_TEXT_KEYS[menuType];
-            const menuTitle = menuType === 'MINI_APP_UI' ? "متن‌های رابط کاربری" : "متن‌های اعلان ربات";
+            const menuTitle = menuType === 'MINI_APP_UI' ? "متن‌های مینی‌اپ" : "متن‌های اعلان ربات";
             
             headerTitle.textContent = menuTitle;
 
@@ -554,8 +529,8 @@
                 <h2 class="text-2xl font-extrabold text-gray-800 mb-2">${menuTitle}</h2>
                 <p class="text-sm text-gray-500 mb-6">متن مورد نظر برای ویرایش را انتخاب کنید:</p>
                 
-                <!-- استفاده از همان استایل کارت‌ها برای منو -->
-                <div class="space-y-3 pb-16">
+                <!-- لیست کارتی گزینه‌ها - شبیه ویدیو -->
+                <div class="space-y-4">
                     ${Object.entries(keys).map(([key, data]) => {
                         const menuIcon = data.icon || 'file-text';
                         const iconColor = menuType === 'MINI_APP_UI' ? 'text-indigo-500' : 'text-orange-500';
@@ -569,24 +544,22 @@
                         }
 
                         return `
-                            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between transition-all duration-150 hover:shadow-md hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer" onclick="navigateTo('EditScreen_${key}', 'ویرایش: ${data.name}')">
-                                <span class="flex items-center text-gray-800">
-                                    <i data-lucide="${menuIcon}" class="h-5 w-5 ml-3 ${iconColor}"></i>
-                                    ${data.name}
-                                </span>
-                                <div class="flex items-center">
-                                    ${additionalInfo}
-                                    <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400 mr-2"></i>
+                            <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl" onclick="navigateTo('EditScreen_${key}', 'ویرایش: ${data.name}')">
+                                <div class="flex items-center justify-between">
+                                    <span class="flex items-center font-bold text-gray-800 text-base">
+                                        <i data-lucide="${menuIcon}" class="h-6 w-6 ml-3 ${iconColor}"></i>
+                                        ${data.name}
+                                    </span>
+                                    <div class="flex items-center">
+                                        ${additionalInfo}
+                                        <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400 ml-2"></i>
+                                    </div>
                                 </div>
+                                <!-- اضافه کردن توضیحات به کارت -->
+                                <p class="text-sm text-gray-500 mt-2 pr-9">${data.desc}</p>
                             </div>
                         `;
                     }).join('')}
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between transition-all duration-150 hover:shadow-md hover:border-gray-300 hover:bg-gray-50/50 cursor-pointer" onclick="navigateTo('MainMenu', 'مدیریت متون')">
-                        <span class="flex items-center font-medium text-indigo-600">
-                            <i data-lucide="undo-2" class="h-5 w-5 ml-3"></i>
-                            بازگشت به منوی اصلی
-                        </span>
-                    </div>
                 </div>
             `;
             lucide.createIcons();
@@ -594,14 +567,11 @@
 
         function renderEditScreen(state) {
             backButton.classList.remove('hidden');
-            appFooter.classList.remove('hidden'); // نمایش فوتر برای دکمه‌ها
-            
             currentEditKey = state.replace('EditScreen_', '');
             const keyData = getFullKeyData(currentEditKey);
 
             if (!keyData) {
                 content.innerHTML = `<p class="text-red-600 p-4 font-bold">خطا: کلید متنی نامعتبر است.</p>`;
-                appFooter.classList.add('hidden'); // خطاست، فوتر را مخفی کن
                 return;
             }
 
@@ -618,26 +588,27 @@
 
             if (isNotification) {
                 markdownGuideHTML = `
-                    <div class="bg-blue-50 border-r-4 border-blue-400 p-4 mb-4 rounded-xl text-sm text-gray-700 shadow-inner">
-                        <p class="font-bold text-blue-700 flex items-center mb-2"><i data-lucide="code" class="h-5 w-5 ml-2"></i> راهنمای حرفه‌ای Markdown و متغیرها</p>
+                    <div class="bg-blue-50 border border-blue-200 p-4 mb-5 rounded-2xl text-sm text-gray-700 shadow-md">
+                        <p class="font-bold text-blue-700 flex items-center mb-2"><i data-lucide="code" class="h-5 w-5 ml-2"></i> راهنمای Markdown و متغیرها</p>
+                        
                         <div class="bg-white border rounded-lg overflow-hidden mt-3">
                             <table class="w-full text-right text-xs">
                                 <thead class="bg-gray-100 font-semibold text-gray-600">
                                     <tr>
                                         <th class="p-2 border-b">سینتکس</th>
                                         <th class="p-2 border-b">توضیح</th>
-                                        <th class="p-2 border-b">نمونه خروجی</th>
+                                        <th class="p-2 border-b">نمونه</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">**متن**</td><td class="p-2 border-b">متن بولد</td><td class="p-2 border-b font-bold">متن ضخیم</td></tr>
-                                    <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">*متن*</td><td class="p-2 border-b">متن کج</td><td class="p-2 border-b italic">متن کج</td></tr>
-                                    <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">\`کد\`</td><td class="p-2 border-b">نوشتن کد یا ID</td><td class="p-2 border-b font-mono text-sm bg-gray-100 rounded">کد</td></tr>
+                                    <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">**متن**</td><td class="p-2 border-b">بولد</td><td class="p-2 border-b font-bold">متن</td></tr>
+                                    <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">*متن*</td><td class="p-2 border-b">کج</td><td class="p-2 border-b italic">متن</td></tr>
+                                    <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">\`کد\`</td><td class="p-2 border-b">کد</td><td class="p-2 border-b font-mono text-sm bg-gray-100 rounded">کد</td></tr>
                                 </tbody>
                             </table>
                         </div>
+                        
                         <p class="font-bold text-blue-700 mt-4 mb-1 flex items-center"><i data-lucide="variable" class="h-5 w-5 ml-2"></i> متغیرهای پویا</p>
-                        <p class="mb-2">از متغیرهای زیر استفاده کنید:</p>
                         <ul class="list-disc pr-5 space-y-1 font-mono text-xs">
                             <li><code>{Subject}</code>: موضوع تیکت</li>
                             <li><code>{Department}</code>: نام دپارتمان</li>
@@ -645,67 +616,54 @@
                     </div>
                 `;
             } else {
-                 const description = keyData.desc || 'توضیحات خاصی برای این متن موجود نیست. لطفاً آن را ساده و مختصر نگه دارید.';
+                 const description = keyData.desc || 'توضیحات خاصی برای این متن موجود نیست.';
                  markdownGuideHTML = `
-                     <div class="bg-yellow-50 border-r-4 border-yellow-400 p-3 mb-4 rounded-xl text-sm text-gray-700 flex items-start shadow-inner">
+                     <div class="bg-yellow-50 border border-yellow-200 p-4 mb-5 rounded-2xl text-sm text-gray-700 flex items-start shadow-md">
                          <i data-lucide="alert-triangle" class="h-5 w-5 ml-2 text-yellow-700 flex-shrink-0 mt-0.5"></i>
                          <div>
-                             <span class="font-bold text-yellow-700 ml-1">راهنمای متن:</span>
+                             <span class="font-bold text-yellow-700 ml-1">راهنما:</span>
                              <span>${description}</span>
                          </div>
                      </div>
                    `;
             }
 
-            // استایل ورودی‌ها به‌روزرسانی شد:
-            // - text-lg برای خوانایی بهتر
-            // - border-gray-200
-            // - shadow-sm
-            const inputBaseClasses = "w-full p-4 border border-gray-200 rounded-xl shadow-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-lg bg-white";
-
             if (isUrlField) {
                 inputElement = `
-                    <input id="edit-area" type="url" value="${currentText.replace(/\n/g, '')}" class="${inputBaseClasses}" placeholder="مثلاً: https://yourdomain.com/faq">
+                    <input id="edit-area" type="url" value="${currentText.replace(/\n/g, '')}" class="w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="مثلاً: https://yourdomain.com/faq">
                 `;
             } else if (isBooleanField) {
                 const currentValue = (appTexts[currentEditKey] || "true"); 
                 inputElement = `
-                    <select id="edit-area" class="${inputBaseClasses}">
+                    <select id="edit-area" class="w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm bg-white">
                         <option value="true" ${currentValue === "true" ? 'selected' : ''}>فعال (نمایش داده شود)</option>
                         <option value="false" ${currentValue === "false" ? 'selected' : ''}>غیرفعال (مخفی شود)</option>
                     </select>
                 `;
             } else {
                 inputElement = `
-                    <textarea id="edit-area" rows="4" class="auto-resize-textarea ${inputBaseClasses}" placeholder="متن جدید خود را اینجا وارد کنید...">${currentText}</textarea>
+                    <textarea id="edit-area" rows="4" class="auto-resize-textarea w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="متن جدید خود را اینجا وارد کنید...">${currentText}</textarea>
                 `;
             }
 
             content.innerHTML = `
-                <!-- 
-                    محتوای صفحه ویرایش:
-                    - pb-24 برای ایجاد فاصله از فوتر چسبان
-                -->
-                <div class="pb-24">
-                    <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ویرایش: ${keyData.name}</h2>
-                    ${markdownGuideHTML}
-                    ${inputElement}
-                </div>
-            `;
-            
-            // دکمه‌های عملیات در فوتر چسبان
-            // تغییر استایل دکمه لغو
-            appFooter.innerHTML = `
-                <div class="flex justify-end space-x-3" dir="ltr">
-                    <button onclick="handleBack()" class="px-5 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition duration-150 font-semibold shadow-sm">
-                        <i data-lucide="x-circle" class="h-5 w-5 inline ml-1"></i> لغو
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ویرایش: ${keyData.name}</h2>
+
+                ${markdownGuideHTML}
+
+                <!-- ناحیه ویرایش -->
+                ${inputElement}
+
+                <!-- دکمه‌های عملیات - بازطراحی شده -->
+                <div class="flex justify-end space-x-3 mt-6" dir="ltr">
+                    <button onclick="handleBack()" class="px-6 py-3 bg-white text-gray-800 rounded-2xl hover:bg-gray-50 transition duration-150 font-semibold shadow-lg">
+                        <i data-lucide="x" class="h-5 w-5 inline ml-1"></i> لغو
                     </button>
-                    <button id="save-button" onclick="handleSave()" class="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition duration-150 font-semibold shadow-lg shadow-indigo-400/50">
+                    <button id="save-button" onclick="handleSave()" class="px-6 py-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition duration-150 font-semibold shadow-lg shadow-indigo-400/50">
                         <i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره تغییرات
                     </button>
                 </div>
             `;
-            
             lucide.createIcons();
             
             const editArea = document.getElementById('edit-area');
@@ -721,14 +679,11 @@
         function render() {
             if (currentState === 'Loading') {
                 content.innerHTML = document.getElementById('loading-spinner').outerHTML;
-                appFooter.classList.add('hidden'); // مخفی کردن فوتر هنگام لود
-                lucide.createIcons(); 
+                lucide.createIcons();
                 return;
             }
 
-            // افکت محو شدن برای جابجایی بین صفحات
-            content.classList.add('transition-opacity', 'duration-150', 'opacity-0');
-            
+            content.classList.add('transition', 'duration-300', 'opacity-0');
             setTimeout(() => {
                 
                 if (currentState === 'Dashboard') {
@@ -743,23 +698,25 @@
                     renderDashboard();
                 }
                 
+                // دکمه بازگشت هدر بر اساس تاریخچه نمایش داده می‌شود
                 backButton.classList[history.length > 0 ? 'remove' : 'add']('hidden');
                 
+                // نوار ناوبری پایین صفحه همیشه نمایش داده می‌شود
+                updateFooterNav(currentState);
+
                 content.classList.remove('opacity-0');
-            }, 100); // زمان کوتاه برای افکت
+                lucide.createIcons();
+            }, 50); // انیمیشن محو شدن ملایم
         }
 
         // رویدادهای اصلی
         backButton.addEventListener('click', handleBack);
 
-        // شروع اپلیکیشن
+        // شروع اپلیکیشن: ابتدا داده‌ها را از Worker دریافت کن
         fetchInitialData();
-    </script>
-    <script>
-        // آیکون‌ها را در بارگذاری اولیه ایجاد می‌کند
-        window.onload = function() {
-            lucide.createIcons();
-        }
+
+        // آیکون‌ها را در بارگذاری اولیه (مخصوصا برای نوار پایین) ایجاد می‌کند
+        lucide.createIcons();
     </script>
 </body>
 </html>
