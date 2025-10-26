@@ -238,7 +238,7 @@
         const history = [];
         let appTexts = {}; 
         let appStats = {}; 
-        let appTickets = []; // [جدید]
+        let appTickets = []; // [جدید] اکنون به درستی یک آرایه خواهد بود
         let chartData = {};  // [جدید]
         let currentTicketListFilter = 'open'; // [جدید]
         let currentEditKey = null; 
@@ -415,22 +415,37 @@
             return result.data;
         }
 
-        // [جدید] تابع واکشی تیکت‌ها
+        // [اصلاح شد] تابع واکشی تیکت‌ها برای تبدیل آبجکت به آرایه
         async function fetchTickets() {
-            // [اصلاح شد] اکنون داده‌های واقعی را واکشی می‌کند
             const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
             if (currentStoreHandle === MOCK_STORE_HANDLE) {
                  console.log("Fetching mock tickets");
-                 return mockAppTickets;
+                 return mockAppTickets; // داده mock از قبل آرایه است
             }
 
-            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/tickets`; // فرض بر این است که این endpoint تیکت‌ها است
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/tickets`;
             try {
                 const response = await fetch(url);
-                if (!response.ok) throw new Error('Failed to fetch tickets from Worker.');
+                if (!response.ok) throw new Error(`Failed to fetch tickets from Worker (${response.status})`);
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error || 'Worker tickets returned error.');
-                return result.data || []; // انتظار می‌رود داده‌ها آرایه‌ای از تیکت‌ها باشند
+
+                // -----------------------------------------------------------------
+                // [اصلاح حیاتی] تبدیل آبجکت به آرایه
+                // -----------------------------------------------------------------
+                const ticketsObject = result.data || {};
+                const ticketsArray = Object.keys(ticketsObject).map(key => {
+                    // آبجکت تیکت را با 'id' که همان کلید فایربیس است، ترکیب می‌کنیم
+                    return {
+                        id: key,
+                        ...ticketsObject[key]
+                    };
+                });
+                
+                console.log("Fetched and converted tickets:", ticketsArray); // برای دیباگ
+                return ticketsArray; // بازگشت آرایه اصلاح شده
+                // -----------------------------------------------------------------
+
             } catch (error) {
                 console.error("Error fetching real tickets:", error.message);
                 showMessage(`❌ خطا در واکشی لیست تیکت‌ها: ${error.message}.`, 'error');
@@ -443,8 +458,8 @@
             // [اصلاح شد] اکنون داده‌های واقعی را واکشی می‌کند
             const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
              if (currentStoreHandle === MOCK_STORE_HANDLE) {
-                console.log("Fetching mock chart data");
-                return mockChartData;
+                 console.log("Fetching mock chart data");
+                 return mockChartData;
              }
             
             const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/chartdata`; // فرض بر این است که این endpoint داده‌های نمودار است
@@ -490,13 +505,13 @@
                     const [textsData, statsData, ticketsData, chartApiData] = await Promise.all([
                         fetchAppTexts(),
                         fetchStats(),
-                        fetchTickets(),
+                        fetchTickets(), // این تابع اکنون آرایه برمی‌گرداند
                         fetchChartData()
                     ]);
 
                     appTexts = textsData;
                     appStats = statsData;
-                    appTickets = ticketsData; 
+                    appTickets = ticketsData; // اکنون ticketsData یک آرایه است
                     chartData = chartApiData;   
                 }
 
@@ -620,7 +635,7 @@
             }
             const ratingPercent = parseFloat(stats.ratingPercentage || '0');
             const progressBarColor = ratingPercent >= 90 ? 'bg-green-500' : 
-                                     ratingPercent >= 75 ? 'bg-yellow-500' : 'bg-red-500';
+                                       ratingPercent >= 75 ? 'bg-yellow-500' : 'bg-red-500';
 
 
             const metricCards = [
@@ -709,17 +724,21 @@
                 successMessage = null;
             }
 
+            // [اصلاح شد] اکنون appTickets یک آرایه است و این کد به درستی کار می‌کند
             const filteredTickets = appTickets.filter(t => t.status === currentTicketListFilter);
+            const openTicketsCount = appTickets.filter(t => t.status === 'open').length;
+            const closedTicketsCount = appTickets.filter(t => t.status === 'closed').length;
+
 
             content.innerHTML = `
                 <div class="fade-in-up">
                     <!-- [جدید] تب‌های فیلتر -->
                     <div class="flex items-center justify-center space-x-2 space-x-reverse bg-gray-200 p-1 rounded-full mb-5">
                         <button onclick="filterTickets('open')" class="ticket-tab w-full text-center px-4 py-2 rounded-full font-semibold transition-all duration-300 ${currentTicketListFilter === 'open' ? 'active' : 'text-gray-700'}">
-                            باز (${appTickets.filter(t => t.status === 'open').length})
+                            باز (${openTicketsCount})
                         </button>
                         <button onclick="filterTickets('closed')" class="ticket-tab w-full text-center px-4 py-2 rounded-full font-semibold transition-all duration-300 ${currentTicketListFilter === 'closed' ? 'active' : 'text-gray-700'}">
-                            بسته (${appTickets.filter(t => t.status === 'closed').length})
+                            بسته (${closedTicketsCount})
                         </button>
                     </div>
 
@@ -729,11 +748,22 @@
                             <div class="bg-white rounded-2xl shadow-lg p-4 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: ${50 + index * 50}ms;" onclick="navigateTo('TicketView_${ticket.id}', '${ticket.subject}')">
                                 <div class="flex items-center justify-between mb-2">
                                     <span class="font-bold text-gray-800 text-base truncate">${ticket.subject}</span>
-                                    <span class="text-xs font-semibold text-gray-500">${ticket.lastUpdate}</span>
+                                    <!-- [اصلاح شد] نمایش زمان ایجاد یا آپدیت (اگر وجود دارد) -->
+                                    <span class="text-xs font-semibold text-gray-500">${ticket.lastUpdate || new Date(ticket.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }) || ''}</span>
                                 </div>
                                 <div class="flex items-center justify-between text-sm">
-                                    <span class="text-gray-600">${ticket.user}</span>
-                                    <span class="text-xs font-semibold ${ticket.department === 'فنی' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'} px-2 py-0.5 rounded-full">${ticket.department}</span>
+                                     <!-- [اصلاح شد] نمایش user_name اگر وجود دارد -->
+                                    <span class="text-gray-600">${ticket.user_name || ticket.user || 'کاربر ناشناس'}</span>
+                                    <!-- [اصلاح شد] نگاشت department به نام فارسی و استایل بهتر -->
+                                     <span class="text-xs font-semibold ${
+                                        ticket.department === 'technical' ? 'bg-blue-100 text-blue-700' :
+                                        ticket.department === 'sales' ? 'bg-green-100 text-green-700' :
+                                        ticket.department === 'marketing' ? 'bg-purple-100 text-purple-700' :
+                                        ticket.department === 'ideas' ? 'bg-yellow-100 text-yellow-700' :
+                                        'bg-gray-100 text-gray-700' // Default for general or unknown
+                                    } px-2 py-0.5 rounded-full">${
+                                        departmentMap[ticket.department] || ticket.department || 'عمومی'
+                                    }</span>
                                 </div>
                             </div>
                         `).join('') : `
@@ -757,6 +787,7 @@
         function renderTicketView(state) {
             backButton.classList.remove('hidden'); // نمایش دکمه بازگشت
             const ticketId = state.replace('TicketView_', '');
+            // [اصلاح شد] اکنون appTickets یک آرایه است و .find() کار می‌کند
             const ticket = appTickets.find(t => t.id === ticketId);
 
             if (!ticket) {
@@ -766,28 +797,102 @@
 
             headerTitle.textContent = ticket.subject;
             
-            content.innerHTML = `
-                <div class="space-y-4 fade-in-up" style="padding-bottom: 80px;"> <!-- فضا برای فیلد پاسخ -->
-                    <!-- اطلاعات تیکت -->
-                    <div class="bg-white rounded-2xl shadow-lg p-4 text-sm">
-                        <p><strong>کاربر:</strong> ${ticket.user}</p>
-                        <p><strong>دپارتمان:</strong> ${ticket.department}</p>
-                        <p><strong>وضعیت:</strong> ${ticket.status === 'open' ? 'باز' : 'بسته'}</p>
-                    </div>
+             // [اصلاح مهم] واکشی پیام‌های واقعی برای تیکت
+             // ما دیگر به ticket.messages در آبجکت اصلی تکیه نمی‌کنیم
+             // تابع fetchMessagesForTicket مسئول آپدیت UI خواهد بود
+             fetchMessagesForTicket(ticketId);
 
-                    <!-- تاریخچه چت -->
-                    <div class="space-y-3">
-                        ${ticket.messages.map(msg => `
-                            <div class="flex ${msg.sender === 'admin' ? 'justify-start' : 'justify-end'}">
-                                <div class="chat-bubble ${msg.sender === 'admin' ? 'admin' : 'user'}">
-                                    ${msg.text}
-                                </div>
-                            </div>
-                        `).join('')}
+             // نمایش موقت لودر یا پیام "در حال بارگذاری پیام‌ها..."
+             content.innerHTML = `
+                 <div class="space-y-4 fade-in-up" style="padding-bottom: 80px;">
+                     <!-- اطلاعات تیکت -->
+                     <div class="bg-white rounded-2xl shadow-lg p-4 text-sm">
+                          <p><strong>کاربر:</strong> ${ticket.user_name || ticket.user || 'کاربر ناشناس'}</p>
+                          <p><strong>دپارتمان:</strong> ${departmentMap[ticket.department] || ticket.department || 'عمومی'}</p>
+                          <p><strong>وضعیت:</strong> ${ticket.status === 'open' ? 'باز' : 'بسته'}</p>
+                     </div>
+                     <!-- لودر پیام‌ها -->
+                     <div id="messages-container" class="text-center text-gray-500 pt-5">
+                         <i data-lucide="loader-circle" class="animate-spin h-8 w-8 mx-auto text-indigo-600"></i>
+                         <p>در حال بارگذاری پیام‌ها...</p>
+                     </div>
+                 </div>
+             `;
+        }
+
+       // [جدید و اصلاح شده] تابع واکشی و رندر پیام‌ها برای یک تیکت خاص
+       async function fetchMessagesForTicket(ticketId) {
+            const messagesContainer = document.getElementById('messages-container');
+            // اطمینان از اینکه در صفحه درست هستیم
+            if (!messagesContainer || currentState !== `TicketView_${ticketId}`) return;
+
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+
+            // --- حالت آزمایشی ---
+            if (currentStoreHandle === MOCK_STORE_HANDLE) {
+                console.log("Mock mode: Loading messages from mock ticket object.");
+                const ticket = mockAppTickets.find(t => t.id === ticketId);
+                const messages = ticket?.messages || [];
+                renderMessages(messages, messagesContainer); // رندر پیام‌های mock
+                lucide.createIcons(); // رندر آیکون‌ها اگر در پیام‌ها استفاده شود
+                return;
+            }
+            // --- پایان حالت آزمایشی ---
+
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/messages?ticket_id=${ticketId}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Failed to fetch messages (${response.status})`);
+                const result = await response.json();
+                if (!result.success) throw new Error(result.error || 'Worker messages returned error.');
+
+                // تبدیل آبجکت پیام‌ها به آرایه و مرتب‌سازی بر اساس زمان
+                const messagesObject = result.data || {};
+                const messagesArray = Object.values(messagesObject).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+                // رندر کردن پیام‌ها در کانتینر
+                renderMessages(messagesArray, messagesContainer);
+
+            } catch (error) {
+                console.error("Error fetching messages:", error.message);
+                showMessage(`❌ خطا در واکشی پیام‌ها: ${error.message}.`, 'error');
+                 if (messagesContainer) {
+                    messagesContainer.innerHTML = `<p class="text-red-600 p-4 font-bold text-center">خطا در بارگذاری پیام‌ها.</p>`;
+                 }
+            } finally {
+                 // اطمینان از رندر شدن آیکون‌ها حتی در صورت خطا
+                 lucide.createIcons();
+            }
+        }
+
+        // [جدید] تابع کمکی برای رندر کردن آرایه پیام‌ها در DOM
+        function renderMessages(messagesArray, containerElement) {
+            if (!containerElement) return;
+
+            if (messagesArray.length === 0) {
+                 containerElement.innerHTML = `<p class="text-gray-500 text-center pt-5">هنوز پیامی رد و بدل نشده است.</p>`;
+                 return;
+             }
+
+            containerElement.innerHTML = messagesArray.map(msg => `
+                <div class="flex ${msg.sender === 'admin' ? 'justify-start' : 'justify-end'}">
+                    <div class="chat-bubble ${msg.sender === 'admin' ? 'admin' : 'user'}">
+                        ${
+                            // [جدید] نمایش Placeholder برای تصاویر
+                            msg.type === 'image_placeholder'
+                            ? `<span class="italic text-gray-400">${msg.text}</span>`
+                            : msg.text // نمایش متن معمولی
+                         }
+                         <!-- [جدید] نمایش زمان ارسال پیام -->
+                         <div class="text-xs ${msg.sender === 'admin' ? 'text-indigo-200' : 'text-gray-400'} mt-1 text-left">${new Date(msg.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
                 </div>
-            `;
-        }
+            `).join('');
+
+             // اسکرول به آخرین پیام
+             containerElement.scrollTop = containerElement.scrollHeight;
+         }
+
 
 
         function renderMainMenu() {
@@ -852,7 +957,7 @@
                         
                         let additionalInfo = '';
                         if (data.isBoolean) {
-                            const currentValue = (appTexts[key] === "true" || typeof appTexts[key] === 'undefined');
+                            const currentValue = (appTexts[key] === "true" || typeof appTexts[key] === 'undefined'); // Default to true if undefined
                             additionalInfo = currentValue
                                 ? `<span class="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">فعال</span>`
                                 : `<span class="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">غیرفعال</span>`;
@@ -893,7 +998,8 @@
             const isUrlField = keyData.isUrl;
             const isBooleanField = keyData.isBoolean; 
 
-            const currentText = (appTexts[currentEditKey] || keyData.defaultText || "متن پیش‌فرض موجود نیست.").replace(/\\n/g, '\n');
+            // Default text handling improved: Use empty string if no default specified
+            const currentText = (appTexts[currentEditKey] ?? keyData.defaultText ?? "").replace(/\\n/g, '\n'); 
             
             let markdownGuideHTML = '';
             let inputElement;
@@ -922,14 +1028,14 @@
             } else {
                  const description = keyData.desc || 'توضیحات خاصی برای این متن موجود نیست.';
                  markdownGuideHTML = `
-                     <div class="bg-yellow-50 border border-yellow-200 p-4 mb-5 rounded-2xl text-sm text-gray-700 flex items-start shadow-md fade-in-up" style="animation-delay: 50ms;">
-                         <i data-lucide="alert-triangle" class="h-5 w-5 ml-2 text-yellow-700 flex-shrink-0 mt-0.5"></i>
-                         <div>
-                             <span class="font-bold text-yellow-700 ml-1">راهنما:</span>
-                             <span>${description}</span>
-                         </div>
-                     </div>
-                   `;
+                       <div class="bg-yellow-50 border border-yellow-200 p-4 mb-5 rounded-2xl text-sm text-gray-700 flex items-start shadow-md fade-in-up" style="animation-delay: 50ms;">
+                            <i data-lucide="alert-triangle" class="h-5 w-5 ml-2 text-yellow-700 flex-shrink-0 mt-0.5"></i>
+                            <div>
+                                 <span class="font-bold text-yellow-700 ml-1">راهنما:</span>
+                                 <span>${description}</span>
+                            </div>
+                       </div>
+                     `;
             }
 
             if (isUrlField) {
@@ -1096,8 +1202,8 @@
             // [اصلاح شد] اطمینان از پاک شدن نمودارهای قبلی
             if (currentState !== 'Dashboard') {
                  if (ratingChartInstance) {
-                    ratingChartInstance.destroy();
-                    ratingChartInstance = null;
+                     ratingChartInstance.destroy();
+                     ratingChartInstance = null;
                  }
                 if (volumeChartInstance) {
                     volumeChartInstance.destroy();
