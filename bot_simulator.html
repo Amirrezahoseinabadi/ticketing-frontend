@@ -102,6 +102,17 @@
             border-bottom-left-radius: 4px;
         }
 
+        /* انیمیشن شناور */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+
+
     </style>
 </head>
 <body class="antialiased">
@@ -815,10 +826,8 @@
 
             headerTitle.textContent = ticket.subject;
 
-             // [اصلاح مهم] واکشی پیام‌های واقعی برای تیکت
-             // ما دیگر به ticket.messages در آبجکت اصلی تکیه نمی‌کنیم
-             // تابع fetchMessagesForTicket مسئول آپدیت UI خواهد بود
-             fetchMessagesForTicket(ticketId);
+             // [اصلاح شد] فراخوانی تابع واکشی پیام‌ها به صورت موقت غیرفعال شد
+             // fetchMessagesForTicket(ticketId);
 
              // نمایش موقت لودر یا پیام "در حال بارگذاری پیام‌ها..."
              // [اصلاح شد] استفاده از departmentMap و statusMap
@@ -832,20 +841,23 @@
                      </div>
                      <!-- کانتینر پیام‌ها -->
                      <div id="messages-container" class="space-y-3">
-                         <!-- لودر اولیه پیام‌ها -->
-                         <div class="text-center text-gray-500 pt-5">
-                            <i data-lucide="loader-circle" class="animate-spin h-8 w-8 mx-auto text-indigo-600"></i>
-                            <p>در حال بارگذاری پیام‌ها...</p>
+                         <!-- [اصلاح شد] پیام موقت جایگزین لودر شد -->
+                         <div class="text-center text-gray-600 pt-10 px-4 float-animation">
+                            <span class="text-3xl block mb-2">🚀</span>
+                            <p class="font-semibold text-lg text-indigo-700">به زودی...</p>
+                            <p class="text-sm">این بخش در دست توسعه است و به زودی فعال خواهد شد!</p>
                          </div>
                      </div>
                  </div>
              `;
-             // Make sure icons render even in loading state
+             // Make sure icons render even in loading state (though not strictly needed now)
             lucide.createIcons();
         }
 
        // [جدید و اصلاح شده] تابع واکشی و رندر پیام‌ها برای یک تیکت خاص
+       // [اصلاح شد] این تابع موقتا غیر فعال است
        async function fetchMessagesForTicket(ticketId) {
+            /*
             const messagesContainer = document.getElementById('messages-container');
             // اطمینان از اینکه در صفحه درست هستیم و کانتینر وجود دارد
             if (!messagesContainer || currentState !== `TicketView_${ticketId}`) {
@@ -917,10 +929,14 @@
                     }
                  }, 50); // Small delay for DOM update
             }
+            */
+            console.log("fetchMessagesForTicket is temporarily disabled."); // لاگ موقت
         }
 
         // [جدید] تابع کمکی برای رندر کردن آرایه پیام‌ها در DOM
+         // [اصلاح شد] این تابع موقتا غیر فعال است
         function renderMessages(messagesArray, containerElement) {
+            /*
             console.log("Rendering messages:", messagesArray); // Log messages being rendered
             if (!containerElement) {
                  console.error("Cannot render messages: containerElement is null");
@@ -952,6 +968,8 @@
                 </div>
             `).join('');
             console.log("Messages rendered to DOM"); // Confirm rendering
+            */
+            console.log("renderMessages is temporarily disabled."); // لاگ موقت
          }
 
 
