@@ -7,25 +7,25 @@
     <!-- بارگذاری Tailwind CSS و Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <!-- [جدید] کتابخانه نمودار Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <!-- فونت‌های جدید: Vazirmatn برای فارسی و Inter برای انگلیسی -->
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        /* تنظیم فونت و تم اصلی - شبیه به ویدیو */
+        /* ... (استایل‌های قبلی بدون تغییر) ... */
         body {
             font-family: 'Vazirmatn', 'Inter', Tahoma, sans-serif;
             background-color: #f7f8fa; /* پس‌زمینه خاکستری بسیار روشن */
-            /* padding-bottom برای ایجاد فضا برای نوار ناوبری پایین */
             padding-bottom: 100px;
+            overflow-x: hidden; /* جلوگیری از اسکرول افقی */
         }
         
-        /* سبک برای کارت‌های داشبورد - شبیه‌سازی سبک ویدیو */
         .metric-card {
             background-color: #ffffff;
-            padding: 1.25rem;
+            padding: 1rem; /* از 1.25rem کاهش یافت */
             border-radius: 20px; /* گوشه‌های بسیار گرد */
-            /* سایه نرم و عمیق‌تر شبیه ویدیو */
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
             border: none;
             transition: all 0.3s;
@@ -35,7 +35,6 @@
             transform: translateY(-3px);
         }
         
-        /* سبک برای textarea با قابلیت بزرگ شدن خودکار */
         .auto-resize-textarea {
             overflow: hidden; 
             resize: none; 
@@ -43,13 +42,64 @@
             height: auto;
         }
 
-        /* سبک برای آیتم فعال در نوار ناوبری پایین */
         .nav-item.active {
             color: #4f46e5; /* رنگ اصلی اپ (Indigo) */
         }
         .nav-item.active span {
              font-weight: 700;
         }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out forwards;
+            opacity: 0; 
+        }
+
+        @keyframes skeleton-pulse {
+            0% { background-color: #f0f2f5; }
+            50% { background-color: #e6e8eb; }
+            100% { background-color: #f0f2f5; }
+        }
+        .skeleton-pulse {
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+            border-radius: 16px;
+        }
+
+        .btn-press {
+            transition: transform 0.1s ease;
+        }
+        .btn-press:active {
+            transform: scale(0.96); 
+        }
+
+        /* [جدید] استایل برای تب‌های فعال در صفحه تیکت‌ها */
+        .ticket-tab.active {
+            background-color: #4f46e5;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        }
+
+        /* [جدید] استایل برای حباب‌های چت */
+        .chat-bubble {
+            padding: 0.75rem 1rem;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .chat-bubble.user {
+            background-color: #f0f2f5;
+            color: #1f2937;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-bubble.admin {
+            background-color: #4f46e5;
+            color: #ffffff;
+            border-bottom-left-radius: 4px;
+        }
+
     </style>
 </head>
 <body class="antialiased">
@@ -59,30 +109,43 @@
         <!-- هدر ثابت، ساده و سفید - شبیه به ویدیو -->
         <header class="bg-white text-gray-900 p-4 flex items-center shadow-sm sticky top-0 z-10">
             <!-- آیکون بازگشت -->
-            <button id="back-button" class="text-gray-700 p-2 hover:bg-gray-100 rounded-full transition duration-150 hidden">
+            <button id="back-button" class="text-gray-700 p-2 hover:bg-gray-100 rounded-full transition duration-150 hidden btn-press">
                 <i data-lucide="chevron-right" class="h-6 w-6"></i>
             </button>
             <h1 id="header-title" class="text-lg font-extrabold mr-4 flex-grow truncate">پنل مدیریت ربات</h1>
-            <!-- می‌توانید آیکون‌هایی مثل خورشید (تم) در اینجا اضافه کنید -->
-            <!-- <i data-lucide="sun" class="h-6 w-6 text-gray-600"></i> -->
         </header>
 
-        <!-- کانتینر اصلی محتوا (padding بیشتر برای فضای باز) -->
-        <div id="content" class="p-6 space-y-5">
+        <!-- کانتینر اصلی محتوا (padding و space-y کاهش یافت) -->
+        <div id="content" class="p-4 space-y-4">
+            <!-- لودر اولیه در اینجا قرار می‌گیرد -->
             <div id="loading-spinner" class="text-center p-8 mt-10">
-                <i data-lucide="loader-circle" class="animate-spin h-10 w-10 text-indigo-600 inline"></i>
-                <p class="mt-4 text-gray-600 font-semibold">در حال بارگذاری داده‌های اولیه...</p>
+                 <!-- این محتوا توسط render() یا renderDashboardSkeleton() جایگزین خواهد شد -->
             </div>
         </div>
+
+        <!-- [جدید] فیلد ارسال پاسخ در صفحه تیکت (خارج از محتوا برای چسبیدن به پایین) -->
+        <div id="reply-container" class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-20 transform translate-y-full transition-transform duration-300">
+            <div class="flex items-center space-x-3" dir="ltr">
+                <button id="send-reply-btn" class="bg-indigo-600 text-white p-3 rounded-full btn-press shadow-lg shadow-indigo-300">
+                    <i data-lucide="send" class="h-6 w-6"></i>
+                </button>
+                <textarea id="reply-textarea" rows="1" class="w-full p-3 border border-gray-300 rounded-2xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="پاسخ خود را بنویسید..." style="resize: none;"></textarea>
+            </div>
+        </div>
+
     </div>
 
-    <!-- نوار ناوبری پایین صفحه - شبیه به ویدیو -->
+    <!-- [جدید] نوار ناوبری پایین صفحه - سه‌بخشی -->
     <nav id="footer-nav" class="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-5px_20px_rgba(0,0,0,0.05)] rounded-t-3xl h-20 flex justify-around items-center z-10">
-        <button onclick="navigateTo('Dashboard', getDashboardTitle(STORE_HANDLE || MOCK_STORE_HANDLE))" id="nav-dashboard" class="nav-item flex flex-col items-center justify-center text-gray-500 w-full" data-page="Dashboard">
+        <button onclick="navigateTo('Dashboard', getDashboardTitle(STORE_HANDLE || MOCK_STORE_HANDLE))" id="nav-dashboard" class="nav-item btn-press flex flex-col items-center justify-center text-gray-500 w-1/3" data-page="Dashboard">
             <i data-lucide="layout-dashboard" class="h-6 w-6"></i>
             <span class="text-xs font-semibold mt-1">داشبورد</span>
         </button>
-        <button onclick="navigateTo('MainMenu', 'مدیریت متون')" id="nav-settings" class="nav-item flex flex-col items-center justify-center text-gray-500 w-full" data-page="MainMenu">
+        <button onclick="navigateTo('TicketsList', 'لیست تیکت‌ها')" id="nav-tickets" class="nav-item btn-press flex flex-col items-center justify-center text-gray-500 w-1/3" data-page="TicketsList">
+            <i data-lucide="inbox" class="h-6 w-6"></i>
+            <span class="text-xs font-semibold mt-1">تیکت‌ها</span>
+        </button>
+        <button onclick="navigateTo('MainMenu', 'مدیریت متون')" id="nav-settings" class="nav-item btn-press flex flex-col items-center justify-center text-gray-500 w-1/3" data-page="MainMenu">
             <i data-lucide="settings" class="h-6 w-6"></i>
             <span class="text-xs font-semibold mt-1">تنظیمات</span>
         </button>
@@ -96,14 +159,12 @@
 
     <script>
         // --- تنظیمات مهم (WORKER & STORE) ---
-
-        // 1. استخراج STORE_HANDLE از پارامتر URL
+        // ... (کد قبلی) ...
         const urlParams = new URLSearchParams(window.location.search);
         const STORE_HANDLE = urlParams.get('storeHandle'); 
-        
-        // --- MOCK DATA FOR TESTING IN CANVAS ---
         const MOCK_STORE_HANDLE = 'test-store-mock-dfdfdfd'; 
         
+        // --- MOCK DATA ---
         const mockAppTexts = {
             greetingTitle: "سلام مدیر عزیز! 👋 (آزمایشی)",
             quickTipMessage: "💡 نکته: این متون برای تست در حالت آزمایشی بارگذاری شده‌اند.",
@@ -120,7 +181,6 @@
             userReplyNotification: "✅ *پشتیبانی فنی* به تیکت شما با موضوع *مشکل اتصال* پاسخ داد.\\n\\nبرای مشاهده پاسخ کلیک کنید.",
             ticketClosedNotification: "🎫 تیکت شما با موضوع *پرداخت ناموفق* بسته شد.\\n\\nلطفا امتیاز دهید.",
         };
-        
         const mockAppStats = {
             totalCount: '145',
             totalActive: '4',
@@ -133,12 +193,36 @@
             avgTimeToResolution: '1 روز و 5 ساعت',
         };
 
-        // 2. آدرس پایه Worker API
+        // [جدید] داده‌های آزمایشی برای لیست تیکت‌ها
+        const mockAppTickets = [
+            { id: 'T1001', subject: 'مشکل در اتصال به سرور', user: 'کاربر ۱۲۳', status: 'open', department: 'فنی', lastUpdate: '۵ دقیقه پیش', messages: [
+                { sender: 'user', text: 'سلام، من نمی‌توانم به سرور متصل شوم.' },
+                { sender: 'admin', text: 'سلام، لطفاً لحظاتی صبر کنید تا بررسی کنیم.' },
+                { sender: 'user', text: 'هنوز منتظرم. لطفاً سریع‌تر.' },
+            ]},
+            { id: 'T1002', subject: 'سوال در مورد تعرفه', user: 'کاربر ۴۵۶', status: 'open', department: 'فروش', lastUpdate: '۱ ساعت پیش', messages: [
+                { sender: 'user', text: 'سلام، تعرفه پلن حرفه‌ای چقدر است؟' },
+            ]},
+            { id: 'T1003', subject: 'گزارش باگ', user: 'کاربر ۷۸۹', status: 'closed', department: 'فنی', lastUpdate: '۲ روز پیش', messages: [
+                { sender: 'user', text: 'دکمه خروج کار نمی‌کند.' },
+                { sender: 'admin', text: 'ممنون از گزارش شما، در نسخه بعدی رفع خواهد شد. تیکت بسته شد.' },
+            ]},
+        ];
+
+        // [جدید] داده‌های آزمایشی برای نمودارها
+        const mockChartData = {
+            ratings: {
+                labels: ['۵ ستاره', '۴ ستاره', '۳ ستاره', '۲ ستاره', '۱ ستاره'],
+                data: [100, 15, 3, 1, 1], // 120 امتیاز
+            },
+            volume: {
+                labels: ['شنبه', '۱شنبه', '۲شنبه', '۳شنبه', '۴شنبه', '۵شنبه', 'جمعه'],
+                data: [5, 8, 3, 12, 10, 15, 7],
+            }
+        };
+
         const WORKER_API_BASE_URL = 'https://ticketing.amiruserbot7.workers.dev'; 
-
-        // تابع برای ساخت عنوان داشبورد
         const getDashboardTitle = (handle) => `داشبورد (${handle || 'ناشناس'})`;
-
 
         // --- پایان تنظیمات ---
 
@@ -146,16 +230,24 @@
         const backButton = document.getElementById('back-button');
         const headerTitle = document.getElementById('header-title');
         const messageBox = document.getElementById('message-box');
+        // [جدید] کانتینر و فیلد پاسخ
+        const replyContainer = document.getElementById('reply-container');
+        const replyTextarea = document.getElementById('reply-textarea');
 
-        // وضعیت‌های اصلی: Dashboard, MainMenu, SubMenu_MINIAPPUI, SubMenu_USERNOTIFICATIONS, EditScreen
-        let currentState = 'Loading';
+        let currentState = 'Dashboard-Loading';
         const history = [];
-        let appTexts = {}; // ذخیره متون دریافتی از Worker
-        let appStats = {}; // ذخیره آمار دریافتی از Worker
-        let currentEditKey = null; // کلید متنی که در حال ویرایش است
-        let successMessage = null; // برای نمایش پیام موفقیت در ناوبری
+        let appTexts = {}; 
+        let appStats = {}; 
+        let appTickets = []; // [جدید]
+        let chartData = {};  // [جدید]
+        let currentTicketListFilter = 'open'; // [جدید]
+        let currentEditKey = null; 
+        let successMessage = null; 
 
-        // ساختار ثابت متون برای استفاده در منوها (باید با Worker همگام باشد)
+        // [جدید] متغیرهای چارت‌ها برای جلوگیری از رندر تکراری
+        let ratingChartInstance = null;
+        let volumeChartInstance = null;
+
         const CUSTOM_TEXT_KEYS = {
             MINI_APP_UI: {
                 greetingTitle: { name: "عنوان خوش‌آمدگویی", icon: "user-check", desc: `متن اصلی کارت راهنما (مثلاً: سلام مشتری عزیز!)` },
@@ -177,7 +269,6 @@
             }
         };
 
-
         // --- توابع کمکی ---
         
         function autoResize(el) {
@@ -193,24 +284,34 @@
             }
             return null;
         }
-
         function showMessage(text, type = 'success', duration = 4000) {
             messageBox.textContent = text;
             messageBox.className = `fixed bottom-24 left-4 right-4 p-4 text-white text-center rounded-2xl shadow-2xl z-20 transform transition-all duration-300 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
             
-            // Animate in
             setTimeout(() => {
                 messageBox.classList.remove('hidden', 'translate-y-10', 'opacity-0');
             }, 10);
             
-            // Animate out
             setTimeout(() => {
                 messageBox.classList.add('translate-y-10', 'opacity-0');
                 setTimeout(() => messageBox.classList.add('hidden'), 300);
             }, duration);
         }
 
-        // [جدید] تابع برای به‌روزرسانی نوار ناوبری پایین
+        // [جدید] نمایش یا پنهان کردن فیلد پاسخ
+        function showReplyContainer(show) {
+            const bodyPadding = show ? '180px' : '100px'; // فضا برای نوار پایین + فیلد پاسخ
+            document.body.style.paddingBottom = bodyPadding;
+            
+            if(show) {
+                replyContainer.classList.remove('translate-y-full');
+            } else {
+                replyContainer.classList.add('translate-y-full');
+            }
+        }
+
+
+        // [به‌روزرسانی] تابع به‌روزرسانی نوار ناوبری پایین
         function updateFooterNav(state) {
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.classList.remove('active', 'text-indigo-600');
@@ -218,10 +319,11 @@
             });
             
             let activeItem;
-            if (state === 'Dashboard') {
+            if (state === 'Dashboard' || state === 'Dashboard-Loading') {
                 activeItem = document.getElementById('nav-dashboard');
+            } else if (state === 'TicketsList' || state.startsWith('TicketView_')) { // [جدید]
+                activeItem = document.getElementById('nav-tickets');
             } else if (state === 'MainMenu' || state.startsWith('SubMenu_') || state.startsWith('EditScreen_')) {
-                // تمام صفحات مربوط به تنظیمات، آیکون تنظیمات را فعال می‌کنند
                 activeItem = document.getElementById('nav-settings');
             }
             
@@ -231,9 +333,9 @@
             }
         }
 
-
+        // [به‌روزرسانی] تابع ناوبری
         function navigateTo(newState, title = null, pushHistory = true) {
-            if (pushHistory && currentState !== 'Loading') {
+            if (pushHistory && currentState !== 'Dashboard-Loading') {
                 history.push(currentState);
             }
             currentState = newState;
@@ -242,14 +344,27 @@
             const dashboardTitle = getDashboardTitle(currentHandle);
             
             headerTitle.textContent = title || dashboardTitle;
-            updateFooterNav(newState); // [جدید] به‌روزرسانی نوار پایین
+            updateFooterNav(newState); 
+
+            // [جدید] نمایش/پنهان کردن فیلد پاسخ بر اساس صفحه
+            if (currentState.startsWith('TicketView_')) {
+                showReplyContainer(true);
+            } else {
+                showReplyContainer(false);
+            }
+            
             render();
-            window.scrollTo(0, 0); // اسکرول به بالای صفحه در هر ناوبری
+            window.scrollTo(0, 0); 
         }
 
+        // [به‌روزرسانی] تابع بازگشت
         function handleBack() {
             if (currentState.startsWith('EditScreen_')) {
                 currentEditKey = null;
+            }
+            // [جدید] پنهان کردن فیلد پاسخ هنگام بازگشت
+            if (currentState.startsWith('TicketView_')) {
+                 showReplyContainer(false);
             }
 
             if (history.length > 0) {
@@ -259,26 +374,24 @@
                 const dashboardTitle = getDashboardTitle(currentHandle);
                 
                 let title = dashboardTitle;
-                if (previousState === 'MainMenu') {
-                    title = 'مدیریت متون';
-                } else if (previousState.startsWith('SubMenu_')) {
+                if (previousState === 'MainMenu') title = 'مدیریت متون';
+                if (previousState === 'TicketsList') title = 'لیست تیکت‌ها'; // [جدید]
+                if (previousState.startsWith('SubMenu_')) {
                     const menuType = previousState.replace('SubMenu_', '');
                     title = menuType === 'MINI_APP_UI' ? 'متن‌های مینی‌اپ' : 'متن‌های اعلان ربات';
                 }
                 
                 currentState = previousState;
                 headerTitle.textContent = title;
-                updateFooterNav(previousState); // [جدید] به‌روزرسانی نوار پایین
+                updateFooterNav(previousState); 
                 render(false);
                 window.scrollTo(0, 0);
             } else {
-                // اگر هیستوری خالی بود به داشبورد برگرد
                 navigateTo('Dashboard', getDashboardTitle(STORE_HANDLE || MOCK_STORE_HANDLE), false);
             }
         }
 
         // --- Data Fetching (از Worker API) ---
-
         async function fetchStats() {
             const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
             if (currentStoreHandle === MOCK_STORE_HANDLE) return mockAppStats; 
@@ -290,7 +403,6 @@
             if (!result.success) throw new Error(result.error || 'Worker stats returned error.');
             return result.data;
         }
-
         async function fetchAppTexts() {
             const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
             if (currentStoreHandle === MOCK_STORE_HANDLE) return mockAppTexts; 
@@ -303,30 +415,67 @@
             return result.data;
         }
 
+        // [جدید] تابع واکشی تیکت‌ها
+        async function fetchTickets() {
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            if (currentStoreHandle === MOCK_STORE_HANDLE) return mockAppTickets; 
+
+            // TODO: آدرس API واقعی خود را جایگزین کنید
+            // const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/tickets`;
+            // const response = await fetch(url);
+            // ... (Error handling)
+            // return result.data;
+            return []; // بازگشت لیست خالی در حالت غیرآزمایشی
+        }
+
+        // [جدید] تابع واکشی داده‌های نمودار
+        async function fetchChartData() {
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            if (currentStoreHandle === MOCK_STORE_HANDLE) return mockChartData; 
+
+            // TODO: آدرس API واقعی خود را جایگزین کنید
+            // const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/charts`;
+            // ...
+            return { ratings: { labels: [], data: [] }, volume: { labels: [], data: [] } };
+        }
+
+
+        // [به‌روزرسانی] تابع واکشی داده‌های اولیه
         async function fetchInitialData() {
+            currentState = 'Dashboard-Loading';
+            render();
+
             try {
                 if (!STORE_HANDLE) {
                     throw new Error("Missing STORE_HANDLE, loading mock data.");
                 }
 
-                const [textsData, statsData] = await Promise.all([
+                // [جدید] واکشی تمام داده‌ها به صورت موازی
+                const [textsData, statsData, ticketsData, chartApiData] = await Promise.all([
                     fetchAppTexts(),
-                    fetchStats()
+                    fetchStats(),
+                    fetchTickets(),
+                    fetchChartData()
                 ]);
 
                 appTexts = textsData;
                 appStats = statsData;
+                appTickets = ticketsData; // [جدید]
+                chartData = chartApiData;   // [جدید]
 
             } catch (error) {
                 console.warn(`Error in fetchInitialData: ${error.message}. Loading mock data...`);
                 appTexts = mockAppTexts;
                 appStats = mockAppStats;
+                appTickets = mockAppTickets; // [جدید]
+                chartData = mockChartData;   // [جدید]
                 if(error.message !== "Missing STORE_HANDLE, loading mock data."){
                     showMessage(`❌ خطا در اتصال به API: ${error.message.substring(0, 50)}... بارگذاری داده آزمایشی.`, 'error');
                 }
             }
+            
             currentState = 'Dashboard';
-            updateFooterNav('Dashboard'); // [جدید] تنظیم حالت اولیه نوار پایین
+            updateFooterNav('Dashboard'); 
             render();
         }
 
@@ -390,25 +539,54 @@
             }
         }
 
-
         // =================================================================
         // RENDER FUNCTIONS (UI) - بازطراحی شده
         // =================================================================
 
+        // [به‌روزرسانی] تابع رندر لودر اسکلتی
+        function renderDashboardSkeleton() {
+            backButton.classList.add('hidden');
+            const currentHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            headerTitle.textContent = getDashboardTitle(currentHandle);
+
+            content.innerHTML = `
+                <div class="space-y-4 animate-pulse">
+                    <h2 class="text-2xl font-extrabold text-gray-800 border-b pb-2 mb-3">گزارش عملکرد</h2>
+                    
+                    <!-- Skeleton for Metric Cards -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="skeleton-pulse h-24"></div>
+                        <div class="skeleton-pulse h-24"></div>
+                        <div class="skeleton-pulse h-24"></div>
+                        <div class="skeleton-pulse h-24"></div>
+                    </div>
+
+                    <!-- [جدید] Skeleton for KPI Card (بزرگتر برای نمودارها) -->
+                    <div class="skeleton-pulse w-full h-80"></div>
+                    
+                    <!-- Skeleton for Button -->
+                    <div class="skeleton-pulse w-full h-16 mt-3"></div>
+                </div>
+            `;
+        }
+
+
+        // [به‌روزرسانی] تابع رندر داشبورد
         function renderDashboard() {
             backButton.classList.add('hidden');
             const currentHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
             headerTitle.textContent = getDashboardTitle(currentHandle);
             const stats = appStats;
 
+            // ... (کد قبلی پیام موفقیت و progressBarColor) ...
             if (successMessage) {
                 showMessage(successMessage);
                 successMessage = null;
             }
-            
             const ratingPercent = parseFloat(stats.ratingPercentage || '0');
             const progressBarColor = ratingPercent >= 90 ? 'bg-green-500' : 
                                      ratingPercent >= 75 ? 'bg-yellow-500' : 'bg-red-500';
+
 
             const metricCards = [
                 { title: "کل تیکت‌ها", value: stats.totalCount || '0', icon: "ticket", color: "text-indigo-600", desc: "تعداد کل تیکت‌های ثبت شده." },
@@ -418,13 +596,13 @@
             ];
 
             content.innerHTML = `
-                <div class="space-y-6">
+                <div class="space-y-4">
                     
-                    <h2 class="text-2xl font-extrabold text-gray-800 border-b pb-3 mb-4">گزارش عملکرد</h2>
+                    <h2 class="text-2xl font-extrabold text-gray-800 border-b pb-2 mb-3 fade-in-up" style="animation-delay: 100ms;">گزارش عملکرد</h2>
                     
-                    <div class="grid grid-cols-2 gap-4">
-                        ${metricCards.map(card => `
-                            <div class="metric-card">
+                    <div class="grid grid-cols-2 gap-3">
+                        ${metricCards.map((card, index) => `
+                            <div class="metric-card fade-in-up" style="animation-delay: ${150 + index * 50}ms;">
                                 <div class="flex items-center justify-between mb-3">
                                     <h3 class="text-sm font-semibold text-gray-500">${card.title}</h3>
                                     <i data-lucide="${card.icon}" class="${card.color} h-6 w-6"></i>
@@ -435,19 +613,16 @@
                         `).join('')}
                     </div>
 
-                    <!-- بخش سرعت و نوار پیشرفت - در یک کارت شیک -->
-                    <div class="metric-card bg-white">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                    <!-- [جدید] کارت KPI و نمودارها -->
+                    <div class="metric-card bg-white fade-in-up" style="animation-delay: 350ms;">
+                        <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center">
                             <i data-lucide="zap" class="h-5 w-5 ml-2 text-purple-600"></i> شاخص‌های کلیدی (KPI)
                         </h3>
-                        
-                        <div class="space-y-4">
+                        <div class="space-y-3">
                             <p class="flex justify-between text-sm">
                                 <span class="text-gray-600">زمان حل نهایی تیکت:</span>
                                 <span class="font-bold text-gray-800">${stats.avgTimeToResolution || 'N/A'}</span>
                             </p>
-
-                            <!-- نوار پیشرفت ویژوالایزر امتیاز -->
                             <div>
                                 <p class="flex justify-between text-sm mb-1">
                                     <span class="text-gray-600">درصد رضایت کاربران:</span>
@@ -457,19 +632,128 @@
                                     <div class="${progressBarColor} h-2.5 rounded-full transition-all duration-500" style="width: ${ratingPercent > 100 ? 100 : ratingPercent}%;"></div>
                                 </div>
                             </div>
+                        </div>
 
+                        <!-- [جدید] بخش نمودارها -->
+                        <div class="mt-6 border-t pt-4">
+                            <!-- نمودار دایره‌ای -->
+                            <h4 class="text-base font-bold text-gray-700 mb-2">تفکیک امتیازات</h4>
+                            <div class="w-full max-w-xs mx-auto h-48">
+                                <canvas id="ratingChart"></canvas>
+                            </div>
+                            <!-- نمودار خطی -->
+                            <h4 class="text-base font-bold text-gray-700 mt-6 mb-2">حجم تیکت (۷ روز گذشته)</h4>
+                            <div class="w-full h-48">
+                                <canvas id="volumeChart"></canvas>
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- دکمه مدیریت متون - بازطراحی شده شبیه دکمه‌های ویدیو -->
-                    <button onclick="navigateTo('MainMenu', 'مدیریت متون')" class="w-full bg-white text-gray-900 py-5 mt-4 rounded-2xl shadow-lg hover:shadow-xl transition duration-300 font-bold flex items-center justify-center text-base">
+                    <button onclick="navigateTo('MainMenu', 'مدیریت متون')" class="w-full bg-white text-gray-900 py-4 mt-3 rounded-2xl shadow-lg hover:shadow-xl transition duration-300 font-bold flex items-center justify-center text-base btn-press fade-in-up" style="animation-delay: 400ms;">
                         <i data-lucide="settings" class="h-6 w-6 ml-2 text-indigo-600"></i>
                         مدیریت متون و تنظیمات
                     </button>
                 </div>
             `;
             lucide.createIcons();
+            
+            // [جدید] رندر کردن نمودارها پس از رندر HTML
+            initRatingChart();
+            initVolumeChart();
         }
+
+        // [جدید] تابع رندر لیست تیکت‌ها
+        function renderTicketsList() {
+            backButton.classList.add('hidden'); // صفحه اصلی تب تیکت‌ها دکمه بازگشت ندارد
+            headerTitle.textContent = 'لیست تیکت‌ها';
+            
+            if (successMessage) {
+                showMessage(successMessage);
+                successMessage = null;
+            }
+
+            const filteredTickets = appTickets.filter(t => t.status === currentTicketListFilter);
+
+            content.innerHTML = `
+                <div class="fade-in-up">
+                    <!-- [جدید] تب‌های فیلتر -->
+                    <div class="flex items-center justify-center space-x-2 space-x-reverse bg-gray-200 p-1 rounded-full mb-5">
+                        <button onclick="filterTickets('open')" class="ticket-tab w-full text-center px-4 py-2 rounded-full font-semibold transition-all duration-300 ${currentTicketListFilter === 'open' ? 'active' : 'text-gray-700'}">
+                            باز (${appTickets.filter(t => t.status === 'open').length})
+                        </button>
+                        <button onclick="filterTickets('closed')" class="ticket-tab w-full text-center px-4 py-2 rounded-full font-semibold transition-all duration-300 ${currentTicketListFilter === 'closed' ? 'active' : 'text-gray-700'}">
+                            بسته (${appTickets.filter(t => t.status === 'closed').length})
+                        </button>
+                    </div>
+
+                    <!-- [جدید] لیست تیکت‌ها -->
+                    <div class="space-y-4">
+                        ${filteredTickets.length > 0 ? filteredTickets.map((ticket, index) => `
+                            <div class="bg-white rounded-2xl shadow-lg p-4 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: ${50 + index * 50}ms;" onclick="navigateTo('TicketView_${ticket.id}', '${ticket.subject}')">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="font-bold text-gray-800 text-base truncate">${ticket.subject}</span>
+                                    <span class="text-xs font-semibold text-gray-500">${ticket.lastUpdate}</span>
+                                </div>
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-gray-600">${ticket.user}</span>
+                                    <span class="text-xs font-semibold ${ticket.department === 'فنی' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'} px-2 py-0.5 rounded-full">${ticket.department}</span>
+                                </div>
+                            </div>
+                        `).join('') : `
+                            <div class="text-center text-gray-500 pt-10 fade-in-up">
+                                <i data-lucide="inbox" class="h-12 w-12 mx-auto text-gray-400"></i>
+                                <p class="mt-2 font-semibold">هیچ تیکت ${currentTicketListFilter === 'open' ? 'بازی' : 'بسته‌ای'} یافت نشد.</p>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        // [جدید] تابع برای تغییر فیلتر تیکت‌ها
+        function filterTickets(status) {
+            currentTicketListFilter = status;
+            render(); // رندر مجدد صفحه تیکت‌ها
+        }
+        
+        // [جدید] تابع رندر صفحه مشاهده تیکت
+        function renderTicketView(state) {
+            backButton.classList.remove('hidden'); // نمایش دکمه بازگشت
+            const ticketId = state.replace('TicketView_', '');
+            const ticket = appTickets.find(t => t.id === ticketId);
+
+            if (!ticket) {
+                content.innerHTML = `<p class="text-red-600 p-4 font-bold">خطا: تیکت یافت نشد.</p>`;
+                return;
+            }
+
+            headerTitle.textContent = ticket.subject;
+            
+            content.innerHTML = `
+                <div class="space-y-4 fade-in-up" style="padding-bottom: 80px;"> <!-- فضا برای فیلد پاسخ -->
+                    <!-- اطلاعات تیکت -->
+                    <div class="bg-white rounded-2xl shadow-lg p-4 text-sm">
+                        <p><strong>کاربر:</strong> ${ticket.user}</p>
+                        <p><strong>دپارتمان:</strong> ${ticket.department}</p>
+                        <p><strong>وضعیت:</strong> ${ticket.status === 'open' ? 'باز' : 'بسته'}</p>
+                    </div>
+
+                    <!-- تاریخچه چت -->
+                    <div class="space-y-3">
+                        ${ticket.messages.map(msg => `
+                            <div class="flex ${msg.sender === 'admin' ? 'justify-start' : 'justify-end'}">
+                                <div class="chat-bubble ${msg.sender === 'admin' ? 'admin' : 'user'}">
+                                    ${msg.text}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
 
         function renderMainMenu() {
             backButton.classList.remove('hidden');
@@ -481,12 +765,11 @@
             }
 
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">شخصی‌سازی محتوا</h2>
-                <p class="text-sm text-gray-500 mb-6">متون کلیدی مینی اپ و اعلان‌های ربات را ویرایش کنید.</p>
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2 fade-in-up">شخصی‌سازی محتوا</h2>
+                <p class="text-sm text-gray-500 mb-6 fade-in-up" style="animation-delay: 50ms;">متون کلیدی مینی اپ و اعلان‌های ربات را ویرایش کنید.</p>
                 
-                <!-- منوی جدید کارتی - شبیه ویدیو -->
                 <div class="space-y-4">
-                    <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl" onclick="navigateTo('SubMenu_MINI_APP_UI', 'متن‌های مینی‌اپ')">
+                    <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: 100ms;" onclick="navigateTo('SubMenu_MINI_APP_UI', 'متن‌های مینی‌اپ')">
                         <div class="flex items-center justify-between">
                             <span class="flex items-center font-bold text-gray-800 text-base">
                                 <i data-lucide="smartphone" class="h-6 w-6 ml-3 text-indigo-600"></i>
@@ -497,7 +780,7 @@
                         <p class="text-sm text-gray-500 mt-2 pr-9">ویرایش رابط کاربری و پیام‌های داخل مینی‌اپ.</p>
                     </div>
 
-                    <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl" onclick="navigateTo('SubMenu_USER_NOTIFICATIONS', 'متن‌های اعلان ربات')">
+                    <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: 150ms;" onclick="navigateTo('SubMenu_USER_NOTIFICATIONS', 'متن‌های اعلان ربات')">
                         <div class="flex items-center justify-between">
                             <span class="flex items-center font-bold text-gray-800 text-base">
                                 <i data-lucide="bell" class="h-6 w-6 ml-3 text-orange-600"></i>
@@ -511,10 +794,9 @@
             `;
             lucide.createIcons();
         }
-
         function renderSubMenu_Texts(state) {
             backButton.classList.remove('hidden');
-            const menuType = state.replace('SubMenu_', ''); // MINI_APP_UI or USER_NOTIFICATIONS
+            const menuType = state.replace('SubMenu_', ''); 
             const keys = CUSTOM_TEXT_KEYS[menuType];
             const menuTitle = menuType === 'MINI_APP_UI' ? "متن‌های مینی‌اپ" : "متن‌های اعلان ربات";
             
@@ -526,12 +808,11 @@
             }
 
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">${menuTitle}</h2>
-                <p class="text-sm text-gray-500 mb-6">متن مورد نظر برای ویرایش را انتخاب کنید:</p>
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2 fade-in-up">${menuTitle}</h2>
+                <p class="text-sm text-gray-500 mb-6 fade-in-up" style="animation-delay: 50ms;">متن مورد نظر برای ویرایش را انتخاب کنید:</p>
                 
-                <!-- لیست کارتی گزینه‌ها - شبیه ویدیو -->
                 <div class="space-y-4">
-                    ${Object.entries(keys).map(([key, data]) => {
+                    ${Object.entries(keys).map(([key, data], index) => {
                         const menuIcon = data.icon || 'file-text';
                         const iconColor = menuType === 'MINI_APP_UI' ? 'text-indigo-500' : 'text-orange-500';
                         
@@ -544,7 +825,7 @@
                         }
 
                         return `
-                            <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl" onclick="navigateTo('EditScreen_${key}', 'ویرایش: ${data.name}')">
+                            <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: ${100 + index * 50}ms;" onclick="navigateTo('EditScreen_${key}', 'ویرایش: ${data.name}')">
                                 <div class="flex items-center justify-between">
                                     <span class="flex items-center font-bold text-gray-800 text-base">
                                         <i data-lucide="${menuIcon}" class="h-6 w-6 ml-3 ${iconColor}"></i>
@@ -555,7 +836,6 @@
                                         <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400 ml-2"></i>
                                     </div>
                                 </div>
-                                <!-- اضافه کردن توضیحات به کارت -->
                                 <p class="text-sm text-gray-500 mt-2 pr-9">${data.desc}</p>
                             </div>
                         `;
@@ -564,7 +844,6 @@
             `;
             lucide.createIcons();
         }
-
         function renderEditScreen(state) {
             backButton.classList.remove('hidden');
             currentEditKey = state.replace('EditScreen_', '');
@@ -588,18 +867,11 @@
 
             if (isNotification) {
                 markdownGuideHTML = `
-                    <div class="bg-blue-50 border border-blue-200 p-4 mb-5 rounded-2xl text-sm text-gray-700 shadow-md">
+                    <div class="bg-blue-50 border border-blue-200 p-4 mb-5 rounded-2xl text-sm text-gray-700 shadow-md fade-in-up" style="animation-delay: 50ms;">
                         <p class="font-bold text-blue-700 flex items-center mb-2"><i data-lucide="code" class="h-5 w-5 ml-2"></i> راهنمای Markdown و متغیرها</p>
-                        
                         <div class="bg-white border rounded-lg overflow-hidden mt-3">
                             <table class="w-full text-right text-xs">
-                                <thead class="bg-gray-100 font-semibold text-gray-600">
-                                    <tr>
-                                        <th class="p-2 border-b">سینتکس</th>
-                                        <th class="p-2 border-b">توضیح</th>
-                                        <th class="p-2 border-b">نمونه</th>
-                                    </tr>
-                                </thead>
+                                <thead class="bg-gray-100 font-semibold text-gray-600"><tr><th class="p-2 border-b">سینتکس</th><th class="p-2 border-b">توضیح</th><th class="p-2 border-b">نمونه</th></tr></thead>
                                 <tbody>
                                     <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">**متن**</td><td class="p-2 border-b">بولد</td><td class="p-2 border-b font-bold">متن</td></tr>
                                     <tr class="hover:bg-gray-50"><td class="p-2 border-b font-mono">*متن*</td><td class="p-2 border-b">کج</td><td class="p-2 border-b italic">متن</td></tr>
@@ -607,7 +879,6 @@
                                 </tbody>
                             </table>
                         </div>
-                        
                         <p class="font-bold text-blue-700 mt-4 mb-1 flex items-center"><i data-lucide="variable" class="h-5 w-5 ml-2"></i> متغیرهای پویا</p>
                         <ul class="list-disc pr-5 space-y-1 font-mono text-xs">
                             <li><code>{Subject}</code>: موضوع تیکت</li>
@@ -618,7 +889,7 @@
             } else {
                  const description = keyData.desc || 'توضیحات خاصی برای این متن موجود نیست.';
                  markdownGuideHTML = `
-                     <div class="bg-yellow-50 border border-yellow-200 p-4 mb-5 rounded-2xl text-sm text-gray-700 flex items-start shadow-md">
+                     <div class="bg-yellow-50 border border-yellow-200 p-4 mb-5 rounded-2xl text-sm text-gray-700 flex items-start shadow-md fade-in-up" style="animation-delay: 50ms;">
                          <i data-lucide="alert-triangle" class="h-5 w-5 ml-2 text-yellow-700 flex-shrink-0 mt-0.5"></i>
                          <div>
                              <span class="font-bold text-yellow-700 ml-1">راهنما:</span>
@@ -647,19 +918,20 @@
             }
 
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2">ویرایش: ${keyData.name}</h2>
+                <h2 class="text-2xl font-extrabold text-gray-800 mb-2 fade-in-up">${keyData.name}</h2>
 
                 ${markdownGuideHTML}
 
-                <!-- ناحیه ویرایش -->
-                ${inputElement}
+                <!-- [جدید] انیمیشن به ناحیه ویرایش اضافه شد -->
+                <div class="fade-in-up" style="animation-delay: 100ms;">
+                    ${inputElement}
+                </div>
 
-                <!-- دکمه‌های عملیات - بازطراحی شده -->
-                <div class="flex justify-end space-x-3 mt-6" dir="ltr">
-                    <button onclick="handleBack()" class="px-6 py-3 bg-white text-gray-800 rounded-2xl hover:bg-gray-50 transition duration-150 font-semibold shadow-lg">
+                <div class="flex justify-end space-x-3 mt-6 fade-in-up" style="animation-delay: 150ms;" dir="ltr">
+                    <button onclick="handleBack()" class="px-6 py-3 bg-white text-gray-800 rounded-2xl hover:bg-gray-50 transition duration-150 font-semibold shadow-lg btn-press">
                         <i data-lucide="x" class="h-5 w-5 inline ml-1"></i> لغو
                     </button>
-                    <button id="save-button" onclick="handleSave()" class="px-6 py-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition duration-150 font-semibold shadow-lg shadow-indigo-400/50">
+                    <button id="save-button" onclick="handleSave()" class="px-6 py-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition duration-150 font-semibold shadow-lg shadow-indigo-400/50 btn-press">
                         <i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره تغییرات
                     </button>
                 </div>
@@ -673,21 +945,124 @@
             }
         }
 
+        // --- [جدید] توابع رندر نمودار ---
 
-        // --- تابع اصلی رندر ---
+        function initRatingChart() {
+            const ctx = document.getElementById('ratingChart');
+            if (!ctx || !chartData.ratings) return;
 
-        function render() {
-            if (currentState === 'Loading') {
-                content.innerHTML = document.getElementById('loading-spinner').outerHTML;
-                lucide.createIcons();
-                return;
+            // از بین بردن نمودار قبلی اگر وجود داشت
+            if (ratingChartInstance) {
+                ratingChartInstance.destroy();
             }
 
-            content.classList.add('transition', 'duration-300', 'opacity-0');
+            ratingChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.ratings.labels,
+                    datasets: [{
+                        label: 'تعداد امتیاز',
+                        data: chartData.ratings.data,
+                        backgroundColor: [
+                            '#16a34a', // 5 ستاره (سبز)
+                            '#ca8a04', // 4 ستاره (زرد)
+                            '#ea580c', // 3 ستاره (نارنجی)
+                            '#dc2626', // 2 ستاره (قرمز)
+                            '#7f1d1d'  // 1 ستاره (قرمز تیره)
+                        ],
+                        borderColor: '#ffffff',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                fontFamily: 'Vazirmatn',
+                                boxWidth: 12,
+                                padding: 15
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function initVolumeChart() {
+            const ctx = document.getElementById('volumeChart');
+            if (!ctx || !chartData.volume) return;
+
+            if (volumeChartInstance) {
+                volumeChartInstance.destroy();
+            }
+
+            volumeChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.volume.labels,
+                    datasets: [{
+                        label: 'تیکت‌های ورودی',
+                        data: chartData.volume.data,
+                        fill: true,
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)', // آبی ملایم
+                        borderColor: '#4f46e5', // آبی
+                        tension: 0.3, // منحنی نرم
+                        pointBackgroundColor: '#4f46e5',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false // مخفی کردن لجند
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: '#f0f2f5' // خطوط گرید کمرنگ
+                            },
+                            ticks: {
+                                stepSize: 1, // گام‌های ۱ واحدی
+                                fontFamily: 'Vazirmatn'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false // حذف گرید عمودی
+                            },
+                            ticks: {
+                                fontFamily: 'Vazirmatn'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // --- [به‌روزرسانی] تابع اصلی رندر ---
+
+        function render() {
+            content.classList.add('transition-all', 'duration-200', 'opacity-0');
+
             setTimeout(() => {
                 
-                if (currentState === 'Dashboard') {
+                if (currentState === 'Dashboard-Loading') {
+                    renderDashboardSkeleton();
+                } else if (currentState === 'Dashboard') {
                     renderDashboard();
+                } else if (currentState === 'TicketsList') { // [جدید]
+                    renderTicketsList();
+                } else if (currentState.startsWith('TicketView_')) { // [جدید]
+                    renderTicketView(currentState);
                 } else if (currentState === 'MainMenu') {
                     renderMainMenu();
                 } else if (currentState.startsWith('SubMenu_')) {
@@ -695,28 +1070,36 @@
                 } else if (currentState.startsWith('EditScreen_')) {
                     renderEditScreen(currentState);
                 } else {
-                    renderDashboard();
+                    renderDashboard(); // Fallback
                 }
                 
-                // دکمه بازگشت هدر بر اساس تاریخچه نمایش داده می‌شود
                 backButton.classList[history.length > 0 ? 'remove' : 'add']('hidden');
-                
-                // نوار ناوبری پایین صفحه همیشه نمایش داده می‌شود
                 updateFooterNav(currentState);
 
                 content.classList.remove('opacity-0');
-                lucide.createIcons();
-            }, 50); // انیمیشن محو شدن ملایم
+                
+                if (currentState !== 'Dashboard-Loading') {
+                    lucide.createIcons();
+                }
+
+            }, 50); 
         }
 
         // رویدادهای اصلی
         backButton.addEventListener('click', handleBack);
+        // [جدید] تنظیم ارتفاع خودکار برای فیلد پاسخ
+        replyTextarea.addEventListener('input', () => {
+            replyTextarea.style.height = 'auto';
+            replyTextarea.style.height = (replyTextarea.scrollHeight) + 'px';
+        });
 
-        // شروع اپلیکیشن: ابتدا داده‌ها را از Worker دریافت کن
+        // شروع اپلیکیشن
         fetchInitialData();
 
-        // آیکون‌ها را در بارگذاری اولیه (مخصوصا برای نوار پایین) ایجاد می‌کند
+        // آیکون‌های اولیه نوار پایین را رندر می‌کند
         lucide.createIcons();
     </script>
 </body>
 </html>
+
+
