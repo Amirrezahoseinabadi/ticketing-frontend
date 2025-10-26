@@ -165,11 +165,8 @@
                     <div id="smart-card" class="p-4 rounded-lg shadow-lg mb-4 fade-in-item" style="background: linear-gradient(135deg, #3D5A80 0%, #274059 100%);">
                         <h3 id="smart-card-greeting" class="text-lg font-bold text-white mb-3">سلام کاربر عزیز! 👋</h3>
                         <p id="smart-card-tip" class="text-sm mb-4 p-3 rounded-lg" style="background-color: rgba(0,0,0,0.2);"><span class="text-xl">💡</span> <span class="font-bold">نکته:</span> برای دریافت پاسخ سریع‌تر، مشکل خود را با جزئیات کامل شرح دهید.</p>
-                        <!-- NEW: Container for dynamic buttons -->
-                        <div id="quick-buttons-container" class="space-y-2">
-                            <!-- Buttons will be rendered here by JS -->
-                        </div>
-                        <!-- REMOVED: Old static faq-button -->
+                        <!-- [تغییر] دکمه اکنون به صورت پیش‌فرض hidden نیست، جاوا اسکریپت آن را مدیریت می‌کند -->
+                        <button id="faq-button" class="w-full text-white text-sm px-4 py-2.5 rounded-md" style="background-color: var(--brand-light-blue);">مشاهده سوالات متداول</button>
                     </div>
                     <div id="tickets-container" class="space-y-3"></div>
                     <div id="no-tickets-message" class="hidden text-center text-gray-400 mt-16">
@@ -238,7 +235,8 @@
         <div class="glass-modal-content p-6 w-full max-w-md flex flex-col max-h-[90vh]">
             <h3 class="text-xl font-bold mb-4 text-white text-center">راهنمای ارسال تیکت</h3>
             <div class="overflow-y-auto pr-2 space-y-4 text-sm text-[var(--brand-text-secondary)]">
-                <p>لطفا <a href="#" id="faq-link-modal" class="text-blue-300 hover:underline">صفحه سوالات متداول</a> را بررسی کنید. شاید پاسخ شما آنجا باشد!</p>
+                <!-- [تغییر] محتوای این p توسط جاوا اسکریپت بر اساس فعال بودن FAQ پر می‌شود -->
+                <p>لطفا ابتدا صفحه سوالات متداول را بررسی کنید. شاید پاسخ شما آنجا باشد!</p>
             </div>
             <button id="info-modal-close-btn" class="mt-6 pt-4 border-t border-white/10 text-white px-6 py-2.5 rounded-md w-full transition" style="background-color: var(--brand-light-blue);">متوجه شدم</button>
         </div>
@@ -313,8 +311,7 @@
             emojiBtn: document.getElementById('emoji-btn'),
             infoModal: document.getElementById('info-modal'),
             infoModalCloseBtn: document.getElementById('info-modal-close-btn'),
-            // REMOVED: faqButton reference
-            quickButtonsContainer: document.getElementById('quick-buttons-container'), // NEW
+            faqButton: document.getElementById('faq-button'),
             emojiPickerContainer: document.getElementById('emoji-picker-container'),
             emojiPicker: document.querySelector('emoji-picker'),
             greetingCard: document.getElementById('smart-card-greeting'),
@@ -404,23 +401,41 @@
             return urlParams.get('storeHandle');
         }
 
-        // --- MODIFIED: Function to fetch and apply dynamic texts, including quick buttons ---
+        // --- [تغییر] Function to fetch and apply dynamic texts (UPDATED) ---
         async function fetchAndApplyTexts() {
             try {
                 const data = await apiFetch('/texts');
                 uiTexts = data;
 
-                // Apply standard texts
+                // --- NEW: Check for FAQ enabled ---
+                // Default to "true" (visible) if the key doesn't exist for older configs
+                const isFaqEnabled = (uiTexts.faqButtonEnabled === "true" || typeof uiTexts.faqButtonEnabled === 'undefined'); 
+
                 document.getElementById('smart-card-greeting').textContent = uiTexts.greetingTitle;
                 document.getElementById('smart-card-tip').innerHTML = uiTexts.quickTipMessage;
-                // REMOVED: faqButton text application
+                
+                // Apply text and visibility to main FAQ button
+                dom.faqButton.textContent = uiTexts.faqButtonText;
+                if (isFaqEnabled) {
+                    dom.faqButton.classList.remove('hidden');
+                } else {
+                    dom.faqButton.classList.add('hidden');
+                }
                 
                 document.querySelector('#nav-tickets-list span').textContent = uiTexts.navTickets;
                 document.querySelector('#nav-new-ticket span').textContent = uiTexts.navNewTicket;
 
                 document.querySelector('#info-modal h3').textContent = uiTexts.infoModalTitle;
+                
+                // Safely find and update the modal tip paragraph (with link conditional)
                 const modalTipP = document.querySelector('#info-modal .overflow-y-auto p');
-                if(modalTipP) modalTipP.innerHTML = uiTexts.infoModalTip; // Link handled separately if needed
+                if(modalTipP) {
+                    if (isFaqEnabled) {
+                        modalTipP.innerHTML = uiTexts.infoModalTip.replace('صفحه سوالات متداول', `<a href="#" id="faq-link-modal" class="text-blue-300 hover:underline">صفحه سوالات متداول</a>`);
+                    } else {
+                        modalTipP.innerHTML = uiTexts.infoModalTip;
+                    }
+                }
                 
                 const closedBannerP = document.querySelector('#closed-ticket-banner p');
                 if (closedBannerP) closedBannerP.textContent = uiTexts.closedTicketBanner;
@@ -429,32 +444,15 @@
                 dom.infoModalCloseBtn.textContent = uiTexts.modalCloseBtn;
                 document.getElementById('modal-close-btn').textContent = uiTexts.modalCloseBtn;
 
-                // --- NEW: Render Quick Buttons ---
-                const buttonsContainer = dom.quickButtonsContainer;
-                buttonsContainer.innerHTML = ''; // Clear previous buttons
-                
-                if (Array.isArray(uiTexts.quickButtons) && uiTexts.quickButtons.length > 0) {
-                    uiTexts.quickButtons.forEach(buttonData => {
-                        if (buttonData && buttonData.text && buttonData.url) {
-                            const buttonEl = document.createElement('button');
-                            buttonEl.textContent = buttonData.text;
-                            buttonEl.className = "w-full text-white text-sm px-4 py-2.5 rounded-md";
-                            buttonEl.style.backgroundColor = 'var(--brand-light-blue)';
-                            buttonEl.onclick = () => openLink(buttonData.url);
-                            buttonsContainer.appendChild(buttonEl);
-                        }
-                    });
-                    buttonsContainer.classList.remove('hidden');
-                } else {
-                    buttonsContainer.classList.add('hidden'); // Hide container if no buttons
+                // Re-attach listener for the new faq link in the modal (if it was created)
+                if (isFaqEnabled) {
+                    const newFaqLink = document.getElementById('faq-link-modal');
+                    if (newFaqLink) newFaqLink.addEventListener('click', (e) => { e.preventDefault(); openFaq(); });
                 }
-                // --- END NEW ---
 
             } catch (error) {
                 console.error("Could not fetch UI texts:", error);
                 showNotification("خطا در بارگذاری متون سفارشی", false);
-                // Optionally render default buttons or hide the section
-                dom.quickButtonsContainer.classList.add('hidden');
             }
         }
 
@@ -831,12 +829,6 @@
                 });
             });
         }
-        
-        // --- NEW: Function to open link ---
-        function openLink(url) {
-            if (!url) return;
-            window.Telegram?.WebApp.openLink(url) || window.open(url, '_blank');
-        }
 
         // =================================================================================
         // SECTION: Initialization & Event Listeners
@@ -925,10 +917,20 @@
             dom.replyMessageInput.style.height = `${dom.replyMessageInput.scrollHeight}px`;
         });
         
-        // REMOVED: Old faqButton listener
-        // Added listener for the modal link separately if needed in fetchAndApplyTexts
-        const initialFaqLink = document.getElementById('faq-link-modal');
-        // if(initialFaqLink) initialFaqLink.addEventListener('click', (e) => { e.preventDefault(); openFaq(); }); // Link handling moved
+        const openFaq = () => {
+            // [تغییر] چک می‌کند که آیا isFaqEnabled true است یا خیر (اگرچه دکمه‌ها باید مخفی باشند)
+            const isFaqEnabled = (uiTexts.faqButtonEnabled === "true" || typeof uiTexts.faqButtonEnabled === 'undefined');
+            if (!isFaqEnabled) return; 
+
+            const faqUrl = uiTexts.faqUrl || 'https://faqhub.amiruserbot7.workers.dev/';
+            window.Telegram?.WebApp.openLink(faqUrl) || window.open(faqUrl, '_blank');
+        };
+        dom.faqButton.addEventListener('click', openFaq);
+        
+        // [تغییر] این listener دیگر در اینجا اضافه نمی‌شود،
+        // بلکه به صورت پویا در fetchAndApplyTexts اضافه می‌شود
+        // const initialFaqLink = document.getElementById('faq-link-modal');
+        // if(initialFaqLink) initialFaqLink.addEventListener('click', (e) => { e.preventDefault(); openFaq(); });
 
     </script>
 </body>
