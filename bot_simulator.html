@@ -114,8 +114,10 @@
         const mockAppTexts = {
             greetingTitle: "سلام مدیر عزیز! 👋 (آزمایشی)",
             quickTipMessage: "💡 نکته: این متون برای تست در حالت آزمایشی بارگذاری شده‌اند.",
-            faqButtonText: "مشاهده سوالات متداول",
-            faqUrl: "https://mock.faq.com/",
+            // MODIFIED: Use quickButtons array
+            quickButtons: [
+                { text: "سوالات متداول (آزمایشی)", url: "https://mock.faq.com/", id: "mock_1" }
+            ],
             navTickets: "تیکت‌ها",
             navNewTicket: "تیکت جدید",
             infoModalTitle: "راهنمای ارسال تیکت",
@@ -153,12 +155,13 @@
         const headerTitle = document.getElementById('header-title');
         const messageBox = document.getElementById('message-box');
 
-        // وضعیت‌های اصلی: Dashboard, MainMenu, SubMenu_MINIAPPUI, SubMenu_USERNOTIFICATIONS, EditScreen
+        // وضعیت‌های اصلی: Dashboard, MainMenu, SubMenu_MINIAPPUI, SubMenu_USERNOTIFICATIONS, EditScreen, QuickButtonsMenu, EditQuickButton
         let currentState = 'Loading';
         const history = [];
         let appTexts = {}; // ذخیره متون دریافتی از Worker
         let appStats = {}; // ذخیره آمار دریافتی از Worker
         let currentEditKey = null; // کلید متنی که در حال ویرایش است
+        let currentEditButtonIndex = null; // NEW: Index of the button being edited
         let successMessage = null; // برای نمایش پیام موفقیت در ناوبری
 
         // ساختار ثابت متون برای استفاده در منوها (باید با Worker همگام باشد)
@@ -166,8 +169,7 @@
             MINI_APP_UI: {
                 greetingTitle: { name: "عنوان خوش‌آمدگویی", icon: "user-check", desc: `متن اصلی کارت راهنما (مثلاً: سلام مشتری عزیز!)` },
                 quickTipMessage: { name: "پیام راهنمای سریع", icon: "lightbulb", desc: `متن کوچک زیر عنوان در کارت راهنما (مثلاً: لطفا مشکل را با جزئیات بنویسید)` },
-                faqButtonText: { name: "متن دکمه راهنما", icon: "help-circle", desc: `متنی که روی دکمه مشاهده سوالات متداول نمایش داده می‌شود.` },
-                faqUrl: { name: "لینک دکمه راهنما", icon: "link", desc: `آدرس URL کامل (باید با https:// شروع شود).`, isUrl: true }, // اضافه شدن isUrl
+                // REMOVED: faqButtonText and faqUrl
                 navTickets: { name: "منوی: تیکت‌ها", icon: "ticket", desc: `متن آیکون تیکت‌ها در نوار پایین مینی‌اپ.` },
                 navNewTicket: { name: "منوی: تیکت جدید", icon: "file-plus", desc: `متن آیکون ایجاد تیکت جدید در نوار پایین مینی‌اپ.` },
                 infoModalTitle: { name: "عنوان راهنمای تیکت", icon: "info", desc: `عنوان پنجره‌ای که قبل از ثبت تیکت جدید نمایش داده می‌شود.` },
@@ -225,8 +227,11 @@
 
         function handleBack() {
             if (currentState.startsWith('EditScreen_')) {
-                // پاکسازی کلید ویرایش فعلی هنگام بازگشت از صفحه ویرایش
                 currentEditKey = null;
+            }
+            // NEW: Clear edit button index on back
+            if (currentState.startsWith('EditQuickButton_')) {
+                currentEditButtonIndex = null;
             }
 
             if (history.length > 0) {
@@ -241,8 +246,9 @@
                     title = 'مدیریت متون';
                 } else if (previousState.startsWith('SubMenu_')) {
                     const menuType = previousState.replace('SubMenu_', '');
-                    // اصلاح نام‌های منو برای مطابقت با CUSTOM_TEXT_KEYS
                     title = menuType === 'MINI_APP_UI' ? 'متن‌های مینی‌اپ' : 'متن‌های اعلان ربات';
+                } else if (previousState === 'QuickButtonsMenu') {
+                    title = 'مدیریت دکمه‌های راهنما';
                 }
                 
                 currentState = previousState;
@@ -302,13 +308,65 @@
                     showMessage(`❌ خطا در اتصال به API: ${error.message.substring(0, 50)}... بارگذاری داده آزمایشی.`, 'error');
                 }
             }
+            
+            // NEW: Ensure quickButtons is an array
+            if (!Array.isArray(appTexts.quickButtons)) {
+                appTexts.quickButtons = [];
+            }
+
             currentState = 'Dashboard';
             render();
         }
 
         // --- Data Persistence (از طریق Worker API) ---
-        async function handleSave() {
+        
+        // NEW: Generalized function to save any part of the texts object
+        async function saveTextsPayload(payload, successNavState, successTitle, successMessageText) {
             const saveButton = document.getElementById('save-button');
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<i data-lucide="loader-circle" class="animate-spin h-5 w-5 inline mr-2"></i> در حال ذخیره...';
+            lucide.createIcons(); 
+
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            
+            // Mock mode
+            if (currentStoreHandle === MOCK_STORE_HANDLE) {
+                Object.assign(appTexts, payload); // Merge payload into appTexts
+                successMessage = `✅ ${successMessageText} (آزمایشی)`;
+                navigateTo(successNavState, successTitle);
+                return;
+            }
+
+            // Real save operation
+            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/texts`;
+            try {
+                const response = await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    Object.assign(appTexts, payload); // Merge payload into appTexts
+                    successMessage = `✅ ${successMessageText}`;
+                    navigateTo(successNavState, successTitle);
+                } else {
+                    throw new Error(result.error || 'خطا در Worker API هنگام ذخیره.');
+                }
+            } catch (error) {
+                console.error("Error saving text via Worker:", error);
+                showMessage(`❌ خطا در ذخیره: ${error.message}`, 'error');
+            } finally {
+                saveButton.disabled = false;
+                saveButton.innerHTML = '<i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره و اعمال تغییرات';
+                lucide.createIcons();
+            }
+        }
+
+
+        async function handleSave() {
             const editElement = document.getElementById('edit-area');
             const newText = editElement.value;
 
@@ -322,50 +380,72 @@
                     return;
                 }
             }
-
-            saveButton.disabled = true;
-            saveButton.innerHTML = '<i data-lucide="loader-circle" class="animate-spin h-5 w-5 inline mr-2"></i> در حال ذخیره...';
-            lucide.createIcons(); 
-
-            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
             
-            // اگر در حالت آزمایشی باشیم، فقط داده محلی را ذخیره می کنیم
-            if (currentStoreHandle === MOCK_STORE_HANDLE) {
-                appTexts[currentEditKey] = newText;
-                successMessage = `✅ متن "${keyData.name}" با موفقیت در حالت آزمایشی ذخیره شد!`;
-                
-                navigateTo(`SubMenu_${keyData.type}`, 'مدیریت متون');
+            const payload = { [currentEditKey]: newText };
+            await saveTextsPayload(
+                payload, 
+                `SubMenu_${keyData.type}`, 
+                'مدیریت متون', 
+                `متن "${keyData.name}" با موفقیت ذخیره شد!`
+            );
+        }
+        
+        // NEW: Handle saving the quick button (add/edit)
+        async function handleSaveQuickButton() {
+            const text = document.getElementById('edit-button-text').value;
+            const url = document.getElementById('edit-button-url').value;
+            
+            if (!text || !url) {
+                showMessage('❌ متن دکمه و لینک (URL) هر دو الزامی هستند.', 'error');
+                return;
+            }
+            if (!url.startsWith('https://')) {
+                showMessage('❌ لینک باید با https:// شروع شود.', 'error', 5000);
                 return;
             }
 
-            // عملیات واقعی ذخیره
-            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/texts`;
-            const payload = { [currentEditKey]: newText };
+            // Create a copy of the array to modify
+            let updatedButtons = [...(appTexts.quickButtons || [])];
+            let successText = '';
 
-            try {
-                const response = await fetch(url, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+            const newButtonData = { text, url, id: `btn_${Date.now()}` };
+
+            if (currentEditButtonIndex !== null && updatedButtons[currentEditButtonIndex]) {
+                // Editing existing button
+                const oldButton = updatedButtons[currentEditButtonIndex];
+                updatedButtons[currentEditButtonIndex] = { ...oldButton, ...newButtonData, id: oldButton.id }; // Preserve original ID
+                successText = `دکمه "${text}" با موفقیت ویرایش شد!`;
+            } else {
+                // Adding new button
+                updatedButtons.push(newButtonData);
+                successText = `دکمه "${text}" با موفقیت اضافه شد!`;
+            }
+
+            // Save the entire updated array
+            await saveTextsPayload(
+                { quickButtons: updatedButtons },
+                'QuickButtonsMenu',
+                'مدیریت دکمه‌های راهنما',
+                successText
+            );
+            
+            currentEditButtonIndex = null; // Clear state
+        }
+        
+        // NEW: Handle deleting a quick button
+        async function handleDeleteQuickButton(index) {
+            if (confirm('آیا از حذف این دکمه مطمئن هستید؟')) {
+                let updatedButtons = [...(appTexts.quickButtons || [])];
+                const removedButton = updatedButtons.splice(index, 1);
                 
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    appTexts[currentEditKey] = newText; 
-                    successMessage = `✅ متن "${keyData.name}" با موفقیت ذخیره و اعمال شد!`;
-                    
-                    navigateTo(`SubMenu_${keyData.type}`, 'مدیریت متون');
-                } else {
-                    throw new Error(result.error || 'خطا در Worker API هنگام ذخیره.');
+                if (removedButton.length > 0) {
+                     await saveTextsPayload(
+                        { quickButtons: updatedButtons },
+                        'QuickButtonsMenu',
+                        'مدیریت دکمه‌های راهنما',
+                        `دکمه "${removedButton[0].text}" با موفقیت حذف شد.`
+                    );
                 }
-            } catch (error) {
-                console.error("Error saving text via Worker:", error);
-                showMessage(`❌ خطا در ذخیره متن: ${error.message}`, 'error');
-            } finally {
-                saveButton.disabled = false;
-                saveButton.innerHTML = '<i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره و اعمال تغییرات';
-                lucide.createIcons();
             }
         }
 
@@ -473,6 +553,14 @@
                         </span>
                         <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
                     </div>
+                    <!-- NEW: Quick Buttons Management -->
+                    <div class="menu-item" onclick="navigateTo('QuickButtonsMenu', 'مدیریت دکمه‌های راهنما')">
+                        <span class="flex items-center font-medium text-gray-800">
+                            <i data-lucide="help-circle" class="h-5 w-5 ml-3 text-green-600"></i>
+                            مدیریت دکمه‌های راهنما (FAQ)
+                        </span>
+                        <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
+                    </div>
                     <div class="menu-item" onclick="navigateTo('SubMenu_USER_NOTIFICATIONS', 'متن‌های اعلان ربات')">
                         <span class="flex items-center font-medium text-gray-800">
                             <i data-lucide="bell" class="h-5 w-5 ml-3 text-orange-600"></i>
@@ -533,6 +621,100 @@
             lucide.createIcons();
         }
 
+        // NEW: Render function for managing quick buttons
+        function renderQuickButtonsMenu() {
+            backButton.classList.remove('hidden');
+            headerTitle.textContent = 'مدیریت دکمه‌های راهنما';
+            
+            if (successMessage) {
+                showMessage(successMessage);
+                successMessage = null;
+            }
+
+            const buttons = appTexts.quickButtons || [];
+
+            content.innerHTML = `
+                <h2 class="text-xl font-extrabold text-gray-800 mb-2">مدیریت دکمه‌های راهنما</h2>
+                <p class="text-sm text-gray-500 mb-6">دکمه‌های لینک‌دار زیر کارت هوشمند در صفحه اصلی مینی‌اپ کاربر را مدیریت کنید.</p>
+                
+                <div class="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-100 shadow-xl mb-6">
+                    ${buttons.length > 0 ? buttons.map((btn, index) => `
+                        <div class="menu-item">
+                            <span class="flex flex-col text-gray-800">
+                                <span class="font-medium">${btn.text}</span>
+                                <span class="text-xs text-indigo-500 truncate max-w-[200px]">${btn.url}</span>
+                            </span>
+                            <div class="flex space-x-2" dir="ltr">
+                                <button onclick="navigateTo('EditQuickButton_${index}', 'ویرایش دکمه')" class="p-2 text-blue-600 hover:bg-blue-100 rounded-full">
+                                    <i data-lucide="edit" class="h-5 w-5"></i>
+                                </button>
+                                <button onclick="handleDeleteQuickButton(${index})" class="p-2 text-red-600 hover:bg-red-100 rounded-full">
+                                    <i data-lucide="trash-2" class="h-5 w-5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('') : `
+                        <p class="p-4 text-center text-gray-500">هیچ دکمه‌ای یافت نشد.</p>
+                    `}
+                </div>
+                
+                <button onclick="navigateTo('EditQuickButton_new', 'افزودن دکمه جدید')" class="w-full bg-green-600 text-white py-3 rounded-xl shadow-lg shadow-green-400/50 hover:bg-green-700 transition duration-300 font-bold flex items-center justify-center text-md">
+                    <i data-lucide="plus" class="h-5 w-5 ml-2"></i> افزودن دکمه جدید
+                </button>
+            `;
+            lucide.createIcons();
+        }
+        
+        // NEW: Render function for editing/adding a quick button
+        function renderEditButtonScreen(state) {
+            backButton.classList.remove('hidden');
+            const indexStr = state.replace('EditQuickButton_', '');
+            
+            let button = { text: '', url: '' }; // Default for new button
+            let title = 'افزودن دکمه جدید';
+            
+            if (indexStr !== 'new') {
+                currentEditButtonIndex = parseInt(indexStr, 10);
+                if (appTexts.quickButtons && appTexts.quickButtons[currentEditButtonIndex]) {
+                    button = appTexts.quickButtons[currentEditButtonIndex];
+                    title = 'ویرایش دکمه';
+                } else {
+                    currentEditButtonIndex = null; // Invalid index
+                }
+            } else {
+                currentEditButtonIndex = null; // Explicitly null for 'new'
+            }
+            
+            headerTitle.textContent = title;
+            
+            content.innerHTML = `
+                <h2 class="text-xl font-extrabold text-gray-800 mb-2">${title}</h2>
+                <p class="text-sm text-gray-500 mb-6">متن دکمه و لینک (URL) کامل آن را وارد کنید.</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="edit-button-text" class="block text-sm font-medium text-gray-700 mb-1">متن دکمه</label>
+                        <input id="edit-button-text" type="text" value="${button.text}" class="w-full p-3 border border-gray-300 rounded-xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="مثلاً: سوالات متداول">
+                    </div>
+                    <div>
+                        <label for="edit-button-url" class="block text-sm font-medium text-gray-700 mb-1">لینک (URL)</label>
+                        <input id="edit-button-url" type="url" value="${button.url}" class="w-full p-3 border border-gray-300 rounded-xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" placeholder="https://example.com/faq">
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-6" dir="ltr">
+                    <button onclick="handleBack()" class="px-5 py-3 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300 transition duration-150 font-semibold shadow-md hover:shadow-lg">
+                        <i data-lucide="x-circle" class="h-5 w-5 inline ml-1"></i> لغو (بازگشت)
+                    </button>
+                    <button id="save-button" onclick="handleSaveQuickButton()" class="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition duration-150 font-semibold shadow-lg shadow-indigo-400/50">
+                        <i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره تغییرات
+                    </button>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+
         function renderEditScreen(state) {
             backButton.classList.remove('hidden');
             currentEditKey = state.replace('EditScreen_', '');
@@ -546,10 +728,10 @@
             headerTitle.textContent = `ویرایش: ${keyData.name}`;
 
             const isNotification = keyData.type === 'USER_NOTIFICATIONS';
-            const isUrlField = keyData.isUrl;
+            const isUrlField = keyData.isUrl; // This property no longer exists on the keys we loop
 
             // جایگزینی \n با دو فاصله برای نمایش بهتر در textarea
-            const currentText = (appTexts[currentEditKey] || keyData.defaultText || "متن پیش‌فرض موجود نیست.").replace(/\\n/g, '\n');
+            const currentText = (appTexts[currentEditKey] || "متن پیش‌فرض موجود نیست.").replace(/\\n/g, '\n');
             
             let markdownGuideHTML = '';
             let inputElement;
@@ -600,8 +782,7 @@
                     </div>
                 `;
             } else {
-                 // راهنمای ساده برای UI Texts - توضیحات به داخل کادر زرد رنگ منتقل شد.
-                 // keyData.desc در اینجا همان متن توضیحات است.
+                 // راهنمای ساده برای UI Texts
                  const description = keyData.desc || 'توضیحات خاصی برای این متن موجود نیست. لطفاً آن را ساده و مختصر نگه دارید.';
                  markdownGuideHTML = `
                      <div class="bg-yellow-50 border-r-4 border-yellow-400 p-3 mb-4 rounded-xl text-sm text-gray-700 flex items-start shadow-inner">
@@ -617,19 +798,16 @@
             if (isUrlField) {
                 // فیلد تک‌خطی برای URL
                 inputElement = `
-                    <!-- اندازه فونت ورودی به text-sm کاهش یافت -->
                     <input id="edit-area" type="url" value="${currentText.replace(/\n/g, '')}" class="w-full p-4 border border-gray-300 rounded-xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="مثلاً: https://yourdomain.com/faq">
                 `;
             } else {
                 // فیلد چندخطی با قابلیت بزرگ شدن خودکار
                 inputElement = `
-                    <!-- اندازه فونت ورودی به text-sm کاهش یافت -->
                     <textarea id="edit-area" rows="4" class="auto-resize-textarea w-full p-4 border border-gray-300 rounded-xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="متن جدید خود را اینجا وارد کنید...">${currentText}</textarea>
                 `;
             }
 
             content.innerHTML = `
-                <!-- کاهش اندازه فونت از text-2xl به text-xl -->
                 <h2 class="text-xl font-extrabold text-gray-800 mb-2">ویرایش: ${keyData.name}</h2>
 
                 ${markdownGuideHTML}
@@ -642,7 +820,6 @@
                     <button onclick="handleBack()" class="px-5 py-3 bg-gray-200 text-gray-800 rounded-xl hover:bg-gray-300 transition duration-150 font-semibold shadow-md hover:shadow-lg">
                         <i data-lucide="x-circle" class="h-5 w-5 inline ml-1"></i> لغو (بازگشت)
                     </button>
-                    <!-- دکمه ذخیره با گرادیانت و سایه قوی‌تر -->
                     <button id="save-button" onclick="handleSave()" class="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition duration-150 font-semibold shadow-lg shadow-indigo-400/50">
                         <i data-lucide="save" class="h-5 w-5 inline ml-1"></i> ذخیره و اعمال تغییرات
                     </button>
@@ -650,12 +827,9 @@
             `;
             lucide.createIcons();
             
-            // اگر فیلد textarea است، قابلیت بزرگ شدن خودکار را اضافه کن
             const editArea = document.getElementById('edit-area');
             if (editArea && !isUrlField) {
-                // اعمال resize اولیه
                 autoResize(editArea); 
-                // افزودن event listener برای resize هنگام تایپ
                 editArea.addEventListener('input', () => autoResize(editArea));
             }
         }
@@ -666,7 +840,7 @@
         function render() {
             if (currentState === 'Loading') {
                 content.innerHTML = document.getElementById('loading-spinner').outerHTML;
-                lucide.createIcons(); // حتماً آیکون لودر را ایجاد کند
+                lucide.createIcons();
                 return;
             }
 
@@ -681,6 +855,10 @@
                     renderSubMenu_Texts(currentState);
                 } else if (currentState.startsWith('EditScreen_')) {
                     renderEditScreen(currentState);
+                } else if (currentState === 'QuickButtonsMenu') { // NEW
+                    renderQuickButtonsMenu();
+                } else if (currentState.startsWith('EditQuickButton_')) { // NEW
+                    renderEditButtonScreen(currentState);
                 } else {
                     renderDashboard();
                 }
