@@ -9,22 +9,23 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <!-- [جدید] کتابخانه نمودار Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <!-- [اضافه شده] کتابخانه انتخابگر ایموجی -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
     <!-- فونت‌های جدید: Vazirmatn برای فارسی و Inter برای انگلیسی -->
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        /* ... (استایل‌های قبلی بدون تغییر) ... */
         body {
             font-family: 'Vazirmatn', 'Inter', Tahoma, sans-serif;
             background-color: #f7f8fa; /* پس‌زمینه خاکستری بسیار روشن */
-            padding-bottom: 100px;
+            padding-bottom: 100px; /* ارتفاع پیش‌فرض نوار ناوبری */
             overflow-x: hidden; /* جلوگیری از اسکرول افقی */
         }
         
         .metric-card {
             background-color: #ffffff;
-            padding: 1rem; /* از 1.25rem کاهش یافت */
+            padding: 1rem;
             border-radius: 20px; /* گوشه‌های بسیار گرد */
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
             border: none;
@@ -42,14 +43,13 @@
             height: auto;
         }
 
-        /* [اصلاح شد] استایل برای فیلد پاسخ */
+        /* [اضافه شده] استایل برای فیلد پاسخ */
         .reply-textarea-auto {
             overflow-y: hidden; /* جلوگیری از نمایش اسکرول در حالت عادی */
             resize: none; 
             min-height: 48px; /* ارتفاع دکمه ارسال */
             max-height: 150px; /* حداکثر ارتفاع قبل از اسکرول شدن */
         }
-
 
         .nav-item.active {
             color: #4f46e5; /* رنگ اصلی اپ (Indigo) */
@@ -91,24 +91,69 @@
             box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
         }
 
+        /* [جدید] پس‌زمینه رسمی‌تر و تمیزتر */
+        .chat-container-bg {
+             background-color: #f0f4f7; /* خاکستری بسیار روشن و رسمی */
+             min-height: calc(100vh - 160px); 
+        }
+
         /* [جدید] استایل برای حباب‌های چت */
         .chat-bubble {
-            padding: 0.75rem 1rem;
-            border-radius: 18px;
-            max-width: 80%;
-            word-wrap: break-word; /* Ensure long words break */
-            overflow-wrap: break-word; /* Alternative for word-wrap */
-            white-space: pre-wrap; /* Preserve whitespace and wrap */
+            padding: 0.35rem 0.75rem; 
+            border-radius: 0.75rem; /* 12px (rounded-xl) */
+            max-width: 85%; 
+            word-wrap: break-word; 
+            overflow-wrap: break-word; 
+            white-space: pre-wrap; 
+            font-size: 0.95rem; 
+            line-height: 1.5;
         }
-        .chat-bubble.user {
-            background-color: #f0f2f5;
+        
+        /* [جدید] استایل حباب کاربر */
+        .chat-bubble.incoming { 
+            background-color: #ffffff;
             color: #1f2937;
-            border-bottom-right-radius: 4px;
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05); 
+            border-bottom-left-radius: 0.375rem; /* 6px (rounded-bl-md) */
         }
-        .chat-bubble.admin {
-            background-color: #4f46e5;
+        /* [جدید] استایل حباب ادمین */
+        .chat-bubble.outgoing { 
+            background-color: #2563eb; /* آبی رسمی‌تر (bg-blue-600) */
             color: #ffffff;
-            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+            border-bottom-right-radius: 0.375rem; /* 6px (rounded-br-md) */
+        }
+
+        /* [جدید] آواتار */
+        .chat-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: #a5b4fc; 
+            color: #312e81; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.8rem;
+            flex-shrink: 0; 
+        }
+
+        /* [اضافه شده] استایل برای انتخابگر ایموجی */
+        #emoji-picker {
+            position: fixed;
+            bottom: 100px; /* موقعیت اولیه، توسط JS تنظیم می‌شود */
+            right: 1rem;
+            z-index: 30;
+            transition: all 0.2s ease-out;
+            transform: translateY(20px) scale(0.9);
+            opacity: 0;
+            pointer-events: none;
+        }
+        #emoji-picker.visible {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+            pointer-events: auto;
         }
 
         /* انیمیشن شناور */
@@ -120,21 +165,20 @@
         .float-animation {
             animation: float 3s ease-in-out infinite;
         }
-
-
     </style>
 </head>
 <body class="antialiased">
 
     <!-- کانتینر اصلی اپلیکیشن -->
     <div id="app-container">
-        <!-- هدر ثابت، ساده و سفید - شبیه به ویدیو -->
-        <header class="bg-white text-gray-900 p-4 flex items-center shadow-sm sticky top-0 z-10">
-            <!-- آیکون بازگشت -->
-            <button id="back-button" class="text-gray-700 p-2 hover:bg-gray-100 rounded-full transition duration-150 hidden btn-press">
-                <i data-lucide="chevron-right" class="h-6 w-6"></i>
+        <!-- [اصلاح شد] هدر با خط پایین و آیکون با آیدی -->
+        <header class="bg-white text-gray-900 p-4 flex items-center border-b border-gray-200 sticky top-0 z-10">
+            <!-- [اصلاح شد] آیکون هدر اکنون در سمت راست است (برای RTL) -->
+            <button id="back-button" class="text-gray-700 p-2 hover:bg-gray-100 rounded-full transition duration-150 hidden btn-press flex-shrink-0">
+                <i id="back-button-icon" data-lucide="chevron-right" class="h-6 w-6"></i>
             </button>
-            <h1 id="header-title" class="text-lg font-extrabold mr-4 flex-grow truncate">پنل مدیریت ربات</h1>
+            <!-- [اصلاح شد] عنوان در سمت چپ (برای RTL) و با چینش راست -->
+            <h1 id="header-title" class="text-lg font-extrabold mr-4 flex-grow truncate text-right">پنل مدیریت ربات</h1>
         </header>
 
         <!-- کانتینر اصلی محتوا (padding و space-y کاهش یافت) -->
@@ -145,22 +189,33 @@
             </div>
         </div>
 
-        <!-- [جدید] فیلد ارسال پاسخ در صفحه تیکت (خارج از محتوا برای چسبیدن به پایین) -->
-        <div id="reply-container" class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-20 transform translate-y-full transition-transform duration-300">
-            <!-- [اصلاح شد] چینش برای ارسال پیام -->
+        <!-- [اصلاح شد] فیلد ارسال پاسخ: bottom-20 به bottom-0 تغییر کرد -->
+        <div id="reply-container" class="fixed bottom-0 left-0 right-0 bg-gray-50 border-t border-gray-200 p-4 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] z-20 transform translate-y-full transition-transform duration-300">
             <div class="flex items-end space-x-3" dir="ltr">
                 <button id="send-reply-btn" class="bg-indigo-600 text-white p-3 h-12 w-12 rounded-full btn-press shadow-lg shadow-indigo-300 flex-shrink-0">
                     <i data-lucide="send" class="h-6 w-6"></i>
                 </button>
-                <textarea id="reply-textarea" rows="1" class="reply-textarea-auto w-full p-3 border border-gray-300 rounded-2xl shadow-inner focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="پاسخ خود را بنویسید..."></textarea>
+                <textarea id="reply-textarea" rows="1" class="reply-textarea-auto flex-grow p-3 bg-gray-200 focus:bg-white rounded-2xl border border-transparent focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="پاسخ خود را بنویسید..."></textarea>
+                <!-- دکمه پاسخ‌های آماده -->
+                <button id="canned-reply-btn" class="p-3 h-12 w-12 rounded-full text-gray-500 hover:bg-gray-200 transition-colors btn-press flex-shrink-0">
+                    <i data-lucide="zap" class="h-6 w-6"></i>
+                </button>
+                <!-- دکمه ایموجی -->
+                <button id="emoji-btn" class="p-3 h-12 w-12 rounded-full text-gray-500 hover:bg-gray-200 transition-colors btn-press flex-shrink-0">
+                    <i data-lucide="smile" class="h-6 w-6"></i>
+                </button>
             </div>
         </div>
 
     </div>
 
+    <!-- [اضافه شده] کانتینر انتخابگر ایموجی -->
+    <emoji-picker id="emoji-picker" class="light"></emoji-picker>
+
     <!-- [جدید] نوار ناوبری پایین صفحه - سه‌بخشی -->
     <nav id="footer-nav" class="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-5px_20px_rgba(0,0,0,0.05)] rounded-t-3xl h-20 flex justify-around items-center z-10">
         <button onclick="navigateTo('Dashboard', getDashboardTitle(STORE_HANDLE || MOCK_STORE_HANDLE))" id="nav-dashboard" class="nav-item btn-press flex flex-col items-center justify-center text-gray-500 w-1/3" data-page="Dashboard">
+            <!-- [اصلاح شد] آیکون داشبورد به حالت فایل جدید برگشت -->
             <i data-lucide="layout-dashboard" class="h-6 w-6"></i>
             <span class="text-xs font-semibold mt-1">داشبورد</span>
         </button>
@@ -237,7 +292,8 @@
             { id: 'T1001', subject: 'مشکل در اتصال به سرور', user_name: 'کاربر ۱۲۳', status: 'open', department: 'technical', created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), messages: [ // استفاده از user_name و technical
                 { sender: 'user', text: 'سلام، من نمی‌توانم به سرور متصل شوم.', created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString() },
                 { sender: 'admin', text: 'سلام، لطفاً لحظاتی صبر کنید تا بررسی کنیم.', created_at: new Date(Date.now() - 4 * 60 * 1000).toISOString() },
-                { sender: 'user', text: 'هنوز منتظرم.\n لطفاً سریع‌تر.', created_at: new Date(Date.now() - 3 * 60 * 1000).toISOString() }, // Added newline for testing
+                { sender: 'user', text: 'هنوز منتظرم. لطفاً سریع‌تر.', created_at: new Date(Date.now() - 3 * 60 * 1000).toISOString() }, // \n حذف شد
+                { sender: 'admin', text: 'در حال بررسی هستیم. این مشکل سراسری به نظر می‌رسد.', created_at: new Date(Date.now() - 2 * 60 * 1000).toISOString() },
             ]},
             { id: 'T1002', subject: 'سوال در مورد تعرفه', user_name: 'کاربر ۴۵۶', status: 'open', department: 'sales', created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(), messages: [ // استفاده از user_name و sales
                 { sender: 'user', text: 'سلام، تعرفه پلن حرفه‌ای چقدر است؟', created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString() },
@@ -269,10 +325,11 @@
         const backButton = document.getElementById('back-button');
         const headerTitle = document.getElementById('header-title');
         const messageBox = document.getElementById('message-box');
-        // [جدید] کانتینر و فیلد پاسخ
+        // [اضافه شده] متغیرهای کادر پاسخ
         const replyContainer = document.getElementById('reply-container');
         const replyTextarea = document.getElementById('reply-textarea');
-        const sendReplyBtn = document.getElementById('send-reply-btn'); // [جدید] دکمه ارسال
+        const sendReplyBtn = document.getElementById('send-reply-btn'); 
+        const emojiPicker = document.getElementById('emoji-picker'); 
 
         let currentState = 'Dashboard-Loading';
         const history = [];
@@ -281,7 +338,7 @@
         let appTickets = []; // [جدید] اکنون به درستی یک آرایه خواهد بود
         let chartData = {};  // [جدید]
         let currentTicketListFilter = 'open'; // [جدید]
-        let currentTicketId = null; // [جدید] برای نگهداری شناسه تیکت فعلی
+        let currentTicketId = null; // [جدید]
         let currentEditKey = null;
         let successMessage = null;
 
@@ -312,25 +369,35 @@
 
         // --- توابع کمکی ---
 
+        // [اضافه شده] تابع درج متن ایموجی
+        function insertTextAtCursor(field, text) {
+            let startPos = field.selectionStart;
+            let endPos = field.selectionEnd;
+            let _val = field.value;
+            field.value = _val.substring(0, startPos) + text + _val.substring(endPos, _val.length);
+            field.selectionStart = startPos + text.length;
+            field.selectionEnd = startPos + text.length;
+            field.focus();
+            autoResize(field); // تغییر اندازه خودکار پس از درج ایموجی
+        }
+
+        // [اصلاح شده] تابع تغییر اندازه خودکار (بخش مربوط به کادر پاسخ اضافه شد)
         function autoResize(el) {
-            // [اصلاح شد] برای textarea با کلاس reply-textarea-auto
             if (el.classList.contains('reply-textarea-auto')) {
-                el.style.height = 'auto'; // ریست کردن ارتفاع
-                // محاسبه ارتفاع محتوا، اما محدود به max-height
+                el.style.height = 'auto'; 
                 let newHeight = el.scrollHeight;
-                const maxHeight = 150; // باید با max-height در CSS یکی باشد
+                const maxHeight = 150; 
                 
                 if (newHeight > maxHeight) {
                     el.style.height = maxHeight + 'px';
-                    el.style.overflowY = 'auto'; // نمایش اسکرول در صورت نیاز
+                    el.style.overflowY = 'auto'; 
                 } else {
-                    el.style.height = newHeight + 'px';
-                    el.style.overflowY = 'hidden'; // مخفی کردن اسکرول
+                    el.style.height = (newHeight < 48 ? 48 : newHeight) + 'px'; // حداقل ارتفاع 48px
+                    el.style.overflowY = 'hidden'; 
                 }
-            } else if (el.classList.contains('auto-resize-textarea')) {
-                // منطق قبلی برای textarea در صفحه ویرایش
-                el.style.height = 'auto';
-                el.style.height = (el.scrollHeight) + 'px';
+            } else if (el.classList.contains('auto-resize-textarea')) { // سازگاری با صفحه ویرایش
+                 el.style.height = 'auto';
+                 el.style.height = (el.scrollHeight) + 'px';
             }
         }
 
@@ -344,8 +411,12 @@
             return null;
         }
         function showMessage(text, type = 'success', duration = 4000) {
+            let bgColor = 'bg-green-600';
+            if (type === 'error') bgColor = 'bg-red-600';
+            if (type === 'info') bgColor = 'bg-blue-600';
+
             messageBox.textContent = text;
-            messageBox.className = `fixed bottom-24 left-4 right-4 p-4 text-white text-center rounded-2xl shadow-2xl z-20 transform transition-all duration-300 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+            messageBox.className = `fixed bottom-24 left-4 right-4 p-4 text-white text-center rounded-2xl shadow-2xl z-20 transform transition-all duration-300 ${bgColor}`;
 
             setTimeout(() => {
                 messageBox.classList.remove('hidden', 'translate-y-10', 'opacity-0');
@@ -357,21 +428,29 @@
             }, duration);
         }
 
-        // [جدید] نمایش یا پنهان کردن فیلد پاسخ
+        // [اصلاح شد] تابع نمایش یا پنهان کردن فیلد پاسخ
         function showReplyContainer(show) {
-            // [اصلاح شد] ارتفاع فیلد پاسخ متغیر است، بنابراین padding-bottom را بر اساس ارتفاع واقعی آن تنظیم می‌کنیم
-            if (show) {
-                replyContainer.classList.remove('translate-y-full');
-                // تاخیر کوتاه برای محاسبه ارتفاع
-                setTimeout(() => {
-                    const replyHeight = replyContainer.offsetHeight;
-                    // 80px (نوار پایین) + ارتفاع فیلد پاسخ + 16px (کمی فاصله)
-                    const totalPadding = 80 + replyHeight + 16; 
-                    document.body.style.paddingBottom = `${totalPadding}px`;
-                }, 100); 
+            const bodyPaddingBottomNav = '100px'; // ارتفاع نوار ناوبری 80px + 20px فضای خالی
+            const footerNav = document.getElementById('footer-nav'); // [جدید] نوار ناوبری را پیدا کن
+            
+             if (show) {
+                replyContainer.classList.remove('translate-y-full'); // کادر پاسخ را نشان بده
+                if (footerNav) footerNav.classList.add('hidden'); // [جدید] نوار ناوبری را مخفی کن
+                
+                // محاسبه ارتفاع و پدینگ بر اساس ارتفاع کادر پاسخ
+                const replyHeight = replyContainer.offsetHeight || 72; // ارتفاع پیش‌فرض 72px
+                const totalPadding = replyHeight + 16; // 16px (فاصله)
+                document.body.style.paddingBottom = `${totalPadding}px`;
+                // [اصلاح شد] موقعیت ایموجی بر اساس ارتفاع کادر پاسخ
+                emojiPicker.style.bottom = `${replyHeight + 16}px`; 
+                
+                // اسکرول به پایین با یک تاخیر کوتاه برای رندر
+                setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50); 
             } else {
-                replyContainer.classList.add('translate-y-full');
-                document.body.style.paddingBottom = '100px'; // بازگشت به حالت پیش‌فرض
+                replyContainer.classList.add('translate-y-full'); // کادر پاسخ را مخفی کن
+                if (footerNav) footerNav.classList.remove('hidden'); // [جدید] نوار ناوبری را نشان بده
+                document.body.style.paddingBottom = bodyPaddingBottomNav; 
+                emojiPicker.classList.remove('visible'); // مخفی کردن ایموجی
             }
         }
 
@@ -398,40 +477,48 @@
             }
         }
 
-        // [به‌روزرسانی] تابع ناوبری
+        // [اصلاح شده] تابع ناوبری (منطق کادر پاسخ اضافه شد)
         function navigateTo(newState, title = null, pushHistory = true) {
             if (pushHistory && currentState !== 'Dashboard-Loading') {
                 history.push(currentState);
             }
             currentState = newState;
+            currentTicketId = null; // ریست کردن آیدی تیکت
 
             const currentHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
             const dashboardTitle = getDashboardTitle(currentHandle);
+            const backButtonIcon = document.getElementById('back-button-icon');
 
             headerTitle.textContent = title || dashboardTitle;
             updateFooterNav(newState);
 
-            // [جدید] نمایش/پنهان کردن فیلد پاسخ بر اساس صفحه
+            // [اصلاح شده] منطق نمایش/پنهان کردن کادر پاسخ اضافه شد
             if (currentState.startsWith('TicketView_')) {
                 showReplyContainer(true);
+                if (backButtonIcon) backButtonIcon.setAttribute('data-lucide', 'x');
+                // [جدید] تنظیم آیدی تیکت فعلی
+                currentTicketId = currentState.replace('TicketView_', '');
             } else {
                 showReplyContainer(false);
-                currentTicketId = null; // [جدید] پاک کردن شناسه تیکت هنگام خروج از صفحه
+                if (backButtonIcon) backButtonIcon.setAttribute('data-lucide', 'chevron-right');
             }
 
             render();
             window.scrollTo(0, 0);
         }
 
-        // [به‌روزرسانی] تابع بازگشت
+        // [اصلاح شده] تابع بازگشت (منطق کادر پاسخ اضافه شد)
         function handleBack() {
+            const backButtonIcon = document.getElementById('back-button-icon');
+            
             if (currentState.startsWith('EditScreen_')) {
                 currentEditKey = null;
             }
-            // [جدید] پنهان کردن فیلد پاسخ هنگام بازگشت
+            // [اضافه شده] منطق پنهان کردن فیلد پاسخ
             if (currentState.startsWith('TicketView_')) {
                  showReplyContainer(false);
-                 currentTicketId = null; // [جدید] پاک کردن شناسه تیکت
+                 currentTicketId = null; // ریست کردن آیدی
+                 emojiPicker.classList.remove('visible'); // [جدید] مخفی کردن ایموجی
             }
 
             if (history.length > 0) {
@@ -451,6 +538,10 @@
                 currentState = previousState;
                 headerTitle.textContent = title;
                 updateFooterNav(previousState);
+                
+                // [جدید] تنظیم آیکون بازگشت به حالت پیش‌فرض
+                if (backButtonIcon) backButtonIcon.setAttribute('data-lucide', 'chevron-right');
+                
                 render(false);
                 window.scrollTo(0, 0);
             } else {
@@ -591,9 +682,16 @@
                 showMessage(`❌ خطا در اتصال به API: ${error.message.substring(0, 50)}... بارگذاری داده آزمایشی.`, 'error');
             }
 
-            currentState = 'Dashboard';
-            updateFooterNav('Dashboard');
-            render();
+            // [اصلاح شد] داده‌های آزمایشی اکنون به درستی کپی عمیق می‌شوند
+            if (!STORE_HANDLE) {
+                 appTickets = JSON.parse(JSON.stringify(mockAppTickets));
+            }
+
+            // [اصلاح شد] به جای رندر مستقیم، به داشبورد ناوبری می‌کنیم
+            // این تضمین می‌کند که منطق showReplyContainer(false) به درستی اجرا می‌شود
+            const currentHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            // false به این معنی است که این مورد را به تاریخچه اضافه نکن
+            navigateTo('Dashboard', getDashboardTitle(currentHandle), false); 
         }
 
         // --- Data Persistence (از طریق Worker API) ---
@@ -656,15 +754,20 @@
             }
         }
 
-        // [جدید] تابع ارسال پاسخ ادمین به ورکر
+        // [اضافه شده] تابع ارسال پاسخ به ورکر
         async function sendAdminReplyToWorker(ticketId, text) {
-            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+            console.log(`Sending Reply: Ticket ${ticketId}, Text: ${text}`);
             
+            sendReplyBtn.disabled = true;
+            sendReplyBtn.innerHTML = '<i data-lucide="loader-circle" class="animate-spin h-6 w-6"></i>';
+            lucide.createIcons();
+
+            const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
+
             // --- حالت آزمایشی ---
             if (currentStoreHandle === MOCK_STORE_HANDLE) {
-                console.log(`Mock Send Reply: Ticket ${ticketId}, Text: ${text}`);
-                // اضافه کردن پیام به داده‌های آزمایشی
-                const ticket = mockAppTickets.find(t => t.id === ticketId);
+                await new Promise(resolve => setTimeout(resolve, 700)); // شبیه‌سازی تاخیر شبکه
+                const ticket = appTickets.find(t => t.id === ticketId);
                 if (ticket) {
                     if (!ticket.messages) ticket.messages = [];
                     ticket.messages.push({
@@ -673,58 +776,56 @@
                         created_at: new Date().toISOString()
                     });
                 }
-                // ریست کردن فیلد
+                
                 replyTextarea.value = '';
-                autoResize(replyTextarea); // ریست کردن ارتفاع
-                // رفرش کردن پیام‌ها
-                fetchMessagesForTicket(ticketId);
+                autoResize(replyTextarea); 
+                
+                fetchMessagesForTicket(ticketId, ticket); // رفرش چت
+                
                 showMessage('✅ (آزمایشی) پاسخ شما ثبت شد.');
-                return;
-            }
-            // --- پایان حالت آزمایشی ---
+            } else {
+                // --- حالت واقعی (API) ---
+                const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/messages`;
+                const payload = {
+                    ticket_id: ticketId,
+                    sender: 'admin',
+                    text: text,
+                    source: 'admin-mini-app' 
+                };
 
-            const url = `${WORKER_API_BASE_URL}/api/${currentStoreHandle}/messages`;
-            const payload = {
-                ticket_id: ticketId,
-                sender: 'admin',
-                text: text,
-                source: 'miniapp' // مشخص کردن منبع
-            };
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+                    
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.error || 'خطا در ارسال پیام');
+                    }
+                    
+                    // موفقیت
+                    replyTextarea.value = '';
+                    autoResize(replyTextarea); 
+                    
+                    // رفرش کردن پیام‌ها (در حالت واقعی، ورکر باید پیام جدید را اضافه کند، ما فقط واکشی می‌کنیم)
+                    const ticket = appTickets.find(t => t.id === ticketId);
+                    await fetchMessagesForTicket(ticketId, ticket); // رفرش چت
+                    
+                    showMessage('✅ پاسخ شما با موفقیت ارسال شد.');
 
-            // غیرفعال کردن دکمه هنگام ارسال
-            sendReplyBtn.disabled = true;
-            sendReplyBtn.innerHTML = '<i data-lucide="loader-circle" class="animate-spin h-6 w-6"></i>';
-            lucide.createIcons();
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const result = await response.json();
-                if (!response.ok || !result.success) {
-                    throw new Error(result.error || 'خطا در ارسال پیام.');
+                } catch (error) {
+                    console.error("Error sending admin reply:", error);
+                    showMessage(`❌ خطا در ارسال پاسخ: ${error.message}`, 'error');
                 }
-
-                // موفقیت
-                replyTextarea.value = ''; // پاک کردن فیلد
-                autoResize(replyTextarea); // ریست کردن ارتفاع
-                fetchMessagesForTicket(ticketId); // رفرش کردن چت
-                showMessage('✅ پاسخ شما با موفقیت ارسال شد.');
-
-            } catch (error) {
-                console.error("Error sending admin reply:", error);
-                showMessage(`❌ خطا: ${error.message}`, 'error');
-            } finally {
-                // فعال کردن مجدد دکمه
-                sendReplyBtn.disabled = false;
-                sendReplyBtn.innerHTML = '<i data-lucide="send" class="h-6 w-6"></i>';
-                lucide.createIcons();
             }
-        }
 
+            // بازگرداندن دکمه به حالت اولیه
+            sendReplyBtn.disabled = false;
+            sendReplyBtn.innerHTML = '<i data-lucide="send" class="h-6 w-6"></i>';
+            lucide.createIcons();
+        }
 
         // =================================================================
         // RENDER FUNCTIONS (UI) - بازطراحی شده
@@ -855,6 +956,8 @@
         function renderTicketsList() {
             backButton.classList.add('hidden'); // صفحه اصلی تب تیکت‌ها دکمه بازگشت ندارد
             headerTitle.textContent = 'لیست تیکت‌ها';
+            // [جدید] تغییر پس‌زمینه محتوا
+            content.className = 'p-4 space-y-4'; // بازگرداندن به حالت عادی
 
             if (successMessage) {
                 showMessage(successMessage);
@@ -920,12 +1023,10 @@
             render(); // رندر مجدد صفحه تیکت‌ها
         }
 
-        // [جدید] تابع رندر صفحه مشاهده تیکت
+        // [اصلاح شد] تابع رندر صفحه مشاهده تیکت
         function renderTicketView(state) {
             backButton.classList.remove('hidden'); // نمایش دکمه بازگشت
             const ticketId = state.replace('TicketView_', '');
-            currentTicketId = ticketId; // [جدید] ذخیره شناسه تیکت فعلی
-
             // [اصلاح شد] اکنون appTickets یک آرایه است و .find() کار می‌کند
             const ticket = appTickets.find(t => t.id === ticketId);
 
@@ -935,20 +1036,19 @@
             }
 
             headerTitle.textContent = ticket.subject;
+            // [جدید] تغییر پس‌زمینه محتوا
+            content.className = 'p-4 chat-container-bg';
 
-             // [اصلاح شد] استفاده از departmentMap و statusMap
-             // [اصلاح شد] Placeholder "به زودی" با لودر واقعی جایگزین شد
+             // [اصلاح شد] استفاده از لودر واقعی
              content.innerHTML = `
-                 <div class="space-y-4 fade-in-up" style="padding-bottom: 80px;"> <!-- Add padding for reply box -->
-                     <!-- اطلاعات تیکت -->
-                     <div class="bg-white rounded-2xl shadow-lg p-4 text-sm">
-                          <p><strong>کاربر:</strong> ${ticket.user_name || 'کاربر ناشناس'}</p>
-                          <p><strong>دپارتمان:</strong> ${departmentMap[ticket.department] || ticket.department || 'عمومی'}</p>
-                          <p><strong>وضعیت:</strong> ${statusMap[ticket.status] || ticket.status || 'نامشخص'}</p>
+                 <div class="fade-in-up space-y-3"> 
+                     <!-- [اصلاح شد] پیام سیستمی به سبک تلگرام -->
+                     <div class="flex justify-center my-3">
+                         <div class="text-xs text-gray-500 font-medium text-center p-2">
+                            کاربر <strong>${ticket.user_name || 'ناشناس'}</strong> تیکت را در دپارتمان <strong>${departmentMap[ticket.department] || 'عمومی'}</strong> باز کرد
+                         </div>
                      </div>
-                     <!-- کانتینر پیام‌ها -->
-                     <div id="messages-container" class="space-y-3">
-                         <!-- [اصلاح شد] لودر واقعی جایگزین شد -->
+                     <div id="messages-container" class="space-y-3 pb-4"> 
                          <div class="text-center text-gray-500 pt-10">
                             <i data-lucide="loader-circle" class="animate-spin h-8 w-8 mx-auto text-indigo-600"></i>
                             <p>در حال بارگذاری پیام‌ها...</p>
@@ -957,44 +1057,43 @@
                  </div>
              `;
             
-             // [فعال شد] فراخوانی تابع واکشی پیام‌ها
-             fetchMessagesForTicket(ticketId);
-
-             // Make sure icons render
-            lucide.createIcons();
+             fetchMessagesForTicket(ticketId, ticket); // [اصلاح شد] ارسال کل آبجکت تیکت
+             lucide.createIcons();
         }
 
-       // [جدید و اصلاح شده] تابع واکشی و رندر پیام‌ها برای یک تیکت خاص
-       // [فعال شد] این تابع اکنون فعال است
-       async function fetchMessagesForTicket(ticketId) {
+       // [اصلاح شد] تابع واکشی و رندر پیام‌ها
+       async function fetchMessagesForTicket(ticketId, ticket) { 
             const messagesContainer = document.getElementById('messages-container');
-            // اطمینان از اینکه در صفحه درست هستیم و کانتینر وجود دارد
             if (!messagesContainer || currentState !== `TicketView_${ticketId}`) {
-                console.log("Not fetching/rendering messages - wrong state or container not found for ticket:", ticketId); // Log reason for not fetching
                 return;
             }
 
-            // [جدید] نمایش مجدد لودر قبل از هر بار واکشی (این در renderTicketView انجام شد)
-            // messagesContainer.innerHTML = `... لودر ...`;
-            // lucide.createIcons(); // رندر آیکون لودر
+            // [جدید] نمایش مجدد لودر قبل از هر بار واکشی
+            messagesContainer.innerHTML = `
+                <div class="text-center text-gray-500 pt-5">
+                    <i data-lucide="loader-circle" class="animate-spin h-8 w-8 mx-auto text-indigo-600"></i>
+                    <p>در حال بارگذاری پیام‌ها...</p>
+                 </div>`;
+            lucide.createIcons(); // رندر آیکون لودر
 
             const currentStoreHandle = STORE_HANDLE || MOCK_STORE_HANDLE;
 
             // --- حالت آزمایشی ---
             if (currentStoreHandle === MOCK_STORE_HANDLE) {
                 console.log("Mock mode: Loading messages from mock ticket object for ticket:", ticketId);
-                const ticket = mockAppTickets.find(t => t.id === ticketId);
-                // اطمینان از اینکه پیام‌ها وجود دارند قبل از رندر
-                const messages = ticket?.messages?.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) || [];
-                renderMessages(messages, messagesContainer); // رندر پیام‌های mock
-                lucide.createIcons(); // رندر آیکون‌ها اگر در پیام‌ها استفاده شود
-                // اسکرول به پایین بعد از رندر پیام‌های mock
+                const currentTicket = ticket || appTickets.find(t => t.id === ticketId);
+                
+                await new Promise(resolve => setTimeout(resolve, 500)); // شبیه‌سازی تاخیر
+
+                const messages = currentTicket?.messages?.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) || [];
+                renderMessages(messages, messagesContainer, currentTicket); 
+                lucide.createIcons(); 
                  setTimeout(() => {
-                    if (messagesContainer) { // Double check container exists
+                    if (messagesContainer) { 
                       console.log("Scrolling mock messages to bottom");
-                      content.scrollTop = content.scrollHeight; // [اصلاح شد] اسکرول کانتینر اصلی محتوا
+                      window.scrollTo(0, document.body.scrollHeight); 
                     }
-                 }, 50); // Small delay to ensure DOM update
+                 }, 50); 
                 return;
             }
             // --- پایان حالت آزمایشی ---
@@ -1014,7 +1113,7 @@
                  console.log("Sorted messages array:", messagesArray); // Log sorted array
 
                 // رندر کردن پیام‌ها در کانتینر
-                renderMessages(messagesArray, messagesContainer);
+                renderMessages(messagesArray, messagesContainer, ticket); // [اصلاح شد] ارسال تیکت
 
             } catch (error) {
                 console.error("Error fetching messages:", error.message);
@@ -1030,46 +1129,79 @@
                  setTimeout(() => {
                     if (messagesContainer) {
                         console.log("Scrolling messages container to bottom after fetch/render"); // Log scroll attempt
-                        window.scrollTo(0, document.body.scrollHeight); // [اصلاح شد] اسکرول کل صفحه به پایین
+                        window.scrollTo(0, document.body.scrollHeight);
                     }
                  }, 50); // Small delay for DOM update
             }
         }
 
         // [جدید] تابع کمکی برای رندر کردن آرایه پیام‌ها در DOM
-         // [فعال شد] این تابع اکنون فعال است
-        function renderMessages(messagesArray, containerElement) {
-            console.log("Rendering messages:", messagesArray); // Log messages being rendered
-            if (!containerElement) {
-                 console.error("Cannot render messages: containerElement is null");
+        function renderMessages(messagesArray, containerElement, ticket) {
+            if (!containerElement || !ticket) {
+                 console.error("RenderMessages failed: container or ticket missing");
                  return;
-            }
+             }
 
             if (messagesArray.length === 0) {
                  containerElement.innerHTML = `<p class="text-gray-500 text-center pt-5">هنوز پیامی رد و بدل نشده است.</p>`;
                  return;
              }
+             
+             // [جدید] تابع استخراج حروف اول نام
+            const getInitials = (name) => {
+                if (!name) return '؟';
+                const parts = name.split(' ');
+                if (parts.length === 1) return name.substring(0, 1);
+                const first = parts[0] ? parts[0].substring(0, 1) : '';
+                const second = parts[1] ? parts[1].substring(0, 1) : '';
+                return (first + second).toUpperCase() || '؟';
+            }
+            const userInitials = getInitials(ticket.user_name);
+
              // Ensure text exists and replace newlines - Escape HTML for safety
             const sanitizeText = (text = '') => {
                  const escapedText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
                  return escapedText.replace(/\n/g, '<br>');
             }
 
-            containerElement.innerHTML = messagesArray.map(msg => `
-                <div class="flex ${msg.sender === 'admin' ? 'justify-start' : 'justify-end'} fade-in-up" style="animation-delay: ${messagesArray.indexOf(msg) * 30}ms"> <!-- Simple animation -->
-                    <div class="chat-bubble ${msg.sender === 'admin' ? 'admin' : 'user'}">
-                        ${
-                            // نمایش Placeholder برای تصاویر
-                            msg.type === 'image_placeholder'
-                            ? `<span class="italic text-gray-500">${sanitizeText(msg.text)}</span>`
-                            : sanitizeText(msg.text) // نمایش متن معمولی
-                         }
-                         <!-- نمایش زمان ارسال پیام -->
-                         <div class="text-xs ${msg.sender === 'admin' ? 'text-indigo-200' : 'text-gray-400'} mt-1 text-left">${new Date(msg.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}</div>
+            containerElement.innerHTML = messagesArray.map(msg => {
+                const isUser = msg.sender === 'user';
+                
+                const avatarHTML = isUser 
+                    ? `<div class="chat-avatar">${userInitials}</div>` 
+                    : '';
+                
+                // [اصلاح شد] آیکون دو تیک و رنگ آبی
+                const metaHTML = `
+                    <div class="text-xs ${isUser ? 'text-gray-500' : 'text-gray-500'} mt-1 ${isUser ? 'text-left' : 'text-right'} flex items-center ${isUser ? 'justify-start' : 'justify-end'}">
+                        ${!isUser ? '<i data-lucide="check-check" class="h-3.5 w-3.5 text-blue-600 ml-1"></i>' : ''}
+                        ${new Date(msg.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })}
                     </div>
+                `;
+
+
+                return `
+                <!-- [اصلاح شد] چینش برای آواتار -->
+                <div class="flex ${isUser ? 'justify-end' : 'justify-start'} items-end space-x-2 space-x-reverse fade-in-up" style="animation-delay: ${messagesArray.indexOf(msg) * 30}ms"> 
+                    
+                    <!-- [جدید] کانتینر برای حباب + متا -->
+                    <div class="flex flex-col">
+                        <div class="chat-bubble ${isUser ? 'incoming' : 'outgoing'} w-fit"> 
+                            ${
+                                // نمایش Placeholder برای تصاویر
+                                msg.type === 'image_placeholder'
+                                ? `<span class="italic text-gray-500">${sanitizeText(msg.text)}</span>`
+                                : sanitizeText(msg.text) // نمایش متن معمولی
+                             }
+                        </div>
+                        <!-- [جدید] متا (زمان/وضعیت) در خارج از حباب -->
+                        ${metaHTML}
+                    </div>
+
+                    <!-- آواتار کاربر -->
+                    ${avatarHTML}
                 </div>
-            `).join('');
-            console.log("Messages rendered to DOM"); // Confirm rendering
+            `}).join('');
          }
 
 
@@ -1077,6 +1209,8 @@
         function renderMainMenu() {
             backButton.classList.remove('hidden');
             headerTitle.textContent = 'مدیریت متون';
+            // [جدید] تغییر پس‌زمینه محتوا
+            content.className = 'p-4 space-y-4'; 
 
             if (successMessage) {
                 showMessage(successMessage);
@@ -1119,6 +1253,8 @@
             const menuTitle = menuType === 'MINI_APP_UI' ? "متن‌های مینی‌اپ" : "متن‌های اعلان ربات";
 
             headerTitle.textContent = menuTitle;
+            // [جدید] تغییر پس‌زمینه محتوا
+            content.className = 'p-4 space-y-4'; 
 
             if (successMessage) {
                 showMessage(successMessage);
@@ -1172,6 +1308,8 @@
             }
 
             headerTitle.textContent = `ویرایش: ${keyData.name}`;
+            // [جدید] تغییر پس‌زمینه محتوا
+            content.className = 'p-4 space-y-4'; 
 
             const isNotification = keyData.type === 'USER_NOTIFICATIONS';
             const isUrlField = keyData.isUrl;
@@ -1423,19 +1561,82 @@
             }, 50);
         }
 
-        // رویدادهای اصلی
+        // [اصلاح شد] رویدادهای اصلی
         backButton.addEventListener('click', handleBack);
         
-        // [جدید] تنظیم ارتفاع خودکار برای فیلد پاسخ
+        // [اضافه شده] تمام رویدادهای مربوط به کادر پاسخ
+        const emojiBtn = document.getElementById('emoji-btn');
+        const cannedReplyBtn = document.getElementById('canned-reply-btn');
+        
+        // تنظیمات اولیه انتخابگر ایموجی
+        emojiPicker.dataSource = 'https://cdn.jsdelivr.net/npm/emoji-picker-element-data@^1/fa/emojibase/data.json';
+        emojiPicker.i18n = {
+            "search": "جستجو",
+            "categories": {
+                "activity": "فعالیت",
+                "animals-nature": "حیوانات و طبیعت",
+                "component": "کامپوننت",
+                "flags": "پرچم‌ها",
+                "food-drink": "غذا و نوشیدنی",
+                "objects": "اشیاء",
+                "people-body": "مردم و بدن",
+                "smileys-emotion": "شکلک‌ها و احساسات",
+                "symbols": "نمادها",
+                "travel-places": "سفر و مکان‌ها"
+            },
+            "skintones": {
+                "choose": "انتخاب رنگ پوست پیش‌فرض",
+                "1": "پیش‌فرض",
+                "2": "روشن",
+                "3": "متوسط-روشن",
+                "4": "متوسط",
+                "5": "متوسط-تیره",
+                "6": "تیره"
+            }
+        };
+
+
+        // باز/بسته کردن انتخابگر ایموجی
+        emojiBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            emojiPicker.classList.toggle('visible');
+        });
+
+        // درج ایموجی در متن
+        emojiPicker.addEventListener('emoji-click', event => {
+            insertTextAtCursor(replyTextarea, event.detail.unicode);
+        });
+
+        // بستن انتخابگر ایموجی با کلیک در جای دیگر
+        document.addEventListener('click', (e) => {
+            if (!emojiPicker.contains(e.target) && !emojiBtn.contains(e.target)) {
+                emojiPicker.classList.remove('visible');
+            }
+        });
+
+        // دکمه پاسخ‌های آماده (در حال حاضر فقط پیام می‌دهد)
+        cannedReplyBtn.addEventListener('click', () => {
+            showMessage('💡 (آزمایشی) بخش پاسخ‌های آماده در دست ساخت است.', 'info');
+        });
+
+
+        // تغییر اندازه خودکار فیلد پاسخ
         replyTextarea.addEventListener('input', () => autoResize(replyTextarea));
 
-        // [جدید] رویداد کلیک برای دکمه ارسال پاسخ
+        // ارسال پیام با دکمه Enter (و Shift+Enter برای خط جدید)
+        replyTextarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // جلوگیری از ایجاد خط جدید
+                if (replyTextarea.value.trim() !== '' && currentTicketId) {
+                    sendAdminReplyToWorker(currentTicketId, replyTextarea.value.trim());
+                }
+            }
+        });
+
+        // ارسال پیام با کلیک روی دکمه ارسال
         sendReplyBtn.addEventListener('click', () => {
-            const text = replyTextarea.value.trim();
-            if (text && currentTicketId) {
-                sendAdminReplyToWorker(currentTicketId, text);
-            } else if (!text) {
-                showMessage('❌ لطفا متن پاسخ را وارد کنید.', 'error');
+            if (replyTextarea.value.trim() !== '' && currentTicketId) {
+                sendAdminReplyToWorker(currentTicketId, replyTextarea.value.trim());
             }
         });
 
@@ -1448,3 +1649,4 @@
     </script>
 </body>
 </html>
+
