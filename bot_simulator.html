@@ -16,8 +16,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <style>
+        /* [اضافه شد] فونت ایموجی گوگل از طریق import@ بارگذاری می‌شود */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
+
         body {
-            font-family: 'Vazirmatn', 'Inter', Tahoma, sans-serif;
+            /* [اصلاح شد] فونت ایموجی به انتهای لیست اضافه شد */
+            font-family: 'Vazirmatn', 'Inter', 'Noto Color Emoji', Tahoma, sans-serif;
             background-color: #f7f8fa; /* پس‌زمینه خاکستری بسیار روشن */
             padding-bottom: 100px; /* ارتفاع پیش‌فرض نوار ناوبری */
             overflow-x: hidden; /* جلوگیری از اسکرول افقی */
@@ -105,7 +109,7 @@
             word-wrap: break-word; 
             overflow-wrap: break-word; 
             white-space: pre-wrap; 
-            font-size: 0.95rem; 
+            font-size: 0.85rem; /* [کوچک‌سازی] از 0.95rem */
             line-height: 1.5;
         }
         
@@ -126,8 +130,8 @@
 
         /* [جدید] آواتار */
         .chat-avatar {
-            width: 36px;
-            height: 36px;
+            width: 32px; /* [کوچک‌سازی] از 36px */
+            height: 32px; /* [کوچک‌سازی] از 36px */
             border-radius: 50%;
             background-color: #a5b4fc; 
             color: #312e81; 
@@ -135,8 +139,13 @@
             align-items: center;
             justify-content: center;
             font-weight: 600;
-            font-size: 0.8rem;
+            font-size: 0.75rem; /* [کوچک‌سازی] از 0.8rem */
             flex-shrink: 0; 
+        }
+
+        /* [اضافه شده] اعمال فونت ایموجی گوگل به انتخابگر ایموجی */
+        emoji-picker {
+            font-family: 'Noto Color Emoji', sans-serif;
         }
 
         /* [اضافه شده] استایل برای انتخابگر ایموجی */
@@ -195,7 +204,7 @@
                 <button id="send-reply-btn" class="bg-indigo-600 text-white p-3 h-12 w-12 rounded-full btn-press shadow-lg shadow-indigo-300 flex-shrink-0">
                     <i data-lucide="send" class="h-6 w-6"></i>
                 </button>
-                <textarea id="reply-textarea" rows="1" class="reply-textarea-auto flex-grow p-3 bg-gray-200 focus:bg-white rounded-2xl border border-transparent focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="پاسخ خود را بنویسید..."></textarea>
+                <textarea id="reply-textarea" rows="1" class="reply-textarea-auto flex-grow p-3 bg-gray-200 focus:bg-white rounded-2xl border border-transparent focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-xs" placeholder="پاسخ خود را بنویسید..."></textarea> <!-- [کوچک‌سازی] text-sm به text-xs -->
                 <!-- دکمه پاسخ‌های آماده -->
                 <button id="canned-reply-btn" class="p-3 h-12 w-12 rounded-full text-gray-500 hover:bg-gray-200 transition-colors btn-press flex-shrink-0">
                     <i data-lucide="zap" class="h-6 w-6"></i>
@@ -209,8 +218,12 @@
 
     </div>
 
-    <!-- [اضافه شده] کانتینر انتخابگر ایموجی -->
-    <emoji-picker id="emoji-picker" class="light"></emoji-picker>
+    <!-- [اصلاح شد] کانتینر انتخابگر ایموجی اکنون data-source را مستقیماً در HTML دارد -->
+    <emoji-picker 
+        id="emoji-picker" 
+        class="light"
+        data-source="https://cdn.jsdelivr.net/npm/emoji-picker-element-data@^1/fa/emojibase/data.json"
+    ></emoji-picker>
 
     <!-- [جدید] نوار ناوبری پایین صفحه - سه‌بخشی -->
     <nav id="footer-nav" class="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-5px_20px_rgba(0,0,0,0.05)] rounded-t-3xl h-20 flex justify-around items-center z-10">
@@ -329,7 +342,8 @@
         const replyContainer = document.getElementById('reply-container');
         const replyTextarea = document.getElementById('reply-textarea');
         const sendReplyBtn = document.getElementById('send-reply-btn'); 
-        const emojiPicker = document.getElementById('emoji-picker'); 
+        // [اصلاح شد] emojiPicker در تابع setupEmojiPicker تعریف خواهد شد
+        // const emojiPicker = document.getElementById('emoji-picker'); 
 
         let currentState = 'Dashboard-Loading';
         const history = [];
@@ -432,6 +446,7 @@
         function showReplyContainer(show) {
             const bodyPaddingBottomNav = '100px'; // ارتفاع نوار ناوبری 80px + 20px فضای خالی
             const footerNav = document.getElementById('footer-nav'); // [جدید] نوار ناوبری را پیدا کن
+            const emojiPicker = document.getElementById('emoji-picker'); // [جدید] انتخابگر ایموجی را پیدا کن
             
              if (show) {
                 replyContainer.classList.remove('translate-y-full'); // کادر پاسخ را نشان بده
@@ -442,7 +457,7 @@
                 const totalPadding = replyHeight + 16; // 16px (فاصله)
                 document.body.style.paddingBottom = `${totalPadding}px`;
                 // [اصلاح شد] موقعیت ایموجی بر اساس ارتفاع کادر پاسخ
-                emojiPicker.style.bottom = `${replyHeight + 16}px`; 
+                if (emojiPicker) emojiPicker.style.bottom = `${replyHeight + 16}px`; 
                 
                 // اسکرول به پایین با یک تاخیر کوتاه برای رندر
                 setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50); 
@@ -450,7 +465,7 @@
                 replyContainer.classList.add('translate-y-full'); // کادر پاسخ را مخفی کن
                 if (footerNav) footerNav.classList.remove('hidden'); // [جدید] نوار ناوبری را نشان بده
                 document.body.style.paddingBottom = bodyPaddingBottomNav; 
-                emojiPicker.classList.remove('visible'); // مخفی کردن ایموجی
+                if (emojiPicker) emojiPicker.classList.remove('visible'); // مخفی کردن ایموجی
             }
         }
 
@@ -518,7 +533,8 @@
             if (currentState.startsWith('TicketView_')) {
                  showReplyContainer(false);
                  currentTicketId = null; // ریست کردن آیدی
-                 emojiPicker.classList.remove('visible'); // [جدید] مخفی کردن ایموجی
+                 const emojiPicker = document.getElementById('emoji-picker');
+                 if (emojiPicker) emojiPicker.classList.remove('visible'); // [جدید] مخفی کردن ایموجی
             }
 
             if (history.length > 0) {
@@ -839,7 +855,7 @@
 
             content.innerHTML = `
                 <div class="space-y-4 animate-pulse">
-                    <h2 class="text-2xl font-extrabold text-gray-800 border-b pb-2 mb-3">گزارش عملکرد</h2>
+                    <h2 class="text-xl font-extrabold text-gray-800 border-b pb-2 mb-3">گزارش عملکرد</h2> <!-- [کوچک‌سازی] 2xl به xl -->
 
                     <!-- Skeleton for Metric Cards -->
                     <div class="grid grid-cols-2 gap-3">
@@ -886,16 +902,16 @@
             content.innerHTML = `
                 <div class="space-y-4">
 
-                    <h2 class="text-2xl font-extrabold text-gray-800 border-b pb-2 mb-3 fade-in-up" style="animation-delay: 100ms;">گزارش عملکرد</h2>
+                    <h2 class="text-xl font-extrabold text-gray-800 border-b pb-2 mb-3 fade-in-up" style="animation-delay: 100ms;">گزارش عملکرد</h2> <!-- [کوچک‌سازی] 2xl به xl -->
 
                     <div class="grid grid-cols-2 gap-3">
                         ${metricCards.map((card, index) => `
                             <div class="metric-card fade-in-up" style="animation-delay: ${150 + index * 50}ms;">
                                 <div class="flex items-center justify-between mb-3">
-                                    <h3 class="text-sm font-semibold text-gray-500">${card.title}</h3>
+                                    <h3 class="text-xs font-semibold text-gray-500">${card.title}</h3> <!-- [کوچک‌سازی] sm به xs -->
                                     <i data-lucide="${card.icon}" class="${card.color} h-6 w-6"></i>
                                 </div>
-                                <p class="text-2xl font-extrabold text-gray-900">${card.value}</p>
+                                <p class="text-xl font-extrabold text-gray-900">${card.value}</p> <!-- [کوچک‌سازی] 2xl به xl -->
                                 <p class="text-xs text-gray-400 mt-1 truncate">${card.desc}</p>
                             </div>
                         `).join('')}
@@ -903,16 +919,16 @@
 
                     <!-- [جدید] کارت KPI و نمودارها -->
                     <div class="metric-card bg-white fade-in-up" style="animation-delay: 350ms;">
-                        <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center">
+                        <h3 class="text-base font-bold text-gray-800 mb-3 flex items-center"> <!-- [کوچک‌سازی] lg به base -->
                             <i data-lucide="zap" class="h-5 w-5 ml-2 text-purple-600"></i> شاخص‌های کلیدی (KPI)
                         </h3>
                         <div class="space-y-3">
-                            <p class="flex justify-between text-sm">
+                            <p class="flex justify-between text-xs"> <!-- [کوچک‌سازی] sm به xs -->
                                 <span class="text-gray-600">زمان حل نهایی تیکت:</span>
                                 <span class="font-bold text-gray-800">${stats.avgTimeToResolution || 'N/A'}</span>
                             </p>
                             <div>
-                                <p class="flex justify-between text-sm mb-1">
+                                <p class="flex justify-between text-xs mb-1"> <!-- [کوچک‌سازی] sm به xs -->
                                     <span class="text-gray-600">درصد رضایت کاربران:</span>
                                     <span class="font-bold text-gray-800">${stats.ratingPercentage || '0.0'}%</span>
                                 </p>
@@ -925,19 +941,19 @@
                         <!-- [جدید] بخش نمودارها -->
                         <div class="mt-6 border-t pt-4">
                             <!-- نمودار دایره‌ای -->
-                            <h4 class="text-base font-bold text-gray-700 mb-2">تفکیک امتیازات</h4>
+                            <h4 class="text-sm font-bold text-gray-700 mb-2">تفکیک امتیازات</h4> <!-- [کوچک‌سازی] base به sm -->
                             <div class="w-full max-w-xs mx-auto h-48">
                                 <canvas id="ratingChart"></canvas>
                             </div>
                             <!-- نمودار خطی -->
-                            <h4 class="text-base font-bold text-gray-700 mt-6 mb-2">حجم تیکت (۷ روز گذشته)</h4>
+                            <h4 class="text-sm font-bold text-gray-700 mt-6 mb-2">حجم تیکت (۷ روز گذشته)</h4> <!-- [کوچک‌سازی] base به sm -->
                             <div class="w-full h-48">
                                 <canvas id="volumeChart"></canvas>
                             </div>
                         </div>
                     </div>
 
-                    <button onclick="navigateTo('MainMenu', 'مدیریت متون')" class="w-full bg-white text-gray-900 py-4 mt-3 rounded-2xl shadow-lg hover:shadow-xl transition duration-300 font-bold flex items-center justify-center text-base btn-press fade-in-up" style="animation-delay: 400ms;">
+                    <button onclick="navigateTo('MainMenu', 'مدیریت متون')" class="w-full bg-white text-gray-900 py-4 mt-3 rounded-2xl shadow-lg hover:shadow-xl transition duration-300 font-bold flex items-center justify-center text-sm btn-press fade-in-up" style="animation-delay: 400ms;"> <!-- [کوچک‌سازی] base به sm -->
                         <i data-lucide="settings" class="h-6 w-6 ml-2 text-indigo-600"></i>
                         مدیریت متون و تنظیمات
                     </button>
@@ -987,11 +1003,11 @@
                         ${filteredTickets.length > 0 ? filteredTickets.map((ticket, index) => `
                             <div class="bg-white rounded-2xl shadow-lg p-4 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: ${50 + index * 50}ms;" onclick="navigateTo('TicketView_${ticket.id}', '${ticket.subject}')">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="font-bold text-gray-800 text-base truncate">${ticket.subject || 'بدون موضوع'}</span>
+                                    <span class="font-bold text-gray-800 text-sm truncate">${ticket.subject || 'بدون موضوع'}</span> <!-- [کوچک‌سازی] base به sm -->
                                     <!-- [اصلاح شد] نمایش زمان ایجاد با فرمت بهتر -->
                                     <span class="text-xs font-semibold text-gray-500">${new Date(ticket.created_at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }) || ''}</span>
                                 </div>
-                                <div class="flex items-center justify-between text-sm">
+                                <div class="flex items-center justify-between text-xs"> <!-- [کوچک‌سازی] sm به xs -->
                                      <!-- [اصلاح شد] نمایش user_name اگر وجود دارد -->
                                     <span class="text-gray-600">${ticket.user_name || 'کاربر ناشناس'}</span>
                                     <!-- [اصلاح شد] استفاده از departmentMap تعریف شده در همین فایل -->
@@ -1218,30 +1234,30 @@
             }
 
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2 fade-in-up">شخصی‌سازی محتوا</h2>
-                <p class="text-sm text-gray-500 mb-6 fade-in-up" style="animation-delay: 50ms;">متون کلیدی مینی اپ و اعلان‌های ربات را ویرایش کنید.</p>
+                <h2 class="text-xl font-extrabold text-gray-800 mb-2 fade-in-up">شخصی‌سازی محتوا</h2> <!-- [کوچک‌سازی] 2xl به xl -->
+                <p class="text-xs text-gray-500 mb-6 fade-in-up" style="animation-delay: 50ms;">متون کلیدی مینی اپ و اعلان‌های ربات را ویرایش کنید.</p> <!-- [کوچک‌سازی] sm به xs -->
 
                 <div class="space-y-4">
                     <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: 100ms;" onclick="navigateTo('SubMenu_MINI_APP_UI', 'متن‌های مینی‌اپ')">
                         <div class="flex items-center justify-between">
-                            <span class="flex items-center font-bold text-gray-800 text-base">
+                            <span class="flex items-center font-bold text-gray-800 text-sm"> <!-- [کوچک‌سازی] base به sm -->
                                 <i data-lucide="smartphone" class="h-6 w-6 ml-3 text-indigo-600"></i>
                                 متن‌های مینی‌اپ
                             </span>
                             <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
                         </div>
-                        <p class="text-sm text-gray-500 mt-2 pr-9">ویرایش رابط کاربری و پیام‌های داخل مینی‌اپ.</p>
+                        <p class="text-xs text-gray-500 mt-2 pr-9">ویرایش رابط کاربری و پیام‌های داخل مینی‌اپ.</p> <!-- [کوچک‌سازی] sm به xs -->
                     </div>
 
                     <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: 150ms;" onclick="navigateTo('SubMenu_USER_NOTIFICATIONS', 'متن‌های اعلان ربات')">
                         <div class="flex items-center justify-between">
-                            <span class="flex items-center font-bold text-gray-800 text-base">
+                            <span class="flex items-center font-bold text-gray-800 text-sm"> <!-- [کوچک‌سازی] base به sm -->
                                 <i data-lucide="bell" class="h-6 w-6 ml-3 text-orange-600"></i>
                                 متن‌های اعلان کاربر
                             </span>
                             <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400"></i>
                         </div>
-                        <p class="text-sm text-gray-500 mt-2 pr-9">ویرایش پیام‌هایی که ربات برای کاربران ارسال می‌کند.</p>
+                        <p class="text-xs text-gray-500 mt-2 pr-9">ویرایش پیام‌هایی که ربات برای کاربران ارسال می‌کند.</p> <!-- [کوچک‌سازی] sm به xs -->
                     </div>
                 </div>
             `;
@@ -1262,8 +1278,8 @@
             }
 
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2 fade-in-up">${menuTitle}</h2>
-                <p class="text-sm text-gray-500 mb-6 fade-in-up" style="animation-delay: 50ms;">متن مورد نظر برای ویرایش را انتخاب کنید:</p>
+                <h2 class="text-xl font-extrabold text-gray-800 mb-2 fade-in-up">${menuTitle}</h2> <!-- [کوچک‌سازی] 2xl به xl -->
+                <p class="text-xs text-gray-500 mb-6 fade-in-up" style="animation-delay: 50ms;">متن مورد نظر برای ویرایش را انتخاب کنید:</p> <!-- [کوچک‌سازی] sm به xs -->
 
                 <div class="space-y-4">
                     ${Object.entries(keys).map(([key, data], index) => {
@@ -1281,7 +1297,7 @@
                         return `
                             <div class="bg-white rounded-2xl shadow-lg p-5 cursor-pointer transition duration-200 hover:shadow-xl btn-press fade-in-up" style="animation-delay: ${100 + index * 50}ms;" onclick="navigateTo('EditScreen_${key}', 'ویرایش: ${data.name}')">
                                 <div class="flex items-center justify-between">
-                                    <span class="flex items-center font-bold text-gray-800 text-base">
+                                    <span class="flex items-center font-bold text-gray-800 text-sm"> <!-- [کوچک‌سازی] base به sm -->
                                         <i data-lucide="${menuIcon}" class="h-6 w-6 ml-3 ${iconColor}"></i>
                                         ${data.name}
                                     </span>
@@ -1290,7 +1306,7 @@
                                         <i data-lucide="chevron-left" class="h-5 w-5 text-gray-400 ml-2"></i>
                                     </div>
                                 </div>
-                                <p class="text-sm text-gray-500 mt-2 pr-9">${data.desc}</p>
+                                <p class="text-xs text-gray-500 mt-2 pr-9">${data.desc}</p> <!-- [کوچک‌سازی] sm به xs -->
                             </div>
                         `;
                     }).join('')}
@@ -1323,7 +1339,7 @@
 
             if (isNotification) {
                 markdownGuideHTML = `
-                    <div class="bg-blue-50 border border-blue-200 p-4 mb-5 rounded-2xl text-sm text-gray-700 shadow-md fade-in-up" style="animation-delay: 50ms;">
+                    <div class="bg-blue-50 border border-blue-200 p-4 mb-5 rounded-2xl text-xs text-gray-700 shadow-md fade-in-up" style="animation-delay: 50ms;"> <!-- [کوچک‌سازی] sm به xs -->
                         <p class="font-bold text-blue-700 flex items-center mb-2"><i data-lucide="code" class="h-5 w-5 ml-2"></i> راهنمای Markdown و متغیرها</p>
                         <div class="bg-white border rounded-lg overflow-hidden mt-3">
                             <table class="w-full text-right text-xs">
@@ -1345,7 +1361,7 @@
             } else {
                  const description = keyData.desc || 'توضیحات خاصی برای این متن موجود نیست.';
                  markdownGuideHTML = `
-                       <div class="bg-yellow-50 border border-yellow-200 p-4 mb-5 rounded-2xl text-sm text-gray-700 flex items-start shadow-md fade-in-up" style="animation-delay: 50ms;">
+                       <div class="bg-yellow-50 border border-yellow-200 p-4 mb-5 rounded-2xl text-xs text-gray-700 flex items-start shadow-md fade-in-up" style="animation-delay: 50ms;"> <!-- [کوچک‌سازی] sm به xs -->
                             <i data-lucide="alert-triangle" class="h-5 w-5 ml-2 text-yellow-700 flex-shrink-0 mt-0.5"></i>
                             <div>
                                  <span class="font-bold text-yellow-700 ml-1">راهنما:</span>
@@ -1357,24 +1373,23 @@
 
             if (isUrlField) {
                 inputElement = `
-                    <input id="edit-area" type="url" value="${currentText.replace(/\n/g, '')}" class="w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="مثلاً: https://yourdomain.com/faq">
+                    <input id="edit-area" type="url" value="${currentText.replace(/\n/g, '')}" class="w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-xs" placeholder="مثلاً: https://yourdomain.com/faq"> <!-- [کوچک‌سازی] sm به xs -->
                 `;
             } else if (isBooleanField) {
-                const currentValue = (appTexts[currentEditKey] || "true");
                 inputElement = `
-                    <select id="edit-area" class="w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm bg-white">
+                    <select id="edit-area" class="w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-xs bg-white"> <!-- [کوچک‌سازی] sm به xs -->
                         <option value="true" ${currentValue === "true" ? 'selected' : ''}>فعال (نمایش داده شود)</option>
                         <option value="false" ${currentValue === "false" ? 'selected' : ''}>غیرفعال (مخفی شود)</option>
                     </select>
                 `;
             } else {
                 inputElement = `
-                    <textarea id="edit-area" rows="4" class="auto-resize-textarea w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-sm" placeholder="متن جدید خود را اینجا وارد کنید...">${currentText}</textarea>
+                    <textarea id="edit-area" rows="4" class="auto-resize-textarea w-full p-4 border border-gray-300 rounded-2xl shadow-md focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 transition duration-150 text-gray-800 text-xs" placeholder="متن جدید خود را اینجا وارد کنید...">${currentText}</textarea> <!-- [کوچک‌سازی] sm به xs -->
                 `;
             }
 
             content.innerHTML = `
-                <h2 class="text-2xl font-extrabold text-gray-800 mb-2 fade-in-up">${keyData.name}</h2>
+                <h2 class="text-xl font-extrabold text-gray-800 mb-2 fade-in-up">${keyData.name}</h2> <!-- [کوچک‌سازی] 2xl به xl -->
 
                 ${markdownGuideHTML}
 
@@ -1561,64 +1576,87 @@
             }, 50);
         }
 
+        // --- [جدید] تابع امن برای تنظیم انتخابگر ایموجی ---
+        async function setupEmojiPicker() {
+            try {
+                // 1. منتظر بمانید تا کامپوننت 'emoji-picker' به طور کامل تعریف و آماده شود
+                await customElements.whenDefined('emoji-picker');
+                
+                // 2. حالا که کامپوننت آماده است، المان‌ها را پیدا کنید
+                const emojiPicker = document.getElementById('emoji-picker');
+                const emojiBtn = document.getElementById('emoji-btn');
+                const cannedReplyBtn = document.getElementById('canned-reply-btn');
+
+                if (!emojiPicker || !emojiBtn || !cannedReplyBtn) {
+                    console.error('Emoji picker elements not found after component definition.');
+                    return;
+                }
+
+                // 3. حالا تنظیم i18n (ترجمه‌ها) امن است
+                emojiPicker.i18n = {
+                    "search": "جستجو",
+                    "categories": {
+                        "activity": "فعالیت",
+                        "animals-nature": "حیوانات و طبیعت",
+                        "component": "کامپوننت",
+                        "flags": "پرچم‌ها",
+                        "food-drink": "غذا و نوشیدنی",
+                        "objects": "اشیاء",
+                        "people-body": "مردم و بدن",
+                        "smileys-emotion": "شکلک‌ها و احساسات",
+                        "symbols": "نمادها",
+                        "travel-places": "سفر و مکان‌ها"
+                    },
+                    "skintones": {
+                        "choose": "انتخاب رنگ پوست پیش‌فرض",
+                        "1": "پیش‌فرض",
+                        "2": "روشن",
+                        "3": "متوسط-روشن",
+                        "4": "متوسط",
+                        "5": "متوسط-تیره",
+                        "6": "تیره"
+                    }
+                };
+
+                // 4. حالا اضافه کردن event listener ها امن است
+                
+                // باز/بسته کردن انتخابگر ایموجی
+                emojiBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    emojiPicker.classList.toggle('visible');
+                });
+
+                // درج ایموجی در متن
+                emojiPicker.addEventListener('emoji-click', event => {
+                    insertTextAtCursor(replyTextarea, event.detail.unicode);
+                });
+
+                // دکمه پاسخ‌های آماده (در حال حاضر فقط پیام می‌دهد)
+                cannedReplyBtn.addEventListener('click', () => {
+                    showMessage('💡 (آزمایشی) بخش پاسخ‌های آماده در دست ساخت است.', 'info');
+                });
+
+            } catch (error) {
+                console.error("Failed to setup emoji picker:", error);
+                showMessage('❌ خطا در بارگذاری انتخابگر ایموجی.', 'error');
+            }
+        }
+
+
         // [اصلاح شد] رویدادهای اصلی
         backButton.addEventListener('click', handleBack);
         
-        // [اضافه شده] تمام رویدادهای مربوط به کادر پاسخ
-        const emojiBtn = document.getElementById('emoji-btn');
-        const cannedReplyBtn = document.getElementById('canned-reply-btn');
+        // [اصلاح شد] رویدادهای مربوط به کادر پاسخ که به ایموجی‌ پیکر وابسته نیستند
         
-        // تنظیمات اولیه انتخابگر ایموجی
-        emojiPicker.dataSource = 'https://cdn.jsdelivr.net/npm/emoji-picker-element-data@^1/fa/emojibase/data.json';
-        emojiPicker.i18n = {
-            "search": "جستجو",
-            "categories": {
-                "activity": "فعالیت",
-                "animals-nature": "حیوانات و طبیعت",
-                "component": "کامپوننت",
-                "flags": "پرچم‌ها",
-                "food-drink": "غذا و نوشیدنی",
-                "objects": "اشیاء",
-                "people-body": "مردم و بدن",
-                "smileys-emotion": "شکلک‌ها و احساسات",
-                "symbols": "نمادها",
-                "travel-places": "سفر و مکان‌ها"
-            },
-            "skintones": {
-                "choose": "انتخاب رنگ پوست پیش‌فرض",
-                "1": "پیش‌فرض",
-                "2": "روشن",
-                "3": "متوسط-روشن",
-                "4": "متوسط",
-                "5": "متوسط-تیره",
-                "6": "تیره"
-            }
-        };
-
-
-        // باز/بسته کردن انتخابگر ایموجی
-        emojiBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            emojiPicker.classList.toggle('visible');
-        });
-
-        // درج ایموجی در متن
-        emojiPicker.addEventListener('emoji-click', event => {
-            insertTextAtCursor(replyTextarea, event.detail.unicode);
-        });
-
-        // بستن انتخابگر ایموجی با کلیک در جای دیگر
+        // بستن انتخابگر ایموجی با کلیک در جای دیگر (این listener باید عمومی باشد)
         document.addEventListener('click', (e) => {
-            if (!emojiPicker.contains(e.target) && !emojiBtn.contains(e.target)) {
+            const emojiPicker = document.getElementById('emoji-picker');
+            const emojiBtn = document.getElementById('emoji-btn');
+            // اطمینان از اینکه المان‌ها وجود دارند قبل از بررسی contains
+            if (emojiPicker && emojiBtn && !emojiPicker.contains(e.target) && !emojiBtn.contains(e.target)) {
                 emojiPicker.classList.remove('visible');
             }
         });
-
-        // دکمه پاسخ‌های آماده (در حال حاضر فقط پیام می‌دهد)
-        cannedReplyBtn.addEventListener('click', () => {
-            showMessage('💡 (آزمایشی) بخش پاسخ‌های آماده در دست ساخت است.', 'info');
-        });
-
 
         // تغییر اندازه خودکار فیلد پاسخ
         replyTextarea.addEventListener('input', () => autoResize(replyTextarea));
@@ -1646,6 +1684,9 @@
 
         // آیکون‌های اولیه نوار پایین را رندر می‌کند
         lucide.createIcons();
+
+        // [جدید] فراخوانی تابع امن برای تنظیم ایموجی
+        setupEmojiPicker();
     </script>
 </body>
 </html>
